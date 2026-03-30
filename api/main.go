@@ -84,11 +84,12 @@ var serviceMap = map[string]string{
 	"osm":          "workcafe-scraper-osm",
 	"naver":        "workcafe-scraper-naver",
 	"imagescraper": "workcafe-kakao-images",
+	"naver_images": "workcafe-naver-images",
 	"api":          "workcafe-api",
 	"frontend":     "workcafe-frontend",
 }
 
-var serviceOrder = []string{"kakao", "google", "osm", "naver", "imagescraper", "api", "frontend"}
+var serviceOrder = []string{"kakao", "google", "osm", "naver", "imagescraper", "naver_images", "api", "frontend"}
 
 func getServiceState(unit string) (string, bool) {
 	out, err := exec.Command("systemctl", "--user", "is-active", unit).Output()

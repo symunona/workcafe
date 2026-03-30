@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ExpandIcon } from './Icons'
 
 interface ImageCarouselProps {
@@ -9,6 +9,10 @@ interface ImageCarouselProps {
 
 export function ImageCarousel({ images, alt, onFullScreen }: ImageCarouselProps) {
   const [idx, setIdx] = useState(0)
+
+  useEffect(() => {
+    setIdx(0)
+  }, [images])
   
   if (images.length === 0) return null
 

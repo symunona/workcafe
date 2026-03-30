@@ -1,5 +1,5 @@
 import type { Cafe } from '../types'
-import { getMeta, getImages } from '../utils'
+import { getMeta, getImages, providerColor } from '../utils'
 import { ImageCarousel } from './ImageCarousel'
 import { PhoneIcon, PinIcon, StarIcon, ArrowIcon, CloseIcon } from './Icons'
 
@@ -60,9 +60,11 @@ export function CafeDetailsPane({ cafe, onClose, onFullScreenImage }: CafeDetail
         )}
 
         <div className="cafe-details-meta">
-          <div className="cafe-details-row" style={{ marginTop: '16px', fontSize: '12px', color: '#9ca3af' }}>
-            Source: {cafe.provider}
-            {cafe.scraped_at && ` • Scraped: ${new Date(cafe.scraped_at).toLocaleDateString()}`}
+          <div className="cafe-details-row" style={{ marginTop: '16px', fontSize: '12px', color: '#9ca3af', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            Source: 
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: providerColor(cafe.provider), margin: '0 4px 0 6px' }}></span>
+            {cafe.provider}
+            {cafe.scraped_at && ` • Scraped: ${new Date(cafe.scraped_at).toLocaleString()}`}
           </div>
         </div>
       </div>

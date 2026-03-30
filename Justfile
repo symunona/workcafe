@@ -15,18 +15,18 @@ start:
 kill:
     #!/usr/bin/env bash
     echo "Stopping all workcafe services..."
-    systemctl --user stop workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images
+    systemctl --user stop workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images
     echo "All services stopped."
 
 # Restart all managed services
 restart:
     #!/usr/bin/env bash
     echo "Restarting all workcafe services..."
-    systemctl --user restart workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images
+    systemctl --user restart workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images
     echo "All services restarted."
 
 # Usage: just service <target> [start|stop|status|restart]
-# Targets: kakao | google | osm | naver | imagescraper | api | frontend
+# Targets: kakao | google | osm | naver | imagescraper | naver_images | api | frontend
 service target action="status":
     #!/usr/bin/env bash
     case "{{target}}" in
@@ -35,11 +35,12 @@ service target action="status":
       osm)          svc="workcafe-scraper-osm" ;;
       naver)        svc="workcafe-scraper-naver" ;;
       imagescraper) svc="workcafe-kakao-images" ;;
+      naver_images) svc="workcafe-naver-images" ;;
       api)          svc="workcafe-api" ;;
       frontend)     svc="workcafe-frontend" ;;
       *)
         echo "Unknown target: {{target}}."
-        echo "Use: kakao | google | osm | naver | imagescraper | api | frontend"
+        echo "Use: kakao | google | osm | naver | imagescraper | naver_images | api | frontend"
         exit 1 ;;
     esac
     systemctl --user {{action}} "$svc"

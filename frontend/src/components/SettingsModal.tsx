@@ -58,6 +58,7 @@ const SERVICE_LABELS: Record<string, string> = {
   osm: 'OSM Scraper',
   naver: 'Naver Scraper',
   imagescraper: 'Image Scraper (Kakao)',
+  naver_images: 'Image Scraper (Naver)',
   api: 'API Server',
   frontend: 'Frontend',
 }
@@ -144,7 +145,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     }
   }
 
-  const scraperActive = status?.services.some(s => (s.name === 'datascraper' || s.name === 'imagescraper') && s.active) ?? false
+  const scraperActive = status?.services.some(s => (s.name === 'datascraper' || s.name === 'imagescraper' || s.name === 'naver_images') && s.active) ?? false
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm animate-in fade-in">
@@ -187,7 +188,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Services &amp; DB Queue</h3>
               <div className="flex flex-col gap-2">
                 {status.services.map(svc => {
-                  const qKey = svc.name === 'imagescraper' ? 'unknown' : svc.name
+                  const qKey = (svc.name === 'imagescraper' || svc.name === 'naver_images') ? 'unknown' : svc.name
                   const q = status.db_queue && status.db_queue[qKey]
                   return (
                     <div key={svc.name} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">

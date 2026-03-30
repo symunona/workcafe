@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Cafe } from './types'
@@ -14,6 +14,8 @@ interface Filters {
   withImages: boolean
   multipleImages: boolean
   providers: Set<string>
+  scrapeDateEnabled: boolean
+  maxScrapeDate: number
 }
 
 export default function App() {
@@ -23,7 +25,7 @@ export default function App() {
   const [showFilters, setShowFilters] = useState(false)
   const [showStats, setShowStats] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [filters, setFilters] = useState<Filters>({ openNow: false, withImages: false, multipleImages: false, providers: new Set() })
+  const [filters, setFilters] = useState<Filters>({ openNow: false, withImages: false, multipleImages: false, providers: new Set(), scrapeDateEnabled: false, maxScrapeDate: Date.now() })
   const filterRef = useRef<HTMLDivElement>(null)
 
   const [selectedCafe, setSelectedCafe] = useState<Cafe | null>(null)
@@ -32,7 +34,14 @@ export default function App() {
   useEffect(() => {
     fetch('/api/cafes')
       .then(r => r.json())
-      .then((data: Cafe[]) => { setCafes(data); setLoading(false) })
+      .then((data: Cafe[]) => { 
+        setCafes(data); 
+        setLoading(false);
+        if (data.length > 0) {
+          const maxTime = Math.max(...data.map(c => new Date(c.scraped_at).getTime() || Date.now()));
+          setFilters(f => ({ ...f, maxScrapeDate: maxTime }));
+        }
+      })
       .catch(() => setLoading(false))
   }, [])
 
@@ -46,6 +55,15 @@ export default function App() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [showFilters])
 
+  const { minScrapeDate, maxScrapeDateTotal } = useMemo(() => {
+    if (cafes.length === 0) return { minScrapeDate: Date.now(), maxScrapeDateTotal: Date.now() };
+    const times = cafes.map(c => new Date(c.scraped_at).getTime() || Date.now());
+    return {
+      minScrapeDate: Math.min(...times),
+      maxScrapeDateTotal: Math.max(...times)
+    };
+  }, [cafes]);
+
   const filtered = cafes.filter(c => {
     if (search) {
       const q = search.toLowerCase()
@@ -55,6 +73,7 @@ export default function App() {
     if (filters.withImages && !hasImage(c)) return false
     if (filters.multipleImages && !hasMultipleImages(c)) return false
     if (filters.providers.size > 0 && !filters.providers.has(c.provider)) return false
+    if (filters.scrapeDateEnabled && (new Date(c.scraped_at).getTime() || Date.now()) > filters.maxScrapeDate) return false
     return true
   })
 
@@ -69,7 +88,7 @@ export default function App() {
     })
   }
 
-  const activeFilterCount = (filters.openNow ? 1 : 0) + (filters.withImages ? 1 : 0) + (filters.multipleImages ? 1 : 0) + filters.providers.size
+  const activeFilterCount = (filters.openNow ? 1 : 0) + (filters.withImages ? 1 : 0) + (filters.multipleImages ? 1 : 0) + filters.providers.size + (filters.scrapeDateEnabled ? 1 : 0)
   const imgCount = imageCount(cafes)
   const multiImgCountVal = multiImgCount(cafes)
 
@@ -187,7 +206,7 @@ export default function App() {
               <span>Filters</span>
               {activeFilterCount > 0 && (
                 <button
-                  onClick={() => setFilters({ openNow: false, withImages: false, multipleImages: false, providers: new Set() })}
+                  onClick={() => setFilters(f => ({ ...f, openNow: false, withImages: false, multipleImages: false, providers: new Set(), scrapeDateEnabled: false, maxScrapeDate: maxScrapeDateTotal }))}
                   className="filter-clear"
                 >
                   Clear all
@@ -246,6 +265,34 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            <div className="filter-section" style={{ marginTop: '16px' }}>
+              <label className="toggle-row" style={{ marginBottom: '8px' }}>
+                <div
+                  onClick={() => setFilters(f => ({ ...f, scrapeDateEnabled: !f.scrapeDateEnabled }))}
+                  className={`toggle ${filters.scrapeDateEnabled ? 'on' : ''}`}
+                >
+                  <div className="toggle-knob" />
+                </div>
+                <span>Scraped before</span>
+              </label>
+              {filters.scrapeDateEnabled && (
+                <div style={{ padding: '0 8px', marginBottom: '8px' }}>
+                  <input
+                    type="range"
+                    min={minScrapeDate}
+                    max={maxScrapeDateTotal}
+                    step={1000 * 60 * 60}
+                    value={filters.maxScrapeDate}
+                    onChange={e => setFilters(f => ({ ...f, maxScrapeDate: Number(e.target.value) }))}
+                    style={{ width: '100%', accentColor: '#7c3aed' }}
+                  />
+                  <div style={{ fontSize: '12px', color: '#6b7280', textAlign: 'center', marginTop: '4px' }}>
+                    {new Date(filters.maxScrapeDate).toLocaleString()}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
