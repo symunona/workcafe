@@ -12,6 +12,10 @@ bd close <id>         # Complete work
 bd dolt push          # Push beads data to remote
 ```
 
+## Temporary Files
+
+**ALWAYS** create and use a `tmp/` folder in the workspace root (`workspace_folder/tmp`) for any temporary scripts, screenshots, or intermediate files. Do not clutter the main directory with test scripts or temporary outputs.
+
 ## Non-Interactive Shell Commands
 
 **ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.

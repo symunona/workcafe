@@ -43,3 +43,4 @@ naver_photo.png
 *.swp
 *.swo
 *~
+tmp/
