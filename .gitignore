@@ -1,4 +1,45 @@
 
+# Data directory
+data/
+
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+api/workcafe-api
+
+# Logs
+*.log
+scraper/logs/
+
+# Test/output files
+kakao_test_response.json
+naver_photo.html
+naver_photo.png
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Editor directories and files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+*~
