@@ -129,7 +129,10 @@ export default function App() {
       <div
         ref={filterRef}
         className="absolute top-5 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xl px-4"
-        style={{ transition: 'transform 0.3s ease', transform: selectedCafe ? 'translate(calc(-50% + 200px), 0)' : 'translate(-50%, 0)' }}
+        style={{ 
+          transition: 'transform 0.3s ease', 
+          transform: selectedCafe ? (window.innerWidth > 768 ? 'translate(calc(-50% + 200px), 0)' : 'translate(-50%, 0)') : 'translate(-50%, 0)' 
+        }}
       >
         {/* Pill */}
         <div className="search-pill">
