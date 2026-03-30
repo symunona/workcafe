@@ -130,13 +130,12 @@ export default function App() {
       {/* Search bar overlay */}
       <div
         ref={filterRef}
-        className="absolute top-5 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xl px-4"
+        className="absolute top-0 sm:top-5 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xl px-0 sm:px-4"
         style={{ 
           transition: 'transform 0.3s ease', 
           transform: selectedCafe ? (window.innerWidth > 768 ? 'translate(calc(-50% + 200px), 0)' : 'translate(-50%, 0)') : 'translate(-50%, 0)' 
         }}
       >
-        {/* Pill */}
         <div className="search-pill">
           {loading && <div className="search-loading-bar" />}
 
@@ -258,7 +257,7 @@ export default function App() {
       </div>
 
       {/* Top-right buttons */}
-      <div className="absolute top-5 right-5 z-[1000] flex flex-col sm:flex-row items-end sm:items-center gap-3">
+      <div className="absolute top-20 right-4 sm:top-5 sm:right-5 z-[1000] flex flex-col sm:flex-row items-end sm:items-center gap-3">
         <button
           onClick={() => setShowStats(true)}
           className="bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-purple-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"

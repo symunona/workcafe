@@ -94,8 +94,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const scraperActive = status?.services.some(s => (s.name === 'datascraper' || s.name === 'imagescraper') && s.active) ?? false
 
   return (
-    <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col relative">
+    <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center sm:p-4 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white sm:rounded-2xl shadow-2xl w-full h-full sm:h-auto max-w-3xl sm:max-h-[90vh] overflow-y-auto flex flex-col relative">
         <div className="sticky top-0 bg-white/90 backdrop-blur-md px-6 py-5 border-b border-gray-100 flex items-center justify-between z-10">
           <h2 className="text-xl font-bold text-gray-900">Scraper Settings &amp; Health</h2>
           <button
@@ -165,10 +165,10 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </div>
 
             {/* Per-provider metrics */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Per-Provider Activity</h3>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="w-full text-sm">
+            <div className="mb-8">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Scraping Metrics</h3>
+              <div className="border border-gray-100 rounded-xl overflow-x-auto bg-white">
+                <table className="w-full text-sm min-w-[600px]">
                   <thead>
                     <tr className="bg-gray-50 text-left">
                       <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Provider</th>
