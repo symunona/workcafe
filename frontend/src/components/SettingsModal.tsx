@@ -1,5 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { CloseIcon } from './Icons'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+
+interface HourlyStat {
+  hour: string
+  cafes: number
+  images: number
+}
 
 interface ServiceStatus {
   name: string
@@ -41,6 +48,7 @@ interface StatusData {
   last_image_at: string
   disk: DiskStats
   db_queue: Record<string, QueueEntry>
+  hourly_stats: HourlyStat[]
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -218,6 +226,53 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 </table>
               </div>
             </div>
+
+            {/* Hourly Chart */}
+            {status.hourly_stats && status.hourly_stats.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Scraping Activity (Last 24h)</h3>
+                <div className="bg-white border border-gray-100 rounded-xl p-4 h-[250px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={status.hourly_stats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis 
+                        dataKey="hour" 
+                        tickFormatter={(val) => {
+                          const d = new Date(val.replace(' ', 'T') + 'Z')
+                          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        }}
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickMargin={10}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        yAxisId="left"
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickMargin={10}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis 
+                        yAxisId="right" 
+                        orientation="right" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickMargin={10}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                        labelFormatter={(val) => new Date(val.replace(' ', 'T') + 'Z').toLocaleString()}
+                      />
+                      <Legend wrapperStyle={{ fontSize: '12px' }} />
+                      <Line yAxisId="left" type="monotone" dataKey="cafes" name="Cafes" stroke="#7c3aed" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      <Line yAxisId="right" type="monotone" dataKey="images" name="Images" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             {/* Disk usage */}
             {status.disk && (
