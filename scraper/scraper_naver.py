@@ -12,7 +12,7 @@ def watchdog(timeout):
     print(f"Watchdog triggered! Process hung for more than {timeout} seconds. Exiting.")
     os._exit(1)
 
-def scrape_naver_grid(page, conn, grid_x, grid_y, lat, lon):
+def scrape_naver_grid(context, conn, grid_x, grid_y, lat, lon):
     provider = 'naver'
     cursor = conn.cursor()
     cursor.execute('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?', (grid_x, grid_y, provider))
@@ -31,6 +31,7 @@ def scrape_naver_grid(page, conn, grid_x, grid_y, lat, lon):
             except Exception:
                 pass
 
+    page = context.new_page()
     page.on("response", handle_response)
     
     print(f"Scraping Naver grid ({grid_x}, {grid_y}) at {lat}, {lon}")
@@ -153,6 +154,7 @@ def scrape_naver_grid(page, conn, grid_x, grid_y, lat, lon):
             VALUES (?, ?, ?, ?)
         ''', (grid_x, grid_y, provider, 'completed'))
         
+        page.close()
         time.sleep(random.uniform(2.0, 4.0))
         return True
         
@@ -160,6 +162,7 @@ def scrape_naver_grid(page, conn, grid_x, grid_y, lat, lon):
         print(f"Error scraping grid ({grid_x}, {grid_y}): {e}")
         try:
             page.remove_listener("response", handle_response)
+            page.close()
         except:
             pass
         return False
@@ -183,7 +186,6 @@ def main():
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 viewport={"width": 1920, "height": 1080}
             )
-            page = context.new_page()
             
         except Exception as e:
             print(f"Failed to start browser: {e}")
@@ -202,7 +204,7 @@ def main():
                 timer = threading.Timer(300, watchdog, args=[300])
                 timer.start()
                 try:
-                    success = scrape_naver_grid(page, conn, x, y, grid_lat, grid_lon)
+                    success = scrape_naver_grid(context, conn, x, y, grid_lat, grid_lon)
                 finally:
                     timer.cancel()
                     

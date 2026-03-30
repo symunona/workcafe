@@ -23,7 +23,7 @@ export function CafeDetailsPane({ cafe, onClose, onFullScreenImage }: CafeDetail
       </button>
 
       <div className="cafe-details-image-container">
-        <ImageCarousel images={images} alt={cafe.name} onFullScreen={onFullScreenImage} />
+        <ImageCarousel key={cafe.id} images={images} alt={cafe.name} onFullScreen={onFullScreenImage} />
       </div>
 
       <div className="cafe-details-body">
@@ -58,6 +58,13 @@ export function CafeDetailsPane({ cafe, onClose, onFullScreenImage }: CafeDetail
             <ArrowIcon />
           </a>
         )}
+
+        <div className="cafe-details-meta">
+          <div className="cafe-details-row" style={{ marginTop: '16px', fontSize: '12px', color: '#9ca3af' }}>
+            Source: {cafe.provider}
+            {cafe.scraped_at && ` • Scraped: ${new Date(cafe.scraped_at).toLocaleDateString()}`}
+          </div>
+        </div>
       </div>
     </div>
   )

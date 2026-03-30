@@ -88,25 +88,28 @@ export default function App() {
           subdomains="abcd"
           maxZoom={20}
         />
-        {filtered.map(c => (
-          <CircleMarker
-            key={c.id}
-            center={[c.lat, c.lon]}
-            radius={7}
-            pathOptions={{
-              color: '#fff',
-              weight: 2,
-              fillColor: providerColor(c.provider),
-              fillOpacity: 0.88,
-            }}
-            eventHandlers={{
-              click: () => {
-                setSelectedCafe(c)
-                setFullScreenImageIndex(null)
-              }
-            }}
-          />
-        ))}
+        {filtered.map(c => {
+          const isSelected = selectedCafe?.id === c.id;
+          return (
+            <CircleMarker
+              key={c.id}
+              center={[c.lat, c.lon]}
+              radius={isSelected ? 10 : 7}
+              pathOptions={{
+                color: isSelected ? '#000' : '#fff',
+                weight: isSelected ? 3 : 2,
+                fillColor: providerColor(c.provider),
+                fillOpacity: isSelected ? 1 : 0.88,
+              }}
+              eventHandlers={{
+                click: () => {
+                  setSelectedCafe(c)
+                  setFullScreenImageIndex(null)
+                }
+              }}
+            />
+          );
+        })}
       </MapContainer>
 
       {/* Left slide-in details pane */}
