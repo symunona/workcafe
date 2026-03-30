@@ -1,20 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { Cafe, NaverMetadata, KakaoMetadata, GoogleMetadata } from './types'
+import type { Cafe } from './types'
+import { isOpenNow, hasImage, hasMultipleImages, imageCount, multiImgCount, providerColor } from './utils'
+import { CafeDetailsPane } from './components/CafeDetailsPane'
+import { PictureViewerOverlay } from './components/PictureViewerOverlay'
+import { StatsModal } from './components/StatsModal'
 import './App.css'
-
-const PROVIDER_COLORS: Record<string, string> = {
-  naver:      '#7c3aed', // purple
-  osm:        '#0ea5e9', // sky blue
-  google:     '#ea4335', // google red
-  kakao:      '#f59e0b', // amber
-  foursquare: '#10b981', // emerald
-}
-
-function providerColor(provider: string) {
-  return PROVIDER_COLORS[provider] ?? '#6b7280'
-}
 
 interface Filters {
   openNow: boolean
@@ -23,179 +15,17 @@ interface Filters {
   providers: Set<string>
 }
 
-function getMeta(cafe: Cafe): NaverMetadata | null {
-  if (!cafe.metadata || cafe.provider !== 'naver') return null
-  return cafe.metadata as unknown as NaverMetadata
-}
-
-function getKakaoMeta(cafe: Cafe): KakaoMetadata | null {
-  if (!cafe.metadata || cafe.provider !== 'kakao') return null
-  return cafe.metadata as unknown as KakaoMetadata
-}
-
-
-function getGoogleMeta(cafe: Cafe): GoogleMetadata | null {
-  if (!cafe.metadata || cafe.provider !== 'google') return null
-  return cafe.metadata as unknown as GoogleMetadata
-}
-
-function getImages(cafe: Cafe): string[] {
-  // Always prefer locally hosted images when available
-  const anyMeta = cafe.metadata as { local_images?: string[], local_image_paths?: string[] } | null
-  if (anyMeta?.local_images?.length) return anyMeta.local_images
-  if (anyMeta?.local_image_paths?.length) {
-    // Convert relative path like "../data/seoul/naver/2025551608/image_0.jpg" to valid URLs
-    // Or if they are already valid URLs, just use them
-    return anyMeta.local_image_paths.map(p => {
-      if (p.startsWith('../data/seoul/')) {
-        // Nginx is serving /images -> /home/symunona/dev/workcafe/data/seoul
-        return p.replace('../data/seoul/', '/images/')
-      }
-      return p
-    })
-  }
-
-  // Fall back to CDN URLs until scraper has downloaded them
-  const naver = getMeta(cafe)
-  if (naver) {
-    return naver.thumUrls?.length ? naver.thumUrls : naver.thumUrl ? [naver.thumUrl] : []
-  }
-  const kakao = getKakaoMeta(cafe)
-  if (kakao) {
-    const urls = kakao.image_info?.image_main_urls
-    if (urls?.length) return urls
-    if (kakao.img) return [kakao.img]
-  }
-  const google = getGoogleMeta(cafe)
-  if (google) {
-    if (google.local_images?.length) return google.local_images
-  }
-  return []
-}
-
-function isOpenNow(cafe: Cafe): boolean {
-  const meta = getMeta(cafe)
-  return meta?.businessStatus?.status?.code === 2
-}
-
-function hasImage(cafe: Cafe): boolean {
-  return getImages(cafe).length > 0
-}
-
-function hasMultipleImages(cafe: Cafe): boolean {
-  return getImages(cafe).length > 1
-}
-
-function imageCount(cafes: Cafe[]): number {
-  return cafes.filter(hasImage).length
-}
-
-function multiImgCount(cafes: Cafe[]): number {
-  return cafes.filter(hasMultipleImages).length
-}
-
-function ImageCarousel({ images, alt }: { images: string[], alt: string }) {
-  const [idx, setIdx] = useState(0)
-  if (images.length === 0) return null
-  if (images.length === 1) return (
-    <div className="cafe-popup-img">
-      <img src={images[0]} alt={alt} />
-    </div>
-  )
-  return (
-    <div className="cafe-popup-img carousel">
-      <img src={images[idx]} alt={alt} />
-      <button className="carousel-btn prev" onClick={e => { e.stopPropagation(); setIdx(i => (i - 1 + images.length) % images.length) }}>‹</button>
-      <button className="carousel-btn next" onClick={e => { e.stopPropagation(); setIdx(i => (i + 1) % images.length) }}>›</button>
-      <div className="carousel-counter">{idx + 1} / {images.length}</div>
-    </div>
-  )
-}
-
-function CafePopup({ cafe }: { cafe: Cafe }) {
-  const meta = getMeta(cafe)
-  const images = getImages(cafe)
-  const categories = meta?.category ?? []
-  const status = meta?.businessStatus?.status
-  const isOpen = status?.code === 2
-
-  return (
-    <div className="cafe-popup">
-      <ImageCarousel images={images} alt={cafe.name} />
-      <div className="cafe-popup-body">
-        <div className="cafe-popup-name">{cafe.name}</div>
-        {categories.length > 0 && (
-          <div className="cafe-popup-tags">
-            {categories.slice(0, 3).map(cat => (
-              <span key={cat} className="cafe-popup-tag">{cat}</span>
-            ))}
-          </div>
-        )}
-        <div className="cafe-popup-rows">
-          {status && (
-            <div className={`cafe-popup-status ${isOpen ? 'open' : 'closed'}`}>
-              <span className="status-dot" />
-              {status.text}
-              {status.description && <span className="status-desc"> · {status.description}</span>}
-            </div>
-          )}
-          {meta?.tel && <div className="cafe-popup-row"><PhoneIcon />{meta.tel}</div>}
-          {cafe.address && <div className="cafe-popup-row"><PinIcon />{cafe.address}</div>}
-          {meta?.reviewCount != null && (
-            <div className="cafe-popup-row"><StarIcon />{meta.reviewCount.toLocaleString()} reviews</div>
-          )}
-        </div>
-        {cafe.url && (
-          <a href={cafe.url} target="_blank" rel="noopener noreferrer" className="cafe-popup-link">
-            View on map
-            <ArrowIcon />
-          </a>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function PhoneIcon() {
-  return (
-    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-    </svg>
-  )
-}
-
-function PinIcon() {
-  return (
-    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  )
-}
-
-function StarIcon() {
-  return (
-    <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-    </svg>
-  )
-}
-
-function ArrowIcon() {
-  return (
-    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-    </svg>
-  )
-}
-
 export default function App() {
   const [cafes, setCafes] = useState<Cafe[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [showStats, setShowStats] = useState(false)
   const [filters, setFilters] = useState<Filters>({ openNow: false, withImages: false, multipleImages: false, providers: new Set() })
   const filterRef = useRef<HTMLDivElement>(null)
+
+  const [selectedCafe, setSelectedCafe] = useState<Cafe | null>(null)
+  const [fullScreenImageIndex, setFullScreenImageIndex] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/cafes')
@@ -267,18 +97,39 @@ export default function App() {
               fillColor: providerColor(c.provider),
               fillOpacity: 0.88,
             }}
-          >
-            <Popup maxWidth={300} className="cafe-popup-wrapper">
-              <CafePopup cafe={c} />
-            </Popup>
-          </CircleMarker>
+            eventHandlers={{
+              click: () => {
+                setSelectedCafe(c)
+                setFullScreenImageIndex(null)
+              }
+            }}
+          />
         ))}
       </MapContainer>
+
+      {/* Left slide-in details pane */}
+      {selectedCafe && (
+        <CafeDetailsPane 
+          cafe={selectedCafe} 
+          onClose={() => setSelectedCafe(null)} 
+          onFullScreenImage={(index) => setFullScreenImageIndex(index)} 
+        />
+      )}
+
+      {/* Full screen picture viewer overlay */}
+      {selectedCafe && fullScreenImageIndex !== null && (
+        <PictureViewerOverlay 
+          cafe={selectedCafe} 
+          initialIndex={fullScreenImageIndex} 
+          onClose={() => setFullScreenImageIndex(null)} 
+        />
+      )}
 
       {/* Search bar overlay */}
       <div
         ref={filterRef}
         className="absolute top-5 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xl px-4"
+        style={{ transition: 'transform 0.3s ease', transform: selectedCafe ? 'translate(calc(-50% + 200px), 0)' : 'translate(-50%, 0)' }}
       >
         {/* Pill */}
         <div className="search-pill">
@@ -348,7 +199,7 @@ export default function App() {
               >
                 <div className="toggle-knob" />
               </div>
-              <span>Open now</span>
+              <span>Open now <span className="toggle-hint">({cafes.filter(isOpenNow).length.toLocaleString()})</span></span>
             </label>
 
             <label className="toggle-row">
@@ -375,17 +226,20 @@ export default function App() {
               <div className="filter-section">
                 <div className="filter-section-label">Source</div>
                 <div className="filter-chips">
-                  {availableProviders.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => toggleProvider(p)}
-                      className={`chip ${filters.providers.has(p) ? 'active' : ''}`}
-                      style={filters.providers.has(p) ? { background: providerColor(p), borderColor: providerColor(p) } : {}}
-                    >
-                      <span className="chip-dot" style={{ background: providerColor(p) }} />
-                      {p}
-                    </button>
-                  ))}
+                  {availableProviders.map(p => {
+                    const count = cafes.filter(c => c.provider === p).length;
+                    return (
+                      <button
+                        key={p}
+                        onClick={() => toggleProvider(p)}
+                        className={`chip ${filters.providers.has(p) ? 'active' : ''}`}
+                        style={filters.providers.has(p) ? { background: providerColor(p), borderColor: providerColor(p) } : {}}
+                      >
+                        <span className="chip-dot" style={{ background: providerColor(p) }} />
+                        {p} <span style={{ opacity: 0.8, marginLeft: '4px' }}>({count})</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -397,6 +251,20 @@ export default function App() {
       <div className="brand-badge">
         ☕ WorkCafe Seoul
       </div>
+
+      {/* Stats Button */}
+      <button 
+        onClick={() => setShowStats(true)}
+        className="absolute top-5 right-5 z-[1000] bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-purple-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"
+      >
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        STATS
+      </button>
+
+      {/* Stats Modal */}
+      {showStats && <StatsModal cafes={cafes} onClose={() => setShowStats(false)} />}
     </div>
   )
 }

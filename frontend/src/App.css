@@ -469,3 +469,354 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.06);
   pointer-events: none;
 }
+
+/* ── Cafe Details Pane ───────────────────────────────────────── */
+
+.cafe-details-pane {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 400px;
+  max-width: 100%;
+  background: #fff;
+  z-index: 1001;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slide-in-left 0.3s ease-out;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+.cafe-details-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.cafe-details-close:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.cafe-details-image-container {
+  width: 100%;
+  height: 260px;
+  position: relative;
+  background: #f3f4f6;
+  flex-shrink: 0;
+}
+
+.cafe-details-image-container .cafe-popup-img {
+  height: 100%;
+}
+
+.carousel-fullscreen-btn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.carousel-fullscreen-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.cafe-details-body {
+  padding: 24px;
+}
+
+.cafe-details-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 12px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.cafe-details-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.cafe-details-tag {
+  background: #f3e8ff;
+  color: #7c3aed;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 9999px;
+}
+
+.cafe-details-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.cafe-details-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cafe-details-status.open  { color: #059669; }
+.cafe-details-status.closed { color: #dc2626; }
+
+.cafe-details-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.cafe-details-row svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+}
+
+.cafe-details-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #7c3aed;
+  transition: background 0.15s;
+  width: 100%;
+}
+
+.cafe-details-link:hover {
+  background: #6d28d9;
+}
+
+/* ── Picture Viewer Overlay ──────────────────────────────────── */
+
+.picture-viewer-overlay {
+  position: absolute;
+  top: 0;
+  left: 400px; /* leaves room for details pane */
+  right: 0;
+  bottom: 0;
+  z-index: 1002;
+  display: flex;
+  background: #000;
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.picture-viewer-main {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.picture-viewer-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.picture-viewer-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.picture-viewer-center {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.picture-viewer-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.picture-viewer-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.picture-viewer-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.picture-viewer-btn.prev { left: 24px; }
+.picture-viewer-btn.next { right: 24px; }
+
+.picture-viewer-counter {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 16px;
+  border-radius: 9999px;
+}
+
+.picture-viewer-sidebar {
+  width: 350px;
+  background: #fff;
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid #e5e7eb;
+}
+
+/* On small screens, hide the left pane from the overlay calculation */
+@media (max-width: 768px) {
+  .cafe-details-pane {
+    width: 100%;
+  }
+  .picture-viewer-overlay {
+    left: 0;
+    flex-direction: column;
+  }
+  .picture-viewer-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 40vh;
+  }
+}
+
+/* ── Thumbnail Gallery ───────────────────────────────────────── */
+
+.picture-viewer-gallery-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 20;
+}
+
+.picture-viewer-gallery {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  width: 100%;
+  padding-bottom: 8px; /* For scrollbar */
+}
+
+.picture-viewer-gallery::-webkit-scrollbar {
+  height: 6px;
+}
+
+.picture-viewer-gallery::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.picture-viewer-gallery::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.picture-viewer-thumb {
+  height: 70px;
+  width: auto;
+  object-fit: cover;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.2s, opacity 0.2s;
+  opacity: 0.6;
+}
+
+.picture-viewer-thumb:hover {
+  opacity: 0.9;
+}
+
+.picture-viewer-thumb.active {
+  border-color: #7c3aed;
+  opacity: 1;
+}
+
+.picture-viewer-center {
+  padding-bottom: 120px !important; /* Make room for gallery */
+}
