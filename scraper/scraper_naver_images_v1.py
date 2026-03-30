@@ -190,7 +190,13 @@ async def fetch_photos_page(browser_page, cursor_state: list, place_id: str,
                     },
                     body: JSON.stringify(payload),
                 });
-                const data = await resp.json();
+                const text = await resp.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch(e) {
+                    return {status: resp.status, error: 'JSON parse error', text: text.substring(0, 200)};
+                }
                 return {status: resp.status, data};
             } catch(e) {
                 return {status: -1, error: String(e)};
@@ -205,8 +211,8 @@ async def fetch_photos_page(browser_page, cursor_state: list, place_id: str,
         log.warning(f"  GraphQL 429 rate-limited, sleeping {RATE_LIMIT_SLEEP}s")
         await asyncio.sleep(RATE_LIMIT_SLEEP)
         return None
-    if status != 200:
-        log.warning(f"  GraphQL status {status}: {result.get('error', '')}")
+    if status != 200 or result.get('error'):
+        log.warning(f"  GraphQL status {status}: {result.get('error', '')} {result.get('text', '')}")
         return None
 
     data = result.get('data')
@@ -222,15 +228,17 @@ async def fetch_all_photos(browser_page, place_id: str, business_type: str) -> l
     token = make_wtm_token(place_id, business_type)
 
     # Navigate to the photos tab to establish session cookies.
-    # Use 'load' (not 'networkidle') to avoid long waits; give JS time to settle.
+    # Use 'domcontentloaded' to avoid long waits; give JS time to settle.
     nav_url = f'https://pcmap.place.naver.com/restaurant/{place_id}/photo'
+    nav_success = False
     for nav_attempt in range(3):
         try:
-            resp = await browser_page.goto(nav_url, wait_until='load', timeout=25000)
+            resp = await browser_page.goto(nav_url, wait_until='domcontentloaded', timeout=25000)
             if resp and resp.status == 429:
                 log.warning(f"  429 on nav for {place_id}, sleeping {RATE_LIMIT_SLEEP}s")
                 await asyncio.sleep(RATE_LIMIT_SLEEP)
                 continue
+            nav_success = True
             break
         except Exception as e:
             if nav_attempt < 2:
@@ -238,6 +246,11 @@ async def fetch_all_photos(browser_page, place_id: str, business_type: str) -> l
                 await asyncio.sleep(5)
             else:
                 log.warning(f"  Navigation failed for {place_id}: {e!s:.120}")
+    
+    if not nav_success:
+        log.warning(f"  Skipping {place_id} due to navigation failure.")
+        return []
+    
     await asyncio.sleep(2.0)
 
     # Initial cursor state (no lastCursor on first page)
