@@ -37,6 +37,22 @@ Adding metadata via image classifications.
 
 ## Quick Start
 
+**Web Services (Systemd)**:
+The web services are managed via user systemd units.
+- **Backend API**: `workcafe-api`
+- **Frontend App**: `workcafe-frontend`
+
+You can restart them using:
+```bash
+systemctl --user restart workcafe-api workcafe-frontend
+```
+
+Alternatively, use the provided `Justfile`:
+```bash
+just service api restart
+just service frontend restart
+```
+
 **Scraper** (Python 3):
 ```bash
 cd scraper

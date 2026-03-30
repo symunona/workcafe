@@ -102,7 +102,7 @@
 .filter-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex-shrink: 0;
   font-size: 13px;
   font-weight: 500;
@@ -110,14 +110,21 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
-  transition: color 0.15s;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.15s;
   font-family: inherit;
   white-space: nowrap;
 }
 
-.filter-btn:hover { color: #111827; }
-.filter-btn.active { color: #7c3aed; }
+.filter-btn:hover { 
+  color: #111827; 
+  background: #f3f4f6;
+}
+.filter-btn.active { 
+  color: #7c3aed; 
+  background: #f3e8ff;
+}
 
 .filter-badge {
   display: inline-flex;

@@ -96,8 +96,8 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col relative">
-        <div className="sticky top-0 bg-white/90 backdrop-blur-md px-6 py-4 border-b border-gray-100 flex items-center justify-between z-10">
-          <h2 className="text-xl font-bold text-gray-900">Scraper Settings & Health</h2>
+        <div className="sticky top-0 bg-white/90 backdrop-blur-md px-6 py-5 border-b border-gray-100 flex items-center justify-between z-10">
+          <h2 className="text-xl font-bold text-gray-900">Scraper Settings &amp; Health</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
@@ -111,7 +111,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         ) : !status ? (
           <div className="p-10 text-center text-red-500">Failed to load status</div>
         ) : (
-          <div className="p-6 flex flex-col gap-6">
+          <div className="p-6 sm:p-8 flex flex-col gap-8">
 
             {/* Health summary bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
