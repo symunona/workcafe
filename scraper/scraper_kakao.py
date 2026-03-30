@@ -225,7 +225,7 @@ def scrape_kakao_grid(browser, conn, grid_x, grid_y, lat, lon):
     except Exception as e:
         print(f"Error scraping grid ({grid_x}, {grid_y}): {e}")
         try:
-            page.screenshot(path=f"error_{grid_x}_{grid_y}.png")
+            page.screenshot(path=f"log/error_{grid_x}_{grid_y}.png")
             page.remove_listener("response", handle_response)
             page.close()
             context.close()

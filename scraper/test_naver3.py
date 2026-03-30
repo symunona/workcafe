@@ -13,16 +13,21 @@ def test_naver():
                 try:
                     data = response.json()
                     print("JSON parsed successfully")
-                    with open("naver_test_response.json", "w", encoding="utf-8") as f:
-                        json.dump(data, f, ensure_ascii=False, indent=2)
                 except Exception as e:
                     print("Error parsing JSON:", e)
 
         page.on("response", handle_response)
 
-        url = "https://map.naver.com/p/search/%EC%B9%B4%ED%8E%98?c=15.00,0,0,0,dh"
-        print("Navigating to:", url)
-        page.goto(url)
+        lat = 37.5665
+        lon = 126.9780
+        coord_url = f"https://map.naver.com/p?c=15.00,0,0,0,dh&lat={lat}&lng={lon}"
+        print("Navigating to:", coord_url)
+        page.goto(coord_url)
+        page.wait_for_timeout(2000)
+
+        print("Typing search query...")
+        page.fill("input.input_search", "카페")
+        page.press("input.input_search", "Enter")
         page.wait_for_timeout(5000)
 
         browser.close()

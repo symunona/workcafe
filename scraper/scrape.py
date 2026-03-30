@@ -29,11 +29,11 @@ def run_all_scrapers():
     print(f"Starting parallel scraping with: {', '.join(scrapers)}")
     
     # Ensure logs directory exists
-    os.makedirs("logs", exist_ok=True)
+    os.makedirs("log", exist_ok=True)
     
     for scraper in scrapers:
         provider = scraper.split('_')[1].split('.')[0]
-        log_file = open(f"logs/{provider}_loop.log", "a")
+        log_file = open(f"log/{provider}_loop.log", "a")
         
         cmd = ["../venv/bin/python", "-u", "ralph_loop.py", scraper]
         
@@ -56,7 +56,7 @@ def run_all_scrapers():
         time.sleep(2)
         
     try:
-        print("\nAll scrapers running in parallel. Logs are in the logs/ directory.")
+        print("\nAll scrapers running in parallel. Logs are in the log/ directory.")
         print("Press Ctrl+C to stop all scrapers.\n")
         
         while True:

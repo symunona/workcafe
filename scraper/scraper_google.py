@@ -14,7 +14,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("scraper_google.log"),
+        logging.FileHandler("log/scraper_google.log"),
         logging.StreamHandler()
     ]
 )
@@ -101,7 +101,7 @@ def scrape_google_grid(page, conn, grid_x, grid_y, lat, lon):
             page.wait_for_selector(results_pane_selector, timeout=10000)
         except:
             logging.warning(f"Could not find results pane for grid ({grid_x}, {grid_y}). Might be no results or layout changed.")
-            page.screenshot(path=f"error_grid_{grid_x}_{grid_y}.png")
+            page.screenshot(path=f"log/error_grid_{grid_x}_{grid_y}.png")
             return False
 
         # Scroll to load more results

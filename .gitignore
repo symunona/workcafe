@@ -24,7 +24,7 @@ api/workcafe-api
 
 # Logs
 *.log
-scraper/logs/
+scraper/log/
 
 # Test/output files
 kakao_test_response.json

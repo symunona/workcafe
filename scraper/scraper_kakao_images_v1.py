@@ -54,7 +54,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(message)s',
     handlers=[
-        logging.FileHandler("scraper_kakao_images_v1.log"),
+        logging.FileHandler("log/scraper_kakao_images_v1.log"),
         logging.StreamHandler(),
     ]
 )
