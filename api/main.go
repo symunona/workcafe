@@ -59,6 +59,7 @@ type HourlyStat struct {
 	Hour   string `json:"hour"`
 	Cafes  int    `json:"cafes"`
 	Images int    `json:"images"`
+	Provider string `json:"provider"`
 }
 
 type StatusResponse struct {
@@ -264,12 +265,11 @@ func main() {
 			}
 		}
 
-		// Hourly stats for the last 24 hours
+		// Hourly stats for the last 24 hours (overall)
 		hourlyMap := make(map[string]*HourlyStat)
 		for i := 23; i >= 0; i-- {
 			h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
-			hourlyMap[h] = &HourlyStat{Hour: h}
-			resp.HourlyStats = append(resp.HourlyStats, *hourlyMap[h])
+			hourlyMap[h] = &HourlyStat{Hour: h, Provider: "all"}
 		}
 
 		cafeHourlyRows, err := db.Query(`
@@ -309,6 +309,65 @@ func main() {
 		for i := 23; i >= 0; i-- {
 			h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
 			resp.HourlyStats = append(resp.HourlyStats, *hourlyMap[h])
+		}
+
+		// Per-provider hourly stats
+		providerHourlyMap := make(map[string]map[string]*HourlyStat)
+		
+		// Initialize for all providers we know about
+		for _, pm := range resp.PerProvider {
+			provMap := make(map[string]*HourlyStat)
+			for i := 23; i >= 0; i-- {
+				h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
+				provMap[h] = &HourlyStat{Hour: h, Provider: pm.Provider}
+			}
+			providerHourlyMap[pm.Provider] = provMap
+		}
+
+		provCafeHourlyRows, err := db.Query(`
+			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
+			FROM cafes WHERE scraped_at >= ? GROUP BY provider, hour
+		`, h24ago)
+		if err == nil {
+			defer provCafeHourlyRows.Close()
+			for provCafeHourlyRows.Next() {
+				var p, h string
+				var c int
+				provCafeHourlyRows.Scan(&p, &h, &c)
+				if provMap, ok := providerHourlyMap[p]; ok {
+					if stat, ok := provMap[h]; ok {
+						stat.Cafes = c
+					}
+				}
+			}
+		}
+
+		provImageHourlyRows, err := db.Query(`
+			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
+			FROM images WHERE scraped_at >= ? GROUP BY provider, hour
+		`, h24ago)
+		if err == nil {
+			defer provImageHourlyRows.Close()
+			for provImageHourlyRows.Next() {
+				var p, h string
+				var c int
+				provImageHourlyRows.Scan(&p, &h, &c)
+				if provMap, ok := providerHourlyMap[p]; ok {
+					if stat, ok := provMap[h]; ok {
+						stat.Images = c
+					}
+				}
+			}
+		}
+
+		// Append provider specific stats to the main list
+		for _, pm := range resp.PerProvider {
+			if provMap, ok := providerHourlyMap[pm.Provider]; ok {
+				for i := 23; i >= 0; i-- {
+					h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
+					resp.HourlyStats = append(resp.HourlyStats, *provMap[h])
+				}
+			}
 		}
 
 		resp.Disk = getDiskStats(dataDir)

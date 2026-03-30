@@ -6,6 +6,7 @@ interface HourlyStat {
   hour: string
   cafes: number
   images: number
+  provider: string
 }
 
 interface ServiceStatus {
@@ -89,6 +90,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [status, setStatus] = useState<StatusData | null>(null)
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<Record<string, boolean>>({})
+  const [selectedChartProvider, setSelectedChartProvider] = useState<string>('all')
 
   const fetchStatus = useCallback(() => {
     fetch('/api/status')
@@ -230,10 +232,22 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             {/* Hourly Chart */}
             {status.hourly_stats && status.hourly_stats.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Scraping Activity (Last 24h)</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Scraping Activity (Last 24h)</h3>
+                  <select 
+                    className="text-sm border-gray-200 rounded-md shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1 px-2"
+                    value={selectedChartProvider}
+                    onChange={(e) => setSelectedChartProvider(e.target.value)}
+                  >
+                    <option value="all">All Providers</option>
+                    {status.per_provider.map(p => (
+                      <option key={p.provider} value={p.provider}>{p.provider}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="bg-white border border-gray-100 rounded-xl p-4 h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={status.hourly_stats} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                    <LineChart data={status.hourly_stats.filter(s => s.provider === selectedChartProvider)} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                       <XAxis 
                         dataKey="hour" 
