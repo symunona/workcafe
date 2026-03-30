@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "workcafe",
+  "project_id": "ea2ad197-eae9-4dc3-997f-316adf2da00f"
+}
