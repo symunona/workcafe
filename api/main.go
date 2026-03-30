@@ -198,8 +198,8 @@ func main() {
 		}
 
 		now := time.Now().UTC()
-		h1ago := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
-		h24ago := now.Add(-24 * time.Hour).Format("2006-01-02T15:04:05")
+		h1ago := now.Add(-1 * time.Hour).Format("2006-01-02 15:04:05")
+		h24ago := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
 
 		// Total counts
 		db.QueryRow(`SELECT COUNT(*) FROM cafes`).Scan(&resp.TotalCafes)

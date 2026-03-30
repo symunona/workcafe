@@ -1,0 +1,23 @@
+{
+  "name": "workcafe",
+  "version": "1.0.0",
+  "description": "Independent cafe search platform. Scrapes cafe data from multiple map providers, unifies results, and visualizes on an interactive map without platform bias.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/symunona/workcafe.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/symunona/workcafe/issues"
+  },
+  "homepage": "https://github.com/symunona/workcafe#readme",
+  "devDependencies": {
+    "playwright": "^1.58.2"
+  }
+}

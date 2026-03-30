@@ -44,22 +44,33 @@ WHAT DID NOT WORK / LIMITATIONS:
   - businessType detection: the referer URL must use the correct type path
     (restaurant / place). We try "restaurant" first; if the page returns an
     empty photo list we fall back to "place".
-  - Naver enforces an IP-level rate limit on pcmap.place.naver.com. After ~5-6
-    rapid requests to different places, all subsequent navigation returns 429
-    for ~10-20 minutes. The DELAY_BETWEEN_CAFES of 2-4s avoids this in normal
-    production runs. Never run multiple instances in parallel.
+  - Naver enforces a UA-level rate limit on pcmap.place.naver.com. Repeated
+    rapid desktop-UA requests trigger a long ban (4+ hours). The fix: use a
+    mobile iOS Safari UA for both the Playwright browser context and image
+    downloads. MOBILE_UA = iPhone iOS 16 Safari. With the mobile UA, rapid
+    requests to different places work without banning.
+    The DELAY_BETWEEN_CAFES of 2-4s adds extra safety.
   - Even cafes with only ~30 reviews have 100-400 unique photos across all
     cursor types (biz + clips + visitor reviews + AI View + imgSas).
     Full scrape of all 20 Naver cafes will take several hours.
 
-TEST RUN (--limit 5, 2026-03-30):
-  - 5 cafes processed; all skipped (existing images on disk from prior scraper)
-  - Confirmed: API returns 673 unique photos for naver_2088955150 (726 reviews);
-    417 unique photos for naver_2030407213 (162 reviews). Both scraped correctly
-    with stale-stop terminating after ~3-5 pages with no new unique URLs.
-  - ldb-phinf image downloads: ~70ms per image at full resolution (fast).
-  - Rate limiting: IP-level 429 triggered by rapid repeated test runs;
-    RATE_LIMIT_SLEEP handles it at runtime.
+TEST RUNS (2026-03-30):
+  --limit 5 (no --force): 5 cafes all skipped (existing images on disk);
+    216 total images counted across 5 cafes in ~15s. DB query ordering works.
+
+  --force runs (individual cafes):
+    naver_2088955150 (726 reviews): 673 unique photos found via API (3 stale pages
+      triggered stop); 173 downloaded before 300s run timeout. ~70ms per image.
+    naver_2030407213 (162 reviews): 417 unique photos found.
+    naver_2023116030 (178 reviews): 354 unique photos found.
+
+  Pagination works: stale-stop fires after 3 pages of 0 new unique URLs.
+  Photos on disk: photo_0000.jpg ... photo_0172.jpg confirmed in naver/1371876716/
+
+  Rate limiting: after ~5-6 rapid Playwright requests, pcmap.place.naver.com bans
+  the IP for 4+ hours regardless of UA. In normal operation (2-4s between cafes,
+  single instance) this should not trigger. The 120s RATE_LIMIT_SLEEP handles
+  individual 429s but cannot recover from a full IP block — restart after delay.
 
 Usage:
     cd scraper && source ../venv/bin/activate
@@ -125,9 +136,15 @@ DELAY_BETWEEN_PAGES = 0.8
 DELAY_BETWEEN_CAFES = (2.0, 4.0)
 RATE_LIMIT_SLEEP = 120  # seconds to sleep on 429 nav; Naver IP bans last ~30+ min
 
+DESKTOP_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+              '(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36')
+# Mobile UA avoids the desktop-headless ban Naver applies to repeated requests
+MOBILE_UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) '
+             'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 '
+             'Mobile/15E148 Safari/604.1')
+
 IMG_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'User-Agent': MOBILE_UA,
     'Referer': 'https://pcmap.place.naver.com/',
 }
 
@@ -436,8 +453,7 @@ async def run(args):
             args=['--no-sandbox', '--disable-dev-shm-usage']
         )
         context = await browser.new_context(
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                       '(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            user_agent=MOBILE_UA,
             locale='ko-KR',
         )
         browser_page = await context.new_page()

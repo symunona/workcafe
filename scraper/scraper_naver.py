@@ -20,8 +20,6 @@ def scrape_naver_grid(page, conn, grid_x, grid_y, lat, lon):
     if row and row[0] == 'completed':
         print(f"Skipping Naver grid ({grid_x}, {grid_y}), already completed.")
         return True
-
-    url = f"https://map.naver.com/p/search/%EC%B9%B4%ED%8E%98?c=15.00,0,0,0,dh"
     
     api_data = []
     
@@ -42,7 +40,8 @@ def scrape_naver_grid(page, conn, grid_x, grid_y, lat, lon):
         page.goto(coord_url)
         page.wait_for_timeout(2000)
         
-        page.goto(url)
+        page.fill("input.input_search", "카페")
+        page.press("input.input_search", "Enter")
         
         # Wait for the network request to complete
         page.wait_for_timeout(5000)

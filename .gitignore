@@ -44,3 +44,6 @@ naver_photo.png
 *.swo
 *~
 tmp/
+
+node_modules/
+
