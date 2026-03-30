@@ -130,11 +130,7 @@ export default function App() {
       {/* Search bar overlay */}
       <div
         ref={filterRef}
-        className="absolute top-0 sm:top-5 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xl px-0 sm:px-4"
-        style={{ 
-          transition: 'transform 0.3s ease', 
-          transform: selectedCafe ? (window.innerWidth > 768 ? 'translate(calc(-50% + 200px), 0)' : 'translate(-50%, 0)') : 'translate(-50%, 0)' 
-        }}
+        className={`search-container ${selectedCafe ? 'sidebar-open' : ''}`}
       >
         <div className="search-pill">
           {loading && <div className="search-loading-bar" />}
@@ -257,21 +253,21 @@ export default function App() {
       </div>
 
       {/* Top-right buttons */}
-      <div className="absolute top-20 right-4 sm:top-5 sm:right-5 z-[1000] flex flex-col sm:flex-row items-end sm:items-center gap-3">
+      <div className="absolute top-24 right-4 sm:top-6 sm:right-6 z-[1000] flex flex-col sm:flex-row items-end sm:items-center gap-4">
         <button
           onClick={() => setShowStats(true)}
-          className="bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-purple-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"
+          className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-purple-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"
         >
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
           STATS
         </button>
         <button
           onClick={() => setShowSettings(true)}
-          className="bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"
+          className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-blue-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"
         >
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>

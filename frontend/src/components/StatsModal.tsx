@@ -45,7 +45,7 @@ export function StatsModal({ cafes, onClose }: StatsModalProps) {
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">Database Statistics</h2>
           <button 
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
           >
             <CloseIcon />
           </button>

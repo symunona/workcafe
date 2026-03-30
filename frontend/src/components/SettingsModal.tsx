@@ -17,6 +17,17 @@ interface ProviderMetrics {
   total: number
 }
 
+interface DiskStats {
+  data_dir_gb: number
+  limit_gb: number
+  used_pct: number
+}
+
+interface QueueEntry {
+  queue_depth: number
+  updated_at: string
+}
+
 interface StatusData {
   services: ServiceStatus[]
   per_provider: ProviderMetrics[]
@@ -28,11 +39,16 @@ interface StatusData {
   images_24h: number
   last_cafe_at: string
   last_image_at: string
+  disk: DiskStats
+  db_queue: Record<string, QueueEntry>
 }
 
 const SERVICE_LABELS: Record<string, string> = {
-  datascraper: 'Data Scraper',
-  imagescraper: 'Image Scraper',
+  kakao: 'Kakao Scraper',
+  google: 'Google Scraper',
+  osm: 'OSM Scraper',
+  naver: 'Naver Scraper',
+  imagescraper: 'Image Scraper (Kakao)',
   api: 'API Server',
   frontend: 'Frontend',
 }
@@ -100,7 +116,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <h2 className="text-xl font-bold text-gray-900">Scraper Settings &amp; Health</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
           >
             <CloseIcon />
           </button>
@@ -202,6 +218,47 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 </table>
               </div>
             </div>
+
+            {/* Disk usage */}
+            {status.disk && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Storage</h3>
+                <div className="bg-gray-50 rounded-xl px-4 py-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{status.disk.data_dir_gb} GB used of {status.disk.limit_gb} GB limit</span>
+                    <span className={`font-semibold ${status.disk.used_pct > 85 ? 'text-red-600' : status.disk.used_pct > 60 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      {status.disk.used_pct}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${status.disk.used_pct > 85 ? 'bg-red-500' : status.disk.used_pct > 60 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                      style={{ width: `${Math.min(status.disk.used_pct, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DB queue */}
+            {status.db_queue && Object.keys(status.db_queue).length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">DB Write Queue</h3>
+                <div className="flex flex-col gap-1.5">
+                  {Object.entries(status.db_queue).map(([provider, entry]) => (
+                    <div key={provider} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 text-sm">
+                      <span className="capitalize text-gray-700">{provider}</span>
+                      <div className="flex items-center gap-3">
+                        <span className={`font-semibold ${entry.queue_depth > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                          {entry.queue_depth > 0 ? `${entry.queue_depth} queued` : 'clear'}
+                        </span>
+                        <span className="text-xs text-gray-400">{timeSince(entry.updated_at)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Health indicator */}
             <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 rounded-xl px-4 py-3">

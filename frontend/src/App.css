@@ -4,9 +4,9 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.92);
+  gap: 12px;
+  padding: 16px 28px;
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 9999px;
@@ -110,7 +110,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 8px 12px;
   border-radius: 8px;
   transition: all 0.15s;
   font-family: inherit;
@@ -505,8 +505,8 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
@@ -539,8 +539,8 @@
   position: absolute;
   top: 16px;
   left: 16px;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
@@ -629,8 +629,8 @@
   font-weight: 600;
   color: #fff;
   text-decoration: none;
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: 14px 20px;
+  border-radius: 12px;
   background: #7c3aed;
   transition: background 0.15s;
   width: 100%;
@@ -671,8 +671,8 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
