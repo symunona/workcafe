@@ -63,11 +63,11 @@ const SERVICE_LABELS: Record<string, string> = {
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
-  kakao: '#eab308', // yellow-500
-  google: '#3b82f6', // blue-500
-  naver: '#22c55e', // green-500
-  osm: '#8b5cf6', // purple-500
-  all: '#64748b', // slate-500
+  kakao: '#facc15', // bright yellow
+  google: '#ef4444', // red
+  naver: '#10b981', // emerald green
+  osm: '#d946ef', // vibrant purple
+  all: '#64748b', // slate
 }
 
 function timeSince(iso: string): string {
