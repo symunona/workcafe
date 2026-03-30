@@ -72,7 +72,12 @@ const PROVIDER_COLORS: Record<string, string> = {
 
 function timeSince(iso: string): string {
   if (!iso) return 'never'
-  const diff = Date.now() - new Date(iso.replace(' ', 'T') + (iso.includes('Z') ? '' : 'Z')).getTime()
+  let dStr = iso.replace(' ', 'T')
+  // If it doesn't have a Z and doesn't have a timezone offset (+00:00 or -00:00), append Z
+  if (!dStr.includes('Z') && !dStr.match(/[+-]\d{2}:\d{2}$/)) dStr += 'Z'
+  const time = new Date(dStr).getTime()
+  if (isNaN(time)) return 'invalid date'
+  const diff = Date.now() - time
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`
@@ -83,7 +88,9 @@ function timeSince(iso: string): string {
 
 function healthColor(lastAt: string, activeServices: boolean): string {
   if (!lastAt) return '#ef4444'
-  const diffH = (Date.now() - new Date(lastAt.replace(' ', 'T') + (lastAt.includes('Z') ? '' : 'Z')).getTime()) / 3600000
+  let dStr = lastAt.replace(' ', 'T')
+  if (!dStr.includes('Z') && !dStr.match(/[+-]\d{2}:\d{2}$/)) dStr += 'Z'
+  const diffH = (Date.now() - new Date(dStr).getTime()) / 3600000
   if (!activeServices) return '#f97316'
   if (diffH < 1) return '#22c55e'
   if (diffH < 4) return '#eab308'
@@ -175,38 +182,53 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               ))}
             </div>
 
-            {/* Service toggles */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Services</h3>
+            {/* Service toggles & DB Queue */}
+            <div className="mb-8">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Services &amp; DB Queue</h3>
               <div className="flex flex-col gap-2">
-                {status.services.map(svc => (
-                  <div key={svc.name} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ background: svc.active ? '#22c55e' : svc.state === 'failed' ? '#ef4444' : '#d1d5db' }}
-                      />
-                      <div>
-                        <div className="font-medium text-gray-800 text-sm">{SERVICE_LABELS[svc.name] ?? svc.name}</div>
-                        <div className="text-xs text-gray-400">{svc.unit} · {svc.state}</div>
+                {status.services.map(svc => {
+                  const qKey = svc.name === 'imagescraper' ? 'unknown' : svc.name
+                  const q = status.db_queue && status.db_queue[qKey]
+                  return (
+                    <div key={svc.name} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ background: svc.active ? '#22c55e' : svc.state === 'failed' ? '#ef4444' : '#d1d5db' }}
+                        />
+                        <div>
+                          <div className="font-medium text-gray-800 text-sm">{SERVICE_LABELS[svc.name] ?? svc.name}</div>
+                          <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                            <span>{svc.unit} · {svc.state}</span>
+                            {q && (
+                              <>
+                                <span className="text-gray-300">|</span>
+                                <span>
+                                  Queue: <span className={q.queue_depth > 0 ? 'text-orange-600 font-semibold' : 'text-green-600'}>{q.queue_depth > 0 ? `${q.queue_depth} queued` : 'clear'}</span>
+                                  {' '} ({timeSince(q.updated_at)})
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                      <button
+                        disabled={toggling[svc.name] || svc.name === 'api'}
+                        onClick={() => toggle(svc.name, svc.active)}
+                        title={svc.name === 'api' ? 'Cannot stop API from here' : undefined}
+                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
+                          svc.active ? 'bg-green-500' : 'bg-gray-300'
+                        } ${toggling[svc.name] ? 'opacity-50' : ''} ${svc.name === 'api' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                            svc.active ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                     </div>
-                    <button
-                      disabled={toggling[svc.name] || svc.name === 'api'}
-                      onClick={() => toggle(svc.name, svc.active)}
-                      title={svc.name === 'api' ? 'Cannot stop API from here' : undefined}
-                      className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${
-                        svc.active ? 'bg-green-500' : 'bg-gray-300'
-                      } ${toggling[svc.name] ? 'opacity-50' : ''} ${svc.name === 'api' ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                          svc.active ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
@@ -317,26 +339,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                       style={{ width: `${Math.min(status.disk.used_pct, 100)}%` }}
                     />
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* DB queue */}
-            {status.db_queue && Object.keys(status.db_queue).length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">DB Write Queue</h3>
-                <div className="flex flex-col gap-1.5">
-                  {Object.entries(status.db_queue).map(([provider, entry]) => (
-                    <div key={provider} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 text-sm">
-                      <span className="capitalize text-gray-700">{provider}</span>
-                      <div className="flex items-center gap-3">
-                        <span className={`font-semibold ${entry.queue_depth > 0 ? 'text-orange-600' : 'text-green-600'}`}>
-                          {entry.queue_depth > 0 ? `${entry.queue_depth} queued` : 'clear'}
-                        </span>
-                        <span className="text-xs text-gray-400">{timeSince(entry.updated_at)}</span>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}
