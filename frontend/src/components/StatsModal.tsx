@@ -39,8 +39,8 @@ export function StatsModal({ cafes, onClose }: StatsModalProps) {
   }, [cafes])
 
   return (
-    <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center sm:p-4 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white sm:rounded-2xl shadow-2xl w-full h-full sm:h-auto max-w-4xl sm:max-h-[90vh] overflow-y-auto flex flex-col relative">
+    <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-h-full max-w-4xl overflow-y-auto flex flex-col relative">
         <div className="sticky top-0 bg-white/90 backdrop-blur-md px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between z-10">
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">Database Statistics</h2>
           <button 
