@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { CloseIcon } from './Icons'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
@@ -62,6 +62,14 @@ const SERVICE_LABELS: Record<string, string> = {
   frontend: 'Frontend',
 }
 
+const PROVIDER_COLORS: Record<string, string> = {
+  kakao: '#eab308', // yellow-500
+  google: '#3b82f6', // blue-500
+  naver: '#22c55e', // green-500
+  osm: '#8b5cf6', // purple-500
+  all: '#64748b', // slate-500
+}
+
 function timeSince(iso: string): string {
   if (!iso) return 'never'
   const diff = Date.now() - new Date(iso.replace(' ', 'T') + (iso.includes('Z') ? '' : 'Z')).getTime()
@@ -90,7 +98,19 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [status, setStatus] = useState<StatusData | null>(null)
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<Record<string, boolean>>({})
-  const [selectedChartProvider, setSelectedChartProvider] = useState<string>('all')
+
+  const chartData = useMemo(() => {
+    if (!status?.hourly_stats) return []
+    const map = new Map<string, any>()
+    status.hourly_stats.forEach(s => {
+      if (s.provider === 'all') return
+      if (!map.has(s.hour)) map.set(s.hour, { hour: s.hour })
+      const row = map.get(s.hour)
+      row[`${s.provider}_cafes`] = s.cafes
+      row[`${s.provider}_images`] = s.images
+    })
+    return Array.from(map.values()).sort((a, b) => a.hour.localeCompare(b.hour))
+  }, [status?.hourly_stats])
 
   const fetchStatus = useCallback(() => {
     fetch('/api/status')
@@ -230,24 +250,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             </div>
 
             {/* Hourly Chart */}
-            {status.hourly_stats && status.hourly_stats.length > 0 && (
+            {chartData.length > 0 && (
               <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Scraping Activity (Last 24h)</h3>
-                  <select 
-                    className="text-sm border-gray-200 rounded-md shadow-sm focus:border-purple-500 focus:ring-purple-500 py-1 px-2"
-                    value={selectedChartProvider}
-                    onChange={(e) => setSelectedChartProvider(e.target.value)}
-                  >
-                    <option value="all">All Providers</option>
-                    {status.per_provider.map(p => (
-                      <option key={p.provider} value={p.provider}>{p.provider}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="bg-white border border-gray-100 rounded-xl p-4 h-[250px]">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Scraping Activity (Last 24h)</h3>
+                <div className="bg-white border border-gray-100 rounded-xl p-4 h-[350px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={status.hourly_stats.filter(s => s.provider === selectedChartProvider)} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                    <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                       <XAxis 
                         dataKey="hour" 
@@ -280,8 +288,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         labelFormatter={(val) => new Date(val.replace(' ', 'T') + 'Z').toLocaleString()}
                       />
                       <Legend wrapperStyle={{ fontSize: '12px' }} />
-                      <Line yAxisId="left" type="monotone" dataKey="cafes" name="Cafes" stroke="#7c3aed" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                      <Line yAxisId="right" type="monotone" dataKey="images" name="Images" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      {status.per_provider.map(p => (
+                        <Line key={`${p.provider}_cafes`} yAxisId="left" type="monotone" dataKey={`${p.provider}_cafes`} name={`${p.provider} Cafes`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      ))}
+                      {status.per_provider.map(p => (
+                        <Line key={`${p.provider}_images`} yAxisId="right" type="monotone" dataKey={`${p.provider}_images`} name={`${p.provider} Images`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={{ r: 4 }} />
+                      ))}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
