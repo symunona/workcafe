@@ -146,11 +146,13 @@ log ""
 DATA_DIR="/home/symunona/dev/workcafe/data/seoul"
 DISK_TOTAL=$(df -h "$DATA_DIR" 2>/dev/null | awk 'NR==2{print $2}')
 DISK_USED=$(df -h "$DATA_DIR" 2>/dev/null | awk 'NR==2{print $3}')
+DISK_AVAIL=$(df -h "$DATA_DIR" 2>/dev/null | awk 'NR==2{print $4}')
 DISK_PCT=$(df -h "$DATA_DIR" 2>/dev/null | awk 'NR==2{print $5}')
 DISK_PCT_NUM=$(df "$DATA_DIR" 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}')
+DISK_AVAIL_KB=$(df -k "$DATA_DIR" 2>/dev/null | awk 'NR==2{print $4}')
 IMG_SIZE=$(du -sh "$DATA_DIR" 2>/dev/null | awk '{print $1}')
 
-log "  Partition: $DISK_USED / $DISK_TOTAL ($DISK_PCT used)"
+log "  Partition: $DISK_USED / $DISK_TOTAL ($DISK_PCT used, $DISK_AVAIL free)"
 log "  Image data dir: $IMG_SIZE"
 
 for PROV in kakao naver google; do
@@ -158,11 +160,11 @@ for PROV in kakao naver google; do
   log "  $PROV images: $SZ"
 done
 
-# ── Disk safety shutdown at 90% ──────────────────────────────────────────────
-DISK_LIMIT=90
-if [[ "${DISK_PCT_NUM:-0}" -ge "$DISK_LIMIT" ]]; then
+# ── Disk safety shutdown at < 2GB free ──────────────────────────────────────────────
+MIN_AVAIL_KB=2097152 # 2GB
+if [[ "${DISK_AVAIL_KB:-0}" -lt "$MIN_AVAIL_KB" ]]; then
   log ""
-  log "  !!! DISK USAGE ${DISK_PCT_NUM}% >= ${DISK_LIMIT}% LIMIT — SHUTTING DOWN ALL IMAGE SCRAPERS !!!"
+  log "  !!! DISK FREE SPACE < 2GB — SHUTTING DOWN ALL IMAGE SCRAPERS !!!"
   log ""
   for SVC in workcafe-kakao-images workcafe-naver-images workcafe-google-images; do
     if systemctl --user is-active "$SVC" &>/dev/null; then
@@ -222,8 +224,8 @@ A 'Skip: all N images downloaded' means that cafe is fully done.
 ## Your tasks
 1. Review the report above. Check if any scraper has zero rate or is stuck (no activity in last 2h).
 2. For any dead/stalled service: check the last 20 journal lines for the root cause, then restart it.
-3. Check disk usage — if >90% full, services were already stopped by this script. Log CRITICAL.
-   If 80-90%, warn with estimated days to limit at current rate.
+3. Check disk usage — if < 2GB free, services were already stopped by this script. Log CRITICAL.
+   If < 5GB free, warn with estimated days to limit at current rate.
 4. **Kakao pass completion check**: Run this query to see progress:
    sqlite3 /home/symunona/dev/workcafe/data/seoul/cafedata.db \
      \"SELECT COUNT(*) as cafes, MIN(cnt) as min_imgs, MAX(cnt) as max_imgs, ROUND(AVG(cnt),1) as avg_imgs
