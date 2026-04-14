@@ -6,6 +6,10 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
+DB_SOCKET_PATH = '/tmp/workcafe_db.sock'
+DB_PID_FILE    = '/tmp/workcafe_db.pid'
+
+
 def normalize_provider_id(provider_id: str) -> str:
     """Return a filesystem-safe version of a provider_id (latin chars and digits only).
 
@@ -50,43 +54,9 @@ def get_db_conn(path=DB_PATH):
     conn.execute('PRAGMA busy_timeout=30000')
     return conn
 
-_save_queue = []
-
-def db_execute(conn, query, params=()):
-    """
-    Pushes a query to the _save_queue. Attempts to execute and commit all queries in the queue.
-    If the database is locked, it rolls back and leaves the queries in the queue for the next call.
-    """
-    global _save_queue
-    _save_queue.append((query, params))
-    
-    cursor = conn.cursor()
-    try:
-        for q, p in _save_queue:
-            cursor.execute(q, p)
-        conn.commit()
-        _save_queue.clear()
-        return True
-    except sqlite3.OperationalError as e:
-        conn.rollback()
-        if 'locked' in str(e).lower() or 'busy' in str(e).lower():
-            # Gently handle DB lock by leaving queries in the queue
-            return False
-        else:
-            raise
-    except Exception:
-        conn.rollback()
-        raise
-
-def init_db():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    for provider in ['osm', 'google', 'kakao', 'naver', 'foursquare']:
-        os.makedirs(os.path.join(DATA_DIR, provider), exist_ok=True)
-
-    conn = get_db_conn()
-    cursor = conn.cursor()
-    # Table to store scraped cafes
-    cursor.execute('''
+def init_tables(conn):
+    """Create all tables. Called by db_server on startup."""
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS cafes (
             id TEXT PRIMARY KEY,
             provider TEXT,
@@ -100,8 +70,7 @@ def init_db():
             scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    # Table to track progress
-    cursor.execute('''
+    conn.execute('''
         CREATE TABLE IF NOT EXISTS progress (
             grid_x INTEGER,
             grid_y INTEGER,
@@ -110,10 +79,61 @@ def init_db():
             PRIMARY KEY (grid_x, grid_y, provider)
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS images (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            cafe_id     TEXT,
+            provider    TEXT,
+            local_path  TEXT,
+            image_url   TEXT,
+            gallery_url TEXT,
+            photo_id    TEXT,
+            photo_type  TEXT,
+            tags        TEXT,
+            registered_at TEXT,
+            width       INTEGER,
+            height      INTEGER,
+            file_size   INTEGER,
+            exif_date   TEXT,
+            exif_lat    REAL,
+            exif_lon    REAL,
+            UNIQUE(cafe_id, photo_id)
+        )
+    ''')
     conn.commit()
-    return conn
 
-def get_spiral_coordinates(max_steps=100):
+
+def init_db():
+    """Create provider dirs. Tables are created by db_server on startup."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    for provider in ['osm', 'google', 'kakao', 'naver', 'foursquare']:
+        os.makedirs(os.path.join(DATA_DIR, provider), exist_ok=True)
+
+def check_if_done(dbc, providers, coords):
+    """
+    Check all coords are 'completed' for all providers.
+    providers: str or list of str.
+    dbc: DBClient instance.
+    """
+    if not coords:
+        return False
+
+    if isinstance(providers, str):
+        providers = [providers]
+
+    for provider in providers:
+        rows = dbc.fetchall(
+            "SELECT grid_x, grid_y FROM progress WHERE provider=? AND status='completed'",
+            (provider,)
+        )
+        completed = set(tuple(r) for r in rows)
+        for x, y in coords:
+            if (x, y) not in completed:
+                return False
+
+    return True
+
+def get_spiral_coordinates(max_steps=100, max_radius_km=20):
     """
     Generates (x, y) coordinates in a spiral from (0, 0)
     Returns a list of coordinates so we can slice it if needed.
@@ -124,8 +144,10 @@ def get_spiral_coordinates(max_steps=100):
     dx = 0
     dy = -1
     for _ in range(max_steps):
-        if (-max_steps/2 < x <= max_steps/2) and (-max_steps/2 < y <= max_steps/2):
-            coords.append((x, y))
+        dist_km = ( (x * 0.88)**2 + (y * 1.11)**2 ) ** 0.5
+        if dist_km <= max_radius_km:
+            if (-max_steps/2 < x <= max_steps/2) and (-max_steps/2 < y <= max_steps/2):
+                coords.append((x, y))
         if x == y or (x < 0 and x == -y) or (x > 0 and x == 1-y):
             dx, dy = -dy, dx
         x, y = x + dx, y + dy
@@ -138,27 +160,3 @@ def get_bounding_box(grid_x, grid_y):
     max_lon = CENTER_LON + (grid_x + 0.5) * STEP_SIZE
     return min_lat, min_lon, max_lat, max_lon
 
-def flush_db_queue(conn):
-    """
-    Flushes any remaining queries in the queue.
-    """
-    global _save_queue
-    if not _save_queue:
-        return True
-    
-    cursor = conn.cursor()
-    try:
-        for q, p in _save_queue:
-            cursor.execute(q, p)
-        conn.commit()
-        _save_queue.clear()
-        return True
-    except sqlite3.OperationalError as e:
-        conn.rollback()
-        if 'locked' in str(e).lower() or 'busy' in str(e).lower():
-            return False
-        else:
-            raise
-    except Exception:
-        conn.rollback()
-        raise

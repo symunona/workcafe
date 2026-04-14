@@ -22,14 +22,15 @@ import argparse
 import urllib.parse
 import logging
 import threading
+import signal
 import re
 
 from playwright.sync_api import sync_playwright
-import utils
 from utils import (
     init_db, get_spiral_coordinates, DATA_DIR, CENTER_LAT, CENTER_LON,
-    normalize_provider_id, db_execute, flush_db_queue,
+    normalize_provider_id, check_if_done,
 )
+from db_client import DBClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,7 +43,6 @@ logging.basicConfig(
 
 SEARCH_KEYWORDS = ["카페", "커피전문점", "cafe", "브런치카페"]
 
-# Realistic Chrome UAs across OS/version combinations
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
@@ -60,6 +60,16 @@ VIEWPORTS = [
 ]
 
 LOCALES = ["en-US", "en-GB", "en-KR"]
+
+_shutdown = threading.Event()
+
+
+def _sigterm(sig, frame):
+    logging.info("SIGTERM received — finishing current search then exiting.")
+    _shutdown.set()
+
+
+signal.signal(signal.SIGTERM, _sigterm)
 
 
 def watchdog(timeout):
@@ -101,7 +111,6 @@ def dismiss_consent(page):
 
 
 def is_captcha_page(page) -> bool:
-    """Return True if the current page is a CAPTCHA / unusual-traffic page."""
     try:
         content = page.content()
         return (
@@ -115,7 +124,6 @@ def is_captcha_page(page) -> bool:
 
 
 def warmup(page):
-    """Visit google.com briefly before going to Maps — looks more human."""
     try:
         page.goto("https://www.google.com", wait_until="domcontentloaded", timeout=30000)
         page.wait_for_timeout(random.uniform(2000, 4000))
@@ -125,19 +133,13 @@ def warmup(page):
         pass
 
 
-def scrape_one(playwright_instance, conn, grid_x, grid_y, lat, lon, keyword) -> bool:
-    """
-    Open a fresh browser context, search once, extract results, close context.
-    Returns True on success (even if 0 results), False on CAPTCHA/error.
-    """
+def scrape_one(playwright_instance, dbc, grid_x, grid_y, lat, lon, keyword) -> bool:
     provider = 'google'
 
-    cursor = conn.cursor()
-    cursor.execute('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
-                   (grid_x, grid_y, f"{provider}_{keyword}"))
-    row = cursor.fetchone()
+    row = dbc.fetchone('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
+                       (grid_x, grid_y, f"{provider}_{keyword}"))
     if row and row[0] == 'completed':
-        return True  # already done
+        return True
 
     ua       = random.choice(USER_AGENTS)
     viewport = random.choice(VIEWPORTS)
@@ -145,10 +147,7 @@ def scrape_one(playwright_instance, conn, grid_x, grid_y, lat, lon, keyword) -> 
 
     browser = playwright_instance.chromium.launch(headless=True)
     context = browser.new_context(
-        user_agent=ua,
-        viewport=viewport,
-        locale=locale,
-        java_script_enabled=True,
+        user_agent=ua, viewport=viewport, locale=locale, java_script_enabled=True,
     )
     page = context.new_page()
 
@@ -178,13 +177,11 @@ def scrape_one(playwright_instance, conn, grid_x, grid_y, lat, lon, keyword) -> 
                 page.screenshot(path=f"log/captcha_{grid_x}_{grid_y}_{keyword}.png")
                 return False
             logging.warning(f"  ({grid_x},{grid_y}) [{keyword}]: no results pane")
-            # Still mark completed to avoid retrying zero-result areas forever
-            db_execute(conn, '''INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
-                                VALUES (?,?,?,?)''',
+            dbc.execute('''INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
+                          VALUES (?,?,?,?)''',
                        (grid_x, grid_y, f"{provider}_{keyword}", 'completed'))
             return True
 
-        # Scroll gently — fewer scrolls, longer waits
         for _ in range(8):
             page.evaluate(f'''
                 const pane = document.querySelector('{results_selector}');
@@ -232,7 +229,7 @@ def scrape_one(playwright_instance, conn, grid_x, grid_y, lat, lon, keyword) -> 
             meta = {'name': name, 'lat': p_lat, 'lon': p_lon,
                     'url': place['url'], 'keyword': keyword}
 
-            db_execute(conn, '''
+            dbc.execute('''
                 INSERT OR REPLACE INTO cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?,?,?,?,?,?,?,?,?)
             ''', (global_id, provider, place_id, name, p_lat, p_lon, '', place['url'],
@@ -241,8 +238,8 @@ def scrape_one(playwright_instance, conn, grid_x, grid_y, lat, lon, keyword) -> 
             with open(os.path.join(cafe_dir, 'cafe.json'), 'w', encoding='utf-8') as f:
                 json.dump(meta, f, ensure_ascii=False, indent=2)
 
-        db_execute(conn, '''INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
-                            VALUES (?,?,?,?)''',
+        dbc.execute('''INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
+                      VALUES (?,?,?,?)''',
                    (grid_x, grid_y, f"{provider}_{keyword}", 'completed'))
         return True
 
@@ -266,12 +263,18 @@ def main():
     parser.add_argument("--start-step", type=int, default=0)
     args = parser.parse_args()
 
-    conn = init_db()
-    utils._current_provider = 'google'
+    init_db()
+    dbc = DBClient()
     coords = get_spiral_coordinates(args.max_steps)
+
+    if args.max_steps >= 2000 and check_if_done(dbc, [f"google_{kw}" for kw in SEARCH_KEYWORDS], coords):
+        logging.info("All blocks within 20km radius are completed! Shutting down.")
+        dbc.execute("INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status) VALUES (?, ?, ?, ?)",
+                    (9999, 9999, 'google_finished', 'completed'))
+        import sys; sys.exit(42)
+
     coords_to_process = coords[args.start_step:]
 
-    # Flatten grid × keyword into a single work list, skip already-done combos
     work = []
     for x, y in coords_to_process:
         for kw in SEARCH_KEYWORDS:
@@ -283,6 +286,10 @@ def main():
 
     with sync_playwright() as p:
         for x, y, keyword in work:
+            if _shutdown.is_set():
+                logging.info("Shutdown requested — exiting loop.")
+                break
+
             grid_lat = CENTER_LAT + (y * 0.01)
             grid_lon = CENTER_LON + (x * 0.01)
 
@@ -291,32 +298,28 @@ def main():
             timer = threading.Timer(300, watchdog, args=[300])
             timer.start()
             try:
-                ok = scrape_one(p, conn, x, y, grid_lat, grid_lon, keyword)
+                ok = scrape_one(p, dbc, x, y, grid_lat, grid_lon, keyword)
             finally:
                 timer.cancel()
 
             if ok:
                 consecutive_captchas = 0
-                # Human-pace pause between successful searches
                 sleep_s = random.uniform(60, 90)
                 logging.info(f"  sleeping {sleep_s:.0f}s before next search")
                 time.sleep(sleep_s)
             else:
                 consecutive_captchas += 1
                 if consecutive_captchas >= 3:
-                    # Sustained blocking — long cooldown
                     cooldown = random.uniform(600, 900)
                     logging.warning(f"  {consecutive_captchas} consecutive CAPTCHAs — cooling down {cooldown:.0f}s")
                     time.sleep(cooldown)
                     consecutive_captchas = 0
                 else:
-                    # Single failure — shorter pause then try next grid
                     sleep_s = random.uniform(120, 180)
                     logging.info(f"  CAPTCHA #{consecutive_captchas}, sleeping {sleep_s:.0f}s")
                     time.sleep(sleep_s)
 
-    flush_db_queue(conn)
-    conn.close()
+    dbc.close()
     logging.info("Scraping iteration complete.")
 
 

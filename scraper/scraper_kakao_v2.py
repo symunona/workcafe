@@ -26,11 +26,22 @@ import random
 import argparse
 import pyproj
 import threading
+import signal
 from playwright.sync_api import sync_playwright
-import utils
-from utils import init_db, get_spiral_coordinates, DATA_DIR, CENTER_LAT, CENTER_LON, normalize_provider_id, db_execute, flush_db_queue
+from utils import init_db, get_spiral_coordinates, DATA_DIR, CENTER_LAT, CENTER_LON, normalize_provider_id, check_if_done
+from db_client import DBClient
 
 SEARCH_KEYWORDS = ["카페", "커피", "브런치", "디저트카페"]
+
+_shutdown = threading.Event()
+
+
+def _sigterm(sig, frame):
+    print("SIGTERM received — finishing current grid then exiting.", flush=True)
+    _shutdown.set()
+
+
+signal.signal(signal.SIGTERM, _sigterm)
 
 
 def watchdog(timeout):
@@ -38,14 +49,12 @@ def watchdog(timeout):
     os._exit(1)
 
 
-def scrape_keyword(browser, conn, grid_x, grid_y, lat, lon, keyword):
+def scrape_keyword(browser, dbc, grid_x, grid_y, lat, lon, keyword):
     provider = 'kakao'
     progress_provider = f"{provider}_{keyword}"
 
-    cursor = conn.cursor()
-    cursor.execute('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
-                   (grid_x, grid_y, progress_provider))
-    row = cursor.fetchone()
+    row = dbc.fetchone('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
+                       (grid_x, grid_y, progress_provider))
     if row and row[0] == 'completed':
         return True
 
@@ -63,7 +72,6 @@ def scrape_keyword(browser, conn, grid_x, grid_y, lat, lon, keyword):
     )
     page = context.new_page()
 
-    # Collect all searchJson API responses for this keyword
     api_pages = []
 
     def handle_response(resp):
@@ -88,7 +96,6 @@ def scrape_keyword(browser, conn, grid_x, grid_y, lat, lon, keyword):
 
         page.wait_for_timeout(3000)
 
-        # Click 더보기 (load more) until it disappears or we've gotten enough pages
         for _ in range(20):
             try:
                 more_btn = page.locator(".link_more[data-type='place'], .btn_more, button:has-text('더보기')")
@@ -101,7 +108,6 @@ def scrape_keyword(browser, conn, grid_x, grid_y, lat, lon, keyword):
 
         page.remove_listener("response", handle_response)
 
-        # Collect places from all intercepted API pages
         unique = {}
         for data in api_pages:
             place_list = data.get('placeList', [])
@@ -110,7 +116,6 @@ def scrape_keyword(browser, conn, grid_x, grid_y, lat, lon, keyword):
                 if pid and pid not in unique:
                     unique[pid] = place
 
-        # Also try HTML scraping as fallback
         import re
         html = page.content()
         html_places = re.findall(
@@ -142,7 +147,7 @@ def scrape_keyword(browser, conn, grid_x, grid_y, lat, lon, keyword):
             cafe_dir = os.path.join(DATA_DIR, provider, safe_id)
             os.makedirs(cafe_dir, exist_ok=True)
 
-            db_execute(conn, '''
+            dbc.execute('''
                 INSERT OR REPLACE INTO cafes
                     (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?,?,?,?,?,?,?,?,?)
@@ -156,7 +161,7 @@ def scrape_keyword(browser, conn, grid_x, grid_y, lat, lon, keyword):
                     'address': address, 'url': cafe_url, 'metadata': place
                 }, f, ensure_ascii=False, indent=2)
 
-        db_execute(conn, '''
+        dbc.execute('''
             INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
             VALUES (?,?,?,?)
         ''', (grid_x, grid_y, progress_provider, 'completed'))
@@ -182,11 +187,17 @@ def main():
     parser.add_argument("--start-step", type=int, default=0)
     args = parser.parse_args()
 
-    conn = init_db()
-    utils._current_provider = 'kakao'
+    init_db()
+    dbc = DBClient()
     coords = get_spiral_coordinates(args.max_steps)
-    coords_to_process = coords[args.start_step:]
 
+    if args.max_steps >= 2000 and check_if_done(dbc, [f"kakao_{kw}" for kw in SEARCH_KEYWORDS], coords):
+        print("All blocks within 20km radius are completed! Shutting down.")
+        dbc.execute("INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status) VALUES (?, ?, ?, ?)",
+                    (9999, 9999, 'kakao_finished', 'completed'))
+        import sys; sys.exit(42)
+
+    coords_to_process = coords[args.start_step:]
     print(f"Processing {len(coords_to_process)} grids × {len(SEARCH_KEYWORDS)} keywords")
 
     with sync_playwright() as p:
@@ -197,16 +208,22 @@ def main():
             return
 
         for idx, (gx, gy) in enumerate(coords_to_process):
+            if _shutdown.is_set():
+                print("Shutdown requested — exiting loop.", flush=True)
+                break
+
             step = args.start_step + idx
             print(f"--- Step {step}/{args.max_steps} ({gx},{gy}) ---")
             grid_lat = CENTER_LAT + (gy * 0.01)
             grid_lon = CENTER_LON + (gx * 0.01)
 
             for keyword in SEARCH_KEYWORDS:
+                if _shutdown.is_set():
+                    break
                 timer = threading.Timer(300, watchdog, args=[300])
                 timer.start()
                 try:
-                    ok = scrape_keyword(browser, conn, gx, gy, grid_lat, grid_lon, keyword)
+                    ok = scrape_keyword(browser, dbc, gx, gy, grid_lat, grid_lon, keyword)
                     if not ok:
                         time.sleep(3)
                 finally:
@@ -214,8 +231,7 @@ def main():
 
         browser.close()
 
-    flush_db_queue(conn)
-    conn.close()
+    dbc.close()
     print("Scraping iteration complete.")
 
 

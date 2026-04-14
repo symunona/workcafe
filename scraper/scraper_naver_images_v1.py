@@ -52,29 +52,21 @@ WHAT DID NOT WORK / LIMITATIONS:
     The DELAY_BETWEEN_CAFES of 2-4s adds extra safety.
   - Even cafes with only ~30 reviews have 100-400 unique photos across all
     cursor types (biz + clips + visitor reviews + AI View + imgSas).
-    Full scrape of all 20 Naver cafes will take several hours.
 
-TEST RUNS (2026-03-30):
-  --limit 5 (no --force): 5 cafes all skipped (existing images on disk);
-    216 total images counted across 5 cafes in ~15s. DB query ordering works.
-
-  --force runs (individual cafes):
-    naver_2088955150 (726 reviews): 673 unique photos found via API (3 stale pages
-      triggered stop); 173 downloaded before 300s run timeout. ~70ms per image.
-    naver_2030407213 (162 reviews): 417 unique photos found.
-    naver_2023116030 (178 reviews): 354 unique photos found.
-
-  Pagination works: stale-stop fires after 3 pages of 0 new unique URLs.
-  Photos on disk: photo_0000.jpg ... photo_0172.jpg confirmed in naver/1371876716/
-
-  Rate limiting: after ~5-6 rapid Playwright requests, pcmap.place.naver.com bans
-  the IP for 4+ hours regardless of UA. In normal operation (2-4s between cafes,
-  single instance) this should not trigger. The 120s RATE_LIMIT_SLEEP handles
-  individual 429s but cannot recover from a full IP block — restart after delay.
+PAGINATION / STATE:
+  - naver_scrape_state table tracks per-cafe cursor state, pages_fetched,
+    business_type, stale_count, attempt_count, and status.
+  - Each run picks a random cafe from the cohort with MIN(pages_fetched)
+    among pending cafes, processes one GraphQL page, then moves on.
+  - This spreads scraping evenly: all cafes get page 1 before any gets page 2.
+  - Navigation (to establish Naver session cookies) happens once per cafe per
+    session. Subsequent pages reuse the browser context's cookies.
+  - Cafes returning 0 photos on page 1 are retried up to MAX_ATTEMPT_COUNT
+    times before being flagged and skipped permanently.
 
 Usage:
     cd scraper && source ../venv/bin/activate
-    python scraper_naver_images_v1.py [--limit N] [--cafe-id naver_XXXXX] [--force]
+    python scraper_naver_images_v1.py [--cafe-id naver_XXXXX] [--force]
 """
 
 import os
@@ -91,12 +83,25 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 os.chdir(_HERE)
 sys.path.insert(0, _HERE)
 
+import threading
 import requests
 import asyncio
 from playwright.async_api import async_playwright
 
-from utils import DB_PATH, DATA_DIR, get_db_conn, db_execute, flush_db_queue, normalize_provider_id
+from utils import DATA_DIR, normalize_provider_id
+from db_client import DBClient
 from disk_check import check_disk_limit, DiskLimitExceeded
+
+_shutdown = threading.Event()
+
+
+def _sigterm(sig, frame):
+    log.info("SIGTERM received — finishing current page then exiting.")
+    _shutdown.set()
+
+
+import signal as _signal_mod
+_signal_mod.signal(_signal_mod.SIGTERM, _sigterm)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -128,16 +133,19 @@ PHOTO_QUERY = (
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 
+INITIAL_CURSORS = [
+    {'id': 'biz'}, {'id': 'clip'}, {'id': 'cp0'},
+    {'id': 'aiView'}, {'id': 'visitorReview'}, {'id': 'imgSas'}, {'id': 'cp'}
+]
+
 # Stop paginating if we get no new unique photos for this many consecutive pages
 STALE_PAGES_LIMIT = 3
-MAX_PAGES = 200  # hard cap
+MAX_ATTEMPT_COUNT  = 3   # flag cafe after this many page-1 zero-result attempts
 
 DELAY_BETWEEN_PAGES = 0.8
 DELAY_BETWEEN_CAFES = (2.0, 4.0)
-RATE_LIMIT_SLEEP = 120  # seconds to sleep on 429 nav; Naver IP bans last ~30+ min
+RATE_LIMIT_SLEEP    = 120  # seconds to sleep on 429; Naver IP bans last ~30+ min
 
-DESKTOP_UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-              '(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36')
 # Mobile UA avoids the desktop-headless ban Naver applies to repeated requests
 MOBILE_UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) '
              'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 '
@@ -150,14 +158,68 @@ IMG_HEADERS = {
 
 
 def make_wtm_token(place_id: str, business_type: str) -> str:
-    """Create the x-wtm-graphql header value."""
     payload = {'arg': place_id, 'type': business_type, 'source': 'place'}
     return base64.b64encode(json.dumps(payload, separators=(',', ':')).encode()).decode()
 
 
-async def fetch_photos_page(browser_page, cursor_state: list, place_id: str,
-                            business_type: str, token: str) -> dict | None:
-    """Make one GraphQL call inside the browser page context. Returns the photoViewer dict or None."""
+# ── Scrape state table ────────────────────────────────────────────────────────
+
+def init_scrape_state(dbc):
+    """
+    Create naver_scrape_state if absent, insert rows for every Naver cafe.
+    Returns count of pending cafes.
+    """
+    dbc.execute('''
+        CREATE TABLE IF NOT EXISTS naver_scrape_state (
+            cafe_id        TEXT PRIMARY KEY,
+            business_type  TEXT    DEFAULT NULL,
+            cursor_state   TEXT    DEFAULT NULL,
+            pages_fetched  INTEGER DEFAULT 0,
+            stale_count    INTEGER DEFAULT 0,
+            attempt_count  INTEGER DEFAULT 0,
+            status         TEXT    DEFAULT 'pending',
+            last_attempted TIMESTAMP,
+            FOREIGN KEY (cafe_id) REFERENCES cafes(id)
+        )
+    ''')
+    dbc.execute('''
+        INSERT OR IGNORE INTO naver_scrape_state (cafe_id)
+        SELECT id FROM cafes WHERE provider = 'naver'
+    ''')
+
+    pending   = dbc.fetchval("SELECT COUNT(*) FROM naver_scrape_state WHERE status='pending'")
+    exhausted = dbc.fetchval("SELECT COUNT(*) FROM naver_scrape_state WHERE status='exhausted'")
+    flagged   = dbc.fetchval("SELECT COUNT(*) FROM naver_scrape_state WHERE status='flagged'")
+    log.info(f"Scrape state — pending:{pending}  exhausted:{exhausted}  flagged:{flagged}")
+    return pending
+
+
+def pick_random_pending_cafe(dbc):
+    """
+    Return random cafe with MIN(pages_fetched) among pending.
+    Returns None when nothing is pending.
+    """
+    row = dbc.fetchone('''
+        SELECT s.cafe_id, s.business_type, s.cursor_state,
+               s.pages_fetched, s.stale_count, s.attempt_count,
+               c.provider_id, c.metadata
+        FROM   naver_scrape_state s
+        JOIN   cafes c ON c.id = s.cafe_id
+        WHERE  s.status = 'pending'
+          AND  s.pages_fetched = (SELECT MIN(pages_fetched)
+                                  FROM   naver_scrape_state
+                                  WHERE  status = 'pending')
+        ORDER BY RANDOM()
+        LIMIT 1
+    ''')
+    return row
+
+
+# ── GraphQL fetch (single page) ───────────────────────────────────────────────
+
+async def _graphql_call(browser_page, cursor_state: list, place_id: str,
+                        business_type: str, token: str) -> dict | None:
+    """Raw single GraphQL call inside the browser context. Returns photoViewer dict or None."""
     payload = [{
         'operationName': 'getPhotoViewerItems',
         'variables': {
@@ -173,8 +235,7 @@ async def fetch_photos_page(browser_page, cursor_state: list, place_id: str,
         },
         'query': PHOTO_QUERY
     }]
-
-    referer = f'https://pcmap.place.naver.com/restaurant/{place_id}/photo'
+    referer = f'https://pcmap.place.naver.com/{business_type}/{place_id}/photo'
 
     try:
         result = await browser_page.evaluate('''async (args) => {
@@ -192,15 +253,10 @@ async def fetch_photos_page(browser_page, cursor_state: list, place_id: str,
                 });
                 const text = await resp.text();
                 let data;
-                try {
-                    data = JSON.parse(text);
-                } catch(e) {
-                    return {status: resp.status, error: 'JSON parse error', text: text.substring(0, 200)};
-                }
+                try { data = JSON.parse(text); }
+                catch(e) { return {status: resp.status, error: 'JSON parse error', text: text.substring(0, 200)}; }
                 return {status: resp.status, data};
-            } catch(e) {
-                return {status: -1, error: String(e)};
-            }
+            } catch(e) { return {status: -1, error: String(e)}; }
         }''', [GRAPHQL_URL, payload, token, referer])
     except Exception as e:
         log.warning(f"  evaluate() error: {e}")
@@ -208,7 +264,7 @@ async def fetch_photos_page(browser_page, cursor_state: list, place_id: str,
 
     status = result.get('status')
     if status == 429:
-        log.warning(f"  GraphQL 429 rate-limited, sleeping {RATE_LIMIT_SLEEP}s")
+        log.warning(f"  GraphQL 429, sleeping {RATE_LIMIT_SLEEP}s")
         await asyncio.sleep(RATE_LIMIT_SLEEP)
         return None
     if status != 200 or result.get('error'):
@@ -223,96 +279,70 @@ async def fetch_photos_page(browser_page, cursor_state: list, place_id: str,
     return None
 
 
-async def fetch_all_photos(browser_page, place_id: str, business_type: str) -> list[dict]:
-    """Paginate through all photos. Returns list of unique photo dicts."""
-    token = make_wtm_token(place_id, business_type)
+async def navigate_for_cafe(browser_page, place_id: str, business_type: str,
+                             navigated_for: set) -> bool:
+    """
+    Navigate to the cafe's photo page to establish Naver session cookies.
+    Skipped if already navigated for this (place_id, business_type) in this session.
+    Returns True on success, False on failure.
+    """
+    key = (place_id, business_type)
+    if key in navigated_for:
+        return True
 
-    # Navigate to the photos tab to establish session cookies.
-    # Use 'domcontentloaded' to avoid long waits; give JS time to settle.
-    nav_url = f'https://pcmap.place.naver.com/restaurant/{place_id}/photo'
-    nav_success = False
-    for nav_attempt in range(3):
+    nav_url = f'https://pcmap.place.naver.com/{business_type}/{place_id}/photo'
+    for attempt in range(3):
         try:
             resp = await browser_page.goto(nav_url, wait_until='domcontentloaded', timeout=25000)
             if resp and resp.status == 429:
                 log.warning(f"  429 on nav for {place_id}, sleeping {RATE_LIMIT_SLEEP}s")
                 await asyncio.sleep(RATE_LIMIT_SLEEP)
                 continue
-            nav_success = True
-            break
+            navigated_for.add(key)
+            await asyncio.sleep(2.0)
+            return True
         except Exception as e:
-            if nav_attempt < 2:
-                log.warning(f"  Nav attempt {nav_attempt+1} failed for {place_id}: {e!s:.120}")
+            if attempt < 2:
+                log.warning(f"  Nav attempt {attempt+1} failed: {e!s:.100}")
                 await asyncio.sleep(5)
             else:
-                log.warning(f"  Navigation failed for {place_id}: {e!s:.120}")
-    
-    if not nav_success:
-        log.warning(f"  Skipping {place_id} due to navigation failure.")
-        return []
-    
-    await asyncio.sleep(2.0)
+                log.warning(f"  Navigation failed for {place_id}: {e!s:.100}")
+    return False
 
-    # Initial cursor state (no lastCursor on first page)
-    cursor_state = [
-        {'id': 'biz'}, {'id': 'clip'}, {'id': 'cp0'},
-        {'id': 'aiView'}, {'id': 'visitorReview'}, {'id': 'imgSas'}, {'id': 'cp'}
-    ]
 
-    all_photos: list[dict] = []
-    seen_urls: set[str] = set()
-    stale_pages = 0
+async def fetch_one_page(browser_page, place_id: str, business_type: str,
+                          cursor_state: list, navigated_for: set
+                          ) -> tuple[list, list, bool]:
+    """
+    Navigate (once per session per cafe) then make one GraphQL call.
+    Returns (photos, new_cursor_state, has_next).
+    new_cursor_state is the active cursors list for the next call.
+    has_next=False when all cursors exhausted.
+    """
+    if not await navigate_for_cafe(browser_page, place_id, business_type, navigated_for):
+        return [], cursor_state, True  # nav failed; leave has_next=True so we retry later
 
-    for page_num in range(1, MAX_PAGES + 1):
-        pv = await fetch_photos_page(browser_page, cursor_state, place_id, business_type, token)
-        if pv is None:
-            log.warning(f"  Null response on page {page_num}, stopping")
-            break
+    token = make_wtm_token(place_id, business_type)
+    pv = await _graphql_call(browser_page, cursor_state, place_id, business_type, token)
+    if pv is None:
+        return [], cursor_state, True  # API error; retry later
 
-        photos = pv.get('photos') or []
-        cursors = pv.get('cursors') or []
+    photos   = pv.get('photos') or []
+    cursors  = pv.get('cursors') or []
 
-        new_count = 0
-        for ph in photos:
-            url = ph.get('originalUrl', '')
-            if url and url not in seen_urls:
-                seen_urls.add(url)
-                all_photos.append(ph)
-                new_count += 1
+    new_cursor_state = []
+    for c in cursors:
+        if c.get('hasNext'):
+            entry = {'id': c['id']}
+            if c.get('lastCursor'):
+                entry['lastCursor'] = c['lastCursor']
+            new_cursor_state.append(entry)
 
-        log.debug(f"  page {page_num}: {len(photos)} returned, {new_count} new unique "
-                  f"(total {len(all_photos)})")
+    has_next = bool(new_cursor_state)
+    return photos, new_cursor_state, has_next
 
-        if new_count == 0:
-            stale_pages += 1
-            if stale_pages >= STALE_PAGES_LIMIT:
-                log.info(f"  No new photos for {STALE_PAGES_LIMIT} consecutive pages, stopping")
-                break
-        else:
-            stale_pages = 0
 
-        # Check if all cursors are done
-        active_cursors = [c for c in cursors if c.get('hasNext')]
-        if not active_cursors:
-            log.info(f"  All cursors exhausted after page {page_num}")
-            break
-
-        # Build next cursor state from active cursors only
-        cursor_state = []
-        for c in cursors:
-            if c.get('hasNext'):
-                entry = {'id': c['id']}
-                if c.get('lastCursor'):
-                    entry['lastCursor'] = c['lastCursor']
-                cursor_state.append(entry)
-
-        if not cursor_state:
-            break
-
-        await asyncio.sleep(DELAY_BETWEEN_PAGES)
-
-    return all_photos
-
+# ── Image download ────────────────────────────────────────────────────────────
 
 def download_image(session: requests.Session, url: str, save_path: str) -> bool:
     try:
@@ -334,53 +364,90 @@ def download_image(session: requests.Session, url: str, save_path: str) -> bool:
 
 def ext_for_url(url: str) -> str:
     path = urlparse(url.split('?')[0]).path
-    ext = os.path.splitext(path)[1].lower()
+    ext  = os.path.splitext(path)[1].lower()
     return ext if ext in IMAGE_EXTENSIONS else '.jpg'
 
 
-async def process_cafe(conn, browser_page, http_session, cafe_id: str,
-                       provider_id: str, metadata: dict, force: bool = False) -> int:
+# ── Per-page processing ───────────────────────────────────────────────────────
+
+async def process_one_page(dbc, browser_page, http_session,
+                            cafe_id: str, provider_id: str, metadata: dict,
+                            business_type: str | None, cursor_state_json: str | None,
+                            navigated_for: set) -> tuple[int, list, bool, str]:
+    """
+    Fetch one GraphQL page, download new images, write DB rows.
+    Handles business_type detection (restaurant → place fallback) on first page.
+    Returns (new_downloads, new_cursor_state, has_next, detected_business_type).
+    """
     safe_id = normalize_provider_id(provider_id)
     img_dir = os.path.join(DATA_DIR, 'naver', safe_id, 'images')
-
-    existing = []
-    if os.path.exists(img_dir):
-        existing = [f for f in os.listdir(img_dir)
-                    if os.path.splitext(f)[1].lower() in IMAGE_EXTENSIONS]
-
-    if existing and not force:
-        log.info(f"  Skip {cafe_id}: {len(existing)} images already on disk")
-        return len(existing)
-
-    log.info(f"Processing {cafe_id} (provider_id={provider_id})")
-
-    photos = await fetch_all_photos(browser_page, provider_id, 'restaurant')
-
-    if not photos:
-        log.info(f"  {cafe_id}: no photos found")
-        metadata['all_photos'] = 0
-        metadata['scraped_photos'] = 0
-        db_execute(conn, 'UPDATE cafes SET metadata=? WHERE id=?',
-                   (json.dumps(metadata, ensure_ascii=False), cafe_id))
-        return 0
-
-    log.info(f"  {cafe_id}: {len(photos)} unique photos to download")
     os.makedirs(img_dir, exist_ok=True)
 
-    downloaded = 0
+    is_first_page = cursor_state_json is None
+    cursor_state  = json.loads(cursor_state_json) if cursor_state_json else INITIAL_CURSORS
+    detected_type = business_type or 'restaurant'
+
+    # Business type detection on first page: try restaurant, fall back to place
+    if is_first_page:
+        photos, new_cursors, has_next = await fetch_one_page(
+            browser_page, provider_id, 'restaurant', cursor_state, navigated_for
+        )
+        detected_type = 'restaurant'
+        if not photos and not has_next:
+            log.info(f"  {cafe_id}: no photos as restaurant, trying place type")
+            # Force navigation to the place URL for fresh cookies
+            navigated_for.discard((provider_id, 'restaurant'))
+            photos, new_cursors, has_next = await fetch_one_page(
+                browser_page, provider_id, 'place', INITIAL_CURSORS, navigated_for
+            )
+            detected_type = 'place'
+    else:
+        photos, new_cursors, has_next = await fetch_one_page(
+            browser_page, provider_id, detected_type, cursor_state, navigated_for
+        )
+
+    # Collect unique URLs already in DB to skip duplicates
+    db_count = dbc.fetchval('SELECT COUNT(*) FROM images WHERE cafe_id=?', (cafe_id,)) or 0
+    idx = db_count  # next filename index
+
+    all_local = list(metadata.get('local_images', []))
+    new_downloads = 0
     failed = 0
 
-    for idx, ph in enumerate(photos):
+    for ph in photos:
         url = ph.get('originalUrl', '')
         if not url:
             continue
 
-        ext = ext_for_url(url)
-        fname = f"photo_{idx:04d}{ext}"
-        save_path = os.path.join(img_dir, fname)
+        photo_id = ph.get('logId') or ph.get('viewId') or ''
+        # Skip if already in DB
+        if photo_id and dbc.fetchone(
+            'SELECT 1 FROM images WHERE cafe_id=? AND photo_id=?', (cafe_id, photo_id)
+        ):
+            continue
 
-        if os.path.exists(save_path) and not force:
-            downloaded += 1
+        ext       = ext_for_url(url)
+        fname     = f"photo_{idx:04d}{ext}"
+        save_path = os.path.join(img_dir, fname)
+        local_path = f"/images/naver/{safe_id}/images/{fname}"
+
+        # File on disk but no DB row — backfill (always insert, even without photo_id)
+        if os.path.exists(save_path):
+            dbc.execute('''
+                INSERT OR REPLACE INTO images
+                  (cafe_id, provider, local_path, image_url, gallery_url,
+                   photo_id, photo_type, registered_at, width, height)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+            ''', (cafe_id, 'naver', local_path, url,
+                  (ph.get('author') or {}).get('url', ''),
+                  photo_id or f"{cafe_id}_{idx}",
+                  ph.get('photoType', ''),
+                  ph.get('date') or ph.get('originalDate') or '',
+                  ph.get('width'), ph.get('height')))
+            idx += 1
+            new_downloads += 1
+            if local_path not in all_local:
+                all_local.append(local_path)
             continue
 
         try:
@@ -390,125 +457,160 @@ async def process_cafe(conn, browser_page, http_session, cafe_id: str,
             break
 
         if download_image(http_session, url, save_path):
-            downloaded += 1
+            idx += 1
+            new_downloads += 1
+            if local_path not in all_local:
+                all_local.append(local_path)
+            dbc.execute('''
+                INSERT OR REPLACE INTO images
+                  (cafe_id, provider, local_path, image_url, gallery_url,
+                   photo_id, photo_type, registered_at, width, height)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+            ''', (cafe_id, 'naver', local_path, url,
+                  (ph.get('author') or {}).get('url', ''),
+                  photo_id or f"{cafe_id}_{idx}",
+                  ph.get('photoType', ''),
+                  ph.get('date') or ph.get('originalDate') or '',
+                  ph.get('width'), ph.get('height')))
         else:
             failed += 1
 
         time.sleep(0.15)
 
-    # Build local_images list from disk
-    all_files = sorted(
-        f for f in os.listdir(img_dir)
-        if os.path.splitext(f)[1].lower() in IMAGE_EXTENSIONS
-    )
-    local_paths = [f"/images/naver/{safe_id}/images/{f}" for f in all_files]
+    # Update cafe metadata
+    metadata['local_images'] = all_local
+    metadata['scraped_photos'] = db_count + new_downloads
+    dbc.execute('UPDATE cafes SET metadata=? WHERE id=?',
+                (json.dumps(metadata, ensure_ascii=False), cafe_id))
 
-    # Store photo metadata
-    photo_meta = []
-    for ph in photos:
-        photo_meta.append({
-            'image_url': ph.get('originalUrl', ''),
-            'photo_id': ph.get('logId') or ph.get('viewId', ''),
-            'photo_type': ph.get('photoType', ''),
-            'relation': ph.get('relation', ''),
-            'registered_at': ph.get('date') or ph.get('originalDate') or '',
-            'title': ph.get('title', ''),
-            'width': ph.get('width'),
-            'height': ph.get('height'),
-            'author_id': (ph.get('author') or {}).get('id', ''),
-            'author_nickname': (ph.get('author') or {}).get('nickname', ''),
-            'clip_type': (ph.get('clip') or {}).get('contentType', ''),
-            'gallery_url': (ph.get('author') or {}).get('url', ''),
-        })
+    log.info(f"  {cafe_id} [{detected_type}]: +{new_downloads} new, {failed} failed, has_next={has_next}")
+    return new_downloads, new_cursors, has_next, detected_type
 
-    metadata['local_images'] = local_paths
-    metadata['all_photos'] = len(photos)
-    metadata['scraped_photos'] = len(all_files)
-    metadata['photo_meta'] = photo_meta
 
-    db_execute(conn, 'UPDATE cafes SET metadata=? WHERE id=?',
-               (json.dumps(metadata, ensure_ascii=False), cafe_id))
-
-    log.info(f"  {cafe_id}: {len(all_files)} saved, {failed} failed / {len(photos)} total unique")
-    return len(all_files)
-
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 async def run(args):
-    conn = get_db_conn()
-    cursor = conn.cursor()
+    dbc     = DBClient()
+    pending = init_scrape_state(dbc)
 
-    if args.cafe_id:
-        cursor.execute('SELECT id, provider_id, metadata FROM cafes WHERE id=? AND provider=?',
-                       (args.cafe_id, 'naver'))
-    else:
-        cursor.execute('''
-            SELECT id, provider_id, metadata FROM cafes
-            WHERE provider = 'naver'
-            ORDER BY
-                CASE WHEN json_extract(metadata, '$.local_images') IS NULL THEN 0 ELSE 1 END ASC,
-                json_array_length(COALESCE(json_extract(metadata, '$.local_images'), '[]')) ASC
-        ''')
-
-    rows = cursor.fetchall()
-    if args.limit > 0:
-        rows = rows[:args.limit]
-
-    log.info(f"Processing {len(rows)} Naver cafes")
+    if pending == 0:
+        log.info("All cafes exhausted or flagged — nothing to do.")
+        dbc.close()
+        return
 
     http_session = requests.Session()
     http_session.headers.update(IMG_HEADERS)
 
-    total_dl = 0
+    navigated_for: set = set()
+    pages_fetched = 0
 
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
             headless=True,
             args=['--no-sandbox', '--disable-dev-shm-usage']
         )
-        context = await browser.new_context(
-            user_agent=MOBILE_UA,
-            locale='ko-KR',
-        )
+        context = await browser.new_context(user_agent=MOBILE_UA, locale='ko-KR')
         browser_page = await context.new_page()
 
-        for i, (cafe_id, provider_id, meta_json) in enumerate(rows):
+        while not _shutdown.is_set():
+            # ── Pick next cafe ────────────────────────────────────────────────
+            if args.cafe_id:
+                row = dbc.fetchone('''
+                    SELECT s.cafe_id, s.business_type, s.cursor_state,
+                           s.pages_fetched, s.stale_count, s.attempt_count,
+                           c.provider_id, c.metadata
+                    FROM   naver_scrape_state s
+                    JOIN   cafes c ON c.id = s.cafe_id
+                    WHERE  s.cafe_id = ? AND s.status = 'pending'
+                ''', (args.cafe_id,))
+            else:
+                row = pick_random_pending_cafe(dbc)
+
+            if row is None:
+                log.info("No pending cafes — done.")
+                break
+
+            (cafe_id, business_type, cursor_state_json,
+             pf, stale_count, attempt_count,
+             provider_id, meta_json) = row
+
             try:
                 metadata = json.loads(meta_json) if meta_json else {}
             except json.JSONDecodeError:
                 metadata = {}
 
+            log.info(f"Processing {cafe_id} page {pf+1} "
+                     f"(type={business_type or '?'}, attempts={attempt_count})")
+
+            dbc.execute(
+                "UPDATE naver_scrape_state SET last_attempted=CURRENT_TIMESTAMP WHERE cafe_id=?",
+                (cafe_id,)
+            )
+
+            # ── Fetch + download one page ─────────────────────────────────────
             try:
-                n = await process_cafe(conn, browser_page, http_session,
-                                       cafe_id, provider_id, metadata, force=args.force)
-                total_dl += n
-                flush_db_queue(conn)
+                new_dl, new_cursors, has_next, detected_type = await process_one_page(
+                    dbc, browser_page, http_session,
+                    cafe_id, provider_id, metadata,
+                    business_type, cursor_state_json, navigated_for
+                )
             except DiskLimitExceeded as e:
                 log.warning(str(e))
                 break
             except Exception as e:
                 log.error(f"Error {cafe_id}: {e}", exc_info=True)
+                await asyncio.sleep(random.uniform(*DELAY_BETWEEN_CAFES))
+                continue
 
-            delay = random.uniform(*DELAY_BETWEEN_CAFES)
-            await asyncio.sleep(delay)
+            pages_fetched += 1
 
-            if (i + 1) % 10 == 0:
-                log.info(f"Progress: {i+1}/{len(rows)} cafes, {total_dl} images total")
+            new_stale = (stale_count + 1) if new_dl == 0 else 0
+            is_first = cursor_state_json is None
+
+            if not has_next or new_stale >= STALE_PAGES_LIMIT:
+                if is_first and new_dl == 0:
+                    new_attempts = attempt_count + 1
+                    if new_attempts >= MAX_ATTEMPT_COUNT:
+                        log.info(f"  {cafe_id}: flagged after {new_attempts} zero-result attempts")
+                        dbc.execute(
+                            "UPDATE naver_scrape_state SET status='flagged', attempt_count=? WHERE cafe_id=?",
+                            (new_attempts, cafe_id))
+                    else:
+                        log.info(f"  {cafe_id}: zero results, attempt {new_attempts}/{MAX_ATTEMPT_COUNT}")
+                        dbc.execute(
+                            "UPDATE naver_scrape_state SET attempt_count=?, pages_fetched=? WHERE cafe_id=?",
+                            (new_attempts, pf + 1, cafe_id))
+                else:
+                    reason = "stale" if new_stale >= STALE_PAGES_LIMIT else "cursors exhausted"
+                    log.info(f"  {cafe_id}: exhausted ({reason})")
+                    dbc.execute(
+                        "UPDATE naver_scrape_state SET status='exhausted', pages_fetched=?, business_type=? WHERE cafe_id=?",
+                        (pf + 1, detected_type, cafe_id))
+            else:
+                dbc.execute('''
+                    UPDATE naver_scrape_state
+                    SET cursor_state=?, pages_fetched=?, stale_count=?,
+                        attempt_count=0, business_type=?
+                    WHERE cafe_id=?
+                ''', (json.dumps(new_cursors), pf + 1, new_stale, detected_type, cafe_id))
+
+            if pages_fetched % 50 == 0:
+                p = dbc.fetchval("SELECT COUNT(*) FROM naver_scrape_state WHERE status='pending'")
+                log.info(f"Progress: {pages_fetched} pages fetched, {p} cafes still pending")
+
+            await asyncio.sleep(random.uniform(*DELAY_BETWEEN_CAFES))
 
         await browser.close()
 
-    flush_db_queue(conn)
-    conn.close()
-    log.info(f"Done. {total_dl} total images downloaded.")
-    return total_dl
+    dbc.close()
+    log.info("Done.")
 
 
 def main():
     parser = argparse.ArgumentParser(description='Naver Maps image scraper v1')
-    parser.add_argument('--limit', type=int, default=0, help='Max number of cafes to process')
     parser.add_argument('--cafe-id', type=str, help='Process a single cafe by DB id')
     parser.add_argument('--force', action='store_true', help='Re-download even if images exist')
     args = parser.parse_args()
-
     asyncio.run(run(args))
 
 
