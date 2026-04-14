@@ -14,6 +14,8 @@ interface ServiceStatus {
   unit: string
   state: string
   active: boolean
+  exit_status?: string  // "success" | "killed" | "failed" | undefined
+  last_log?: string
 }
 
 interface ProviderMetrics {
@@ -23,6 +25,12 @@ interface ProviderMetrics {
   images_last_hour: number
   images_24h: number
   total: number
+  cafes_with_images: number
+  cafes_2plus: number
+  cafes_10plus: number
+  cafes_50plus: number
+  avg_images: number
+  total_images: number
 }
 
 interface DiskStats {
@@ -69,6 +77,17 @@ const PROVIDER_COLORS: Record<string, string> = {
   naver: '#10b981', // emerald green
   osm: '#d946ef', // vibrant purple
   all: '#64748b', // slate
+}
+
+function serviceInactiveMood(svc: ServiceStatus): 'success' | 'sleeping' | 'error' | 'killed' | 'stopped' {
+  if (svc.exit_status === 'success') return 'success'
+  if (svc.exit_status === 'failed' || svc.state === 'failed') return 'error'
+  if (svc.exit_status === 'killed') return 'killed'
+  if (!svc.last_log) return 'stopped'
+  const l = svc.last_log.toLowerCase()
+  if (/sleep|sleeping|waiting|rate.?limit|backoff|pausing|throttl|retry/.test(l)) return 'sleeping'
+  if (/error|exception|traceback|critical|failed|fatal|crash/.test(l)) return 'error'
+  return 'stopped'
 }
 
 function timeSince(iso: string): string {
@@ -188,29 +207,43 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Services &amp; DB Queue</h3>
               <div className="flex flex-col gap-2">
                 {status.services.map(svc => {
-                  const qKey = (svc.name === 'imagescraper' || svc.name === 'naver_images') ? 'unknown' : svc.name
-                  const q = status.db_queue && status.db_queue[qKey]
+                  const mood = !svc.active ? serviceInactiveMood(svc) : null
+                  const rowBg = svc.active ? 'bg-gray-50'
+                    : mood === 'success' ? 'bg-green-50/70'
+                    : mood === 'sleeping' ? 'bg-yellow-50/70'
+                    : mood === 'error' ? 'bg-red-50/60'
+                    : mood === 'killed' ? 'bg-gray-100'
+                    : 'bg-gray-50'
+                  const dotColor = svc.active ? '#22c55e'
+                    : mood === 'success' ? '#22c55e'
+                    : mood === 'sleeping' ? '#eab308'
+                    : mood === 'error' ? '#ef4444'
+                    : '#d1d5db'
+                  const logTextColor = svc.active ? 'text-gray-400'
+                    : mood === 'success' ? 'text-green-700'
+                    : mood === 'sleeping' ? 'text-yellow-700'
+                    : mood === 'error' ? 'text-red-600'
+                    : 'text-gray-500'
+                  const moodLabel = !svc.active && mood === 'success' ? ' · completed'
+                    : !svc.active && mood === 'killed' ? ' · stopped'
+                    : ''
                   return (
-                    <div key={svc.name} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <div key={svc.name} className={`flex items-center justify-between rounded-xl px-4 py-3 ${rowBg} ${(svc.last_log) ? 'flex-wrap gap-y-2' : ''}`}>
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <span
                           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ background: svc.active ? '#22c55e' : svc.state === 'failed' ? '#ef4444' : '#d1d5db' }}
+                          style={{ background: dotColor }}
                         />
-                        <div>
+                        <div className="min-w-0">
                           <div className="font-medium text-gray-800 text-sm">{SERVICE_LABELS[svc.name] ?? svc.name}</div>
-                          <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-                            <span>{svc.unit} · {svc.state}</span>
-                            {q && (
-                              <>
-                                <span className="text-gray-300">|</span>
-                                <span>
-                                  Queue: <span className={q.queue_depth > 0 ? 'text-orange-600 font-semibold' : 'text-green-600'}>{q.queue_depth > 0 ? `${q.queue_depth} queued` : 'clear'}</span>
-                                  {' '} ({timeSince(q.updated_at)})
-                                </span>
-                              </>
-                            )}
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            <span>{svc.unit} · {svc.state}{moodLabel}</span>
                           </div>
+                          {svc.last_log && (
+                            <div className={`text-xs mt-1 font-mono leading-relaxed break-all ${logTextColor}`}>
+                              {svc.last_log}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <button
@@ -271,6 +304,53 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 </table>
               </div>
             </div>
+
+            {/* Image coverage distribution */}
+            {(status.per_provider || []).some(p => p.cafes_with_images > 0) && (
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Image Coverage</h3>
+                <div className="border border-gray-100 rounded-xl overflow-x-auto bg-white">
+                  <table className="w-full text-sm min-w-[580px]">
+                    <thead>
+                      <tr className="bg-gray-50 text-left">
+                        <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide">Provider</th>
+                        <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide text-right">Total cafes</th>
+                        <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide text-right">Has images</th>
+                        <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide text-right">2+</th>
+                        <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide text-right">10+</th>
+                        <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide text-right">50+</th>
+                        <th className="px-4 py-2.5 font-semibold text-gray-500 text-xs uppercase tracking-wide text-right">Avg imgs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(status.per_provider || []).filter(p => p.total > 0).map((p, i) => {
+                        const pct = p.total > 0 ? Math.round(p.cafes_with_images / p.total * 100) : 0
+                        return (
+                          <tr key={p.provider} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                            <td className="px-4 py-2.5 font-medium text-gray-800 capitalize">{p.provider}</td>
+                            <td className="px-4 py-2.5 text-right text-gray-600">{p.total.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-right">
+                              <span className={p.cafes_with_images > 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}>
+                                {p.cafes_with_images.toLocaleString()}
+                              </span>
+                              <span className="text-gray-400 text-xs ml-1">({pct}%)</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-gray-600">{p.cafes_2plus.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-right text-gray-600">{p.cafes_10plus.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-right text-gray-600">{p.cafes_50plus.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-right">
+                              <span className={p.avg_images > 0 ? 'text-gray-700' : 'text-gray-400'}>
+                                {p.avg_images > 0 ? p.avg_images.toFixed(1) : '—'}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Hourly Chart */}
             {chartData.length > 0 && (

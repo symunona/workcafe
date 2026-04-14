@@ -29,19 +29,28 @@ type Cafe struct {
 }
 
 type ServiceStatus struct {
-	Name    string `json:"name"`
-	Unit    string `json:"unit"`
-	State   string `json:"state"`
-	Active  bool   `json:"active"`
+	Name       string `json:"name"`
+	Unit       string `json:"unit"`
+	State      string `json:"state"`
+	Active     bool   `json:"active"`
+	ExitStatus string `json:"exit_status,omitempty"` // "success", "killed", "failed", or ""
+	LastLog    string `json:"last_log,omitempty"`
 }
 
 type ProviderMetrics struct {
-	Provider      string `json:"provider"`
-	CafesLastHour int    `json:"cafes_last_hour"`
-	Cafes24h      int    `json:"cafes_24h"`
-	ImagesLastHour int   `json:"images_last_hour"`
-	Images24h     int    `json:"images_24h"`
-	Total         int    `json:"total"`
+	Provider       string  `json:"provider"`
+	CafesLastHour  int     `json:"cafes_last_hour"`
+	Cafes24h       int     `json:"cafes_24h"`
+	ImagesLastHour int     `json:"images_last_hour"`
+	Images24h      int     `json:"images_24h"`
+	Total          int     `json:"total"`
+	// Image coverage distribution
+	CafesWithImages int     `json:"cafes_with_images"`
+	Cafes2Plus      int     `json:"cafes_2plus"`
+	Cafes10Plus     int     `json:"cafes_10plus"`
+	Cafes50Plus     int     `json:"cafes_50plus"`
+	AvgImages       float64 `json:"avg_images"`
+	TotalImages     int     `json:"total_images"`
 }
 
 type DiskStats struct {
@@ -63,9 +72,10 @@ type HourlyStat struct {
 }
 
 type StatusResponse struct {
-	Services       []ServiceStatus        `json:"services"`
-	PerProvider    []ProviderMetrics      `json:"per_provider"`
-	TotalCafes     int                    `json:"total_cafes"`
+	Services          []ServiceStatus        `json:"services"`
+	PerProvider       []ProviderMetrics      `json:"per_provider"`
+	FinishedProviders []string               `json:"finished_providers"`
+	TotalCafes        int                    `json:"total_cafes"`
 	TotalImages    int                    `json:"total_images"`
 	CafesLastHour  int                    `json:"cafes_last_hour"`
 	Cafes24h       int                    `json:"cafes_24h"`
@@ -98,6 +108,64 @@ func getServiceState(unit string) (string, bool) {
 		state = "inactive"
 	}
 	return state, state == "active"
+}
+
+// getServiceExitStatus returns "success", "killed", "failed", or "" for active/unknown.
+func getServiceExitStatus(unit string) string {
+	out, err := exec.Command("systemctl", "--user", "show", unit,
+		"--property=Result,ExecMainStatus").Output()
+	if err != nil {
+		return ""
+	}
+	props := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if k, v, ok := strings.Cut(line, "="); ok {
+			props[k] = v
+		}
+	}
+	result := props["Result"]
+	exitCode := props["ExecMainStatus"]
+	if result == "success" && exitCode == "0" {
+		return "success"
+	}
+	if exitCode == "15" || result == "signal" {
+		return "killed"
+	}
+	if result == "exit-code" || result == "failed" {
+		return "failed"
+	}
+	return ""
+}
+
+// getServiceLastLog returns the last meaningful log line for a service.
+// For inactive/failed services this explains why it stopped.
+func getServiceLastLog(unit string) string {
+	out, err := exec.Command("journalctl", "--user", "-u", unit, "--no-pager", "-n", "5",
+		"--output=short-monotonic").Output()
+	if err != nil || len(out) == 0 {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	// Walk from newest to oldest, skip systemd bookkeeping lines, return first real app line
+	for i := len(lines) - 1; i >= 0; i-- {
+		l := lines[i]
+		if strings.Contains(l, "systemd[") {
+			continue
+		}
+		// Strip the monotonic timestamp prefix (e.g. "[  123.456] hostname unit: ")
+		// journalctl short-monotonic format: "[timestamp] host unit[pid]: message"
+		if idx := strings.Index(l, "]: "); idx != -1 {
+			l = strings.TrimSpace(l[idx+3:])
+		}
+		// Remove the "unit[pid]: " prefix that sometimes follows
+		if idx := strings.Index(l, "]: "); idx != -1 {
+			l = strings.TrimSpace(l[idx+3:])
+		}
+		if l != "" {
+			return l
+		}
+	}
+	return ""
 }
 
 func getDiskStats(dataDir string) DiskStats {
@@ -159,14 +227,33 @@ func main() {
 
 	// ── GET /api/cafes ────────────────────────────────────────────────────────
 	mux.HandleFunc("/api/cafes", func(w http.ResponseWriter, r *http.Request) {
-		rows, err := db.Query(`SELECT id, provider, provider_id, name, lat, lon, COALESCE(address,''), COALESCE(url,''), COALESCE(metadata,'null'), COALESCE(scraped_at,'') FROM cafes`)
+		q := r.URL.Query()
+		minLat := q.Get("minLat")
+		maxLat := q.Get("maxLat")
+		minLon := q.Get("minLon")
+		maxLon := q.Get("maxLon")
+
+		const limit = 1000
+		var totalRows int
+		var rows *sql.Rows
+		var err error
+
+		if minLat != "" && maxLat != "" && minLon != "" && maxLon != "" {
+			db.QueryRow(`SELECT COUNT(*) FROM cafes WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`,
+				minLat, maxLat, minLon, maxLon).Scan(&totalRows)
+			rows, err = db.Query(`SELECT id, provider, provider_id, name, lat, lon, COALESCE(address,''), COALESCE(url,''), COALESCE(metadata,'null'), COALESCE(scraped_at,'') FROM cafes WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? LIMIT ?`,
+				minLat, maxLat, minLon, maxLon, limit)
+		} else {
+			db.QueryRow(`SELECT COUNT(*) FROM cafes`).Scan(&totalRows)
+			rows, err = db.Query(`SELECT id, provider, provider_id, name, lat, lon, COALESCE(address,''), COALESCE(url,''), COALESCE(metadata,'null'), COALESCE(scraped_at,'') FROM cafes LIMIT ?`, limit)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
 		defer rows.Close()
 
-		cafes := make([]Cafe, 0, 512)
+		cafes := make([]Cafe, 0, limit)
 		for rows.Next() {
 			var c Cafe
 			var meta string
@@ -179,7 +266,11 @@ func main() {
 		}
 
 		corsJSON(w)
-		json.NewEncoder(w).Encode(cafes)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"cafes":   cafes,
+			"showing": len(cafes),
+			"total":   totalRows,
+		})
 	})
 
 	// ── GET /api/status ───────────────────────────────────────────────────────
@@ -190,12 +281,12 @@ func main() {
 		for _, name := range serviceOrder {
 			unit := serviceMap[name]
 			state, active := getServiceState(unit)
-			resp.Services = append(resp.Services, ServiceStatus{
-				Name:   name,
-				Unit:   unit,
-				State:  state,
-				Active: active,
-			})
+			svc := ServiceStatus{Name: name, Unit: unit, State: state, Active: active}
+			if !active {
+				svc.ExitStatus = getServiceExitStatus(unit)
+			}
+			svc.LastLog = getServiceLastLog(unit)
+			resp.Services = append(resp.Services, svc)
 		}
 
 		now := time.Now().UTC()
@@ -261,6 +352,42 @@ func main() {
 					if resp.PerProvider[i].Provider == prov {
 						resp.PerProvider[i].ImagesLastHour = lh
 						resp.PerProvider[i].Images24h = l24
+					}
+				}
+			}
+		}
+
+		// Per-provider image distribution
+		distRows, err := db.Query(`
+			SELECT
+				provider,
+				COUNT(DISTINCT cafe_id) as cafes_with_images,
+				SUM(CASE WHEN img_count >= 2  THEN 1 ELSE 0 END) as cafes_2plus,
+				SUM(CASE WHEN img_count >= 10 THEN 1 ELSE 0 END) as cafes_10plus,
+				SUM(CASE WHEN img_count >= 50 THEN 1 ELSE 0 END) as cafes_50plus,
+				ROUND(AVG(img_count), 1) as avg_images,
+				SUM(img_count) as total_images
+			FROM (
+				SELECT cafe_id, provider, COUNT(*) as img_count
+				FROM images GROUP BY cafe_id, provider
+			)
+			GROUP BY provider
+		`)
+		if err == nil {
+			defer distRows.Close()
+			for distRows.Next() {
+				var prov string
+				var cwi, c2, c10, c50, total int
+				var avg float64
+				distRows.Scan(&prov, &cwi, &c2, &c10, &c50, &avg, &total)
+				for i := range resp.PerProvider {
+					if resp.PerProvider[i].Provider == prov {
+						resp.PerProvider[i].CafesWithImages = cwi
+						resp.PerProvider[i].Cafes2Plus = c2
+						resp.PerProvider[i].Cafes10Plus = c10
+						resp.PerProvider[i].Cafes50Plus = c50
+						resp.PerProvider[i].AvgImages = avg
+						resp.PerProvider[i].TotalImages = total
 					}
 				}
 			}

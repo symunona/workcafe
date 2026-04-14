@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
-import { MapContainer, TileLayer, CircleMarker } from 'react-leaflet'
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { MapContainer, TileLayer, CircleMarker, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Cafe } from './types'
-import { isOpenNow, hasImage, hasMultipleImages, imageCount, multiImgCount, providerColor } from './utils'
+import { isOpenNow, hasImage, hasMultipleImages, imageCount, providerColor } from './utils'
 import { CafeDetailsPane } from './components/CafeDetailsPane'
 import { PictureViewerOverlay } from './components/PictureViewerOverlay'
 import { StatsModal } from './components/StatsModal'
@@ -18,8 +18,43 @@ interface Filters {
   maxScrapeDate: number
 }
 
+const LS_KEY = 'workcafe_cafes_v1'
+
+function loadCacheFromLS(): Map<string, Cafe> {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return new Map()
+    const arr: Cafe[] = JSON.parse(raw)
+    return new Map(arr.map(c => [c.id, c]))
+  } catch { return new Map() }
+}
+
+function saveCacheToLS(map: Map<string, Cafe>) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify([...map.values()]))
+  } catch {}
+}
+
+interface ViewportBounds {
+  minLat: number; maxLat: number; minLon: number; maxLon: number
+}
+
+function ViewportTracker({ onBoundsChange }: { onBoundsChange: (b: ViewportBounds) => void }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const b = map.getBounds()
+      onBoundsChange({ minLat: b.getSouth(), maxLat: b.getNorth(), minLon: b.getWest(), maxLon: b.getEast() })
+    },
+    zoomend: () => {
+      const b = map.getBounds()
+      onBoundsChange({ minLat: b.getSouth(), maxLat: b.getNorth(), minLon: b.getWest(), maxLon: b.getEast() })
+    },
+  })
+  return null
+}
+
 export default function App() {
-  const [cafes, setCafes] = useState<Cafe[]>([])
+  const [cafeMap, setCafeMap] = useState<Map<string, Cafe>>(() => loadCacheFromLS())
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
@@ -27,23 +62,48 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [filters, setFilters] = useState<Filters>({ openNow: false, withImages: false, multipleImages: false, providers: new Set(), scrapeDateEnabled: false, maxScrapeDate: Date.now() })
   const filterRef = useRef<HTMLDivElement>(null)
+  const [viewportTotal, setViewportTotal] = useState<number | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [selectedCafe, setSelectedCafe] = useState<Cafe | null>(null)
   const [fullScreenImageIndex, setFullScreenImageIndex] = useState<number | null>(null)
 
-  useEffect(() => {
-    fetch('/api/cafes')
+  const cafes = useMemo(() => [...cafeMap.values()], [cafeMap])
+
+  const fetchViewport = useCallback((bounds: ViewportBounds) => {
+    setLoading(true)
+    const p = new URLSearchParams({
+      minLat: String(bounds.minLat), maxLat: String(bounds.maxLat),
+      minLon: String(bounds.minLon), maxLon: String(bounds.maxLon),
+    })
+    fetch(`/api/cafes?${p}`)
       .then(r => r.json())
-      .then((data: Cafe[]) => { 
-        setCafes(data); 
-        setLoading(false);
-        if (data.length > 0) {
-          const maxTime = Math.max(...data.map(c => new Date(c.scraped_at).getTime() || Date.now()));
-          setFilters(f => ({ ...f, maxScrapeDate: maxTime }));
+      .then((data: { cafes: Cafe[]; showing: number; total: number }) => {
+        setViewportTotal(data.total)
+        setCafeMap(prev => {
+          const next = new Map(prev)
+          for (const c of data.cafes) next.set(c.id, c)
+          saveCacheToLS(next)
+          return next
+        })
+        if (data.cafes.length > 0) {
+          const maxTime = Math.max(...data.cafes.map(c => new Date(c.scraped_at).getTime() || Date.now()));
+          setFilters(f => ({ ...f, maxScrapeDate: Math.max(f.maxScrapeDate, maxTime) }));
         }
+        setLoading(false)
       })
       .catch(() => setLoading(false))
   }, [])
+
+  const handleBoundsChange = useCallback((bounds: ViewportBounds) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => fetchViewport(bounds), 400)
+  }, [fetchViewport])
+
+  // Initial load with default Seoul viewport
+  useEffect(() => {
+    fetchViewport({ minLat: 37.52, maxLat: 37.61, minLon: 126.93, maxLon: 127.03 })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -56,13 +116,13 @@ export default function App() {
   }, [showFilters])
 
   const { minScrapeDate, maxScrapeDateTotal } = useMemo(() => {
-    if (cafes.length === 0) return { minScrapeDate: Date.now(), maxScrapeDateTotal: Date.now() };
-    const times = cafes.map(c => new Date(c.scraped_at).getTime() || Date.now());
+    if (cafeMap.size === 0) return { minScrapeDate: Date.now(), maxScrapeDateTotal: Date.now() };
+    const times = [...cafeMap.values()].map(c => new Date(c.scraped_at).getTime() || Date.now());
     return {
       minScrapeDate: Math.min(...times),
       maxScrapeDateTotal: Math.max(...times)
     };
-  }, [cafes]);
+  }, [cafeMap]);
 
   const filtered = cafes.filter(c => {
     if (search) {
@@ -89,8 +149,23 @@ export default function App() {
   }
 
   const activeFilterCount = (filters.openNow ? 1 : 0) + (filters.withImages ? 1 : 0) + (filters.multipleImages ? 1 : 0) + filters.providers.size + (filters.scrapeDateEnabled ? 1 : 0)
-  const imgCount = imageCount(cafes)
-  const multiImgCountVal = multiImgCount(cafes)
+
+  // "Excluding self" counts for each filter toggle — shows how many would match
+  // if you toggled that filter on, given all OTHER active filters.
+  const filteredExcept = useMemo(() => (exclude: string) =>
+    cafes.filter(c => {
+      if (exclude !== 'openNow'   && filters.openNow && !isOpenNow(c)) return false
+      if (exclude !== 'withImages' && filters.withImages && !hasImage(c)) return false
+      if (exclude !== 'multipleImages' && filters.multipleImages && !hasMultipleImages(c)) return false
+      if (exclude !== 'providers'  && filters.providers.size > 0 && !filters.providers.has(c.provider)) return false
+      if (exclude !== 'scrapeDate' && filters.scrapeDateEnabled && (new Date(c.scraped_at).getTime() || Date.now()) > filters.maxScrapeDate) return false
+      return true
+    }),
+  [cafes, filters])  // cafes derived from cafeMap above
+
+  const countOpenNow       = useMemo(() => filteredExcept('openNow').filter(isOpenNow).length,        [filteredExcept])
+  const countWithImages    = useMemo(() => filteredExcept('withImages').filter(hasImage).length,       [filteredExcept])
+  const countMultipleImages= useMemo(() => filteredExcept('multipleImages').filter(hasMultipleImages).length, [filteredExcept])
 
   return (
     <div className="relative w-screen h-screen overflow-hidden">
@@ -107,6 +182,7 @@ export default function App() {
           subdomains="abcd"
           maxZoom={20}
         />
+        <ViewportTracker onBoundsChange={handleBoundsChange} />
         {filtered.map(c => {
           const isSelected = selectedCafe?.id === c.id;
           return (
@@ -178,8 +254,8 @@ export default function App() {
 
           {!loading && (
             <span className="search-count">
-              {filtered.length.toLocaleString()} cafes
-              {imgCount > 0 && <span className="search-count-img"> · 📷 {imageCount(filtered).toLocaleString()}</span>}
+              {filtered.length.toLocaleString()}{viewportTotal !== null && viewportTotal > filtered.length ? ` / ${viewportTotal.toLocaleString()}` : ''} cafes
+              {imageCount(filtered) > 0 && <span className="search-count-img"> · 📷 {imageCount(filtered).toLocaleString()}</span>}
             </span>
           )}
 
@@ -221,7 +297,7 @@ export default function App() {
               >
                 <div className="toggle-knob" />
               </div>
-              <span>Open now <span className="toggle-hint">({cafes.filter(isOpenNow).length.toLocaleString()})</span></span>
+              <span>Open now <span className="toggle-hint">({countOpenNow.toLocaleString()})</span></span>
             </label>
 
             <label className="toggle-row">
@@ -231,7 +307,7 @@ export default function App() {
               >
                 <div className="toggle-knob" />
               </div>
-              <span>With photos <span className="toggle-hint">({imgCount.toLocaleString()})</span></span>
+              <span>With photos <span className="toggle-hint">({countWithImages.toLocaleString()})</span></span>
             </label>
 
             <label className="toggle-row">
@@ -241,7 +317,7 @@ export default function App() {
               >
                 <div className="toggle-knob" />
               </div>
-              <span>Multiple photos <span className="toggle-hint">({multiImgCountVal.toLocaleString()})</span></span>
+              <span>Multiple photos <span className="toggle-hint">({countMultipleImages.toLocaleString()})</span></span>
             </label>
 
             {availableProviders.length > 1 && (
@@ -249,7 +325,7 @@ export default function App() {
                 <div className="filter-section-label">Source</div>
                 <div className="filter-chips">
                   {availableProviders.map(p => {
-                    const count = cafes.filter(c => c.provider === p).length;
+                    const count = filteredExcept('providers').filter(c => c.provider === p).length;
                     return (
                       <button
                         key={p}
@@ -296,6 +372,23 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Load more button */}
+      {viewportTotal !== null && viewportTotal > 1000 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
+          <button
+            onClick={() => {
+              if (debounceRef.current) clearTimeout(debounceRef.current)
+              // re-trigger with current bounds — ViewportTracker will fire on next move,
+              // but user can also click this to manually load the next slab
+              // For now, just notify user they need to zoom in
+            }}
+            className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-md text-sm font-semibold text-gray-700 border border-gray-200"
+          >
+            Showing 1000 of {viewportTotal.toLocaleString()} — zoom in to see more
+          </button>
+        </div>
+      )}
 
       {/* Branding badge */}
       <div className="brand-badge">

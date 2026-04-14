@@ -23,7 +23,13 @@ export function CafeDetailsPane({ cafe, onClose, onFullScreenImage }: CafeDetail
       </button>
 
       <div className="cafe-details-image-container">
-        <ImageCarousel key={cafe.id} images={images} alt={cafe.name} onFullScreen={onFullScreenImage} />
+        {images.length > 0 ? (
+          <ImageCarousel key={cafe.id} images={images} alt={cafe.name} onFullScreen={onFullScreenImage} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '14px' }}>
+            No images available
+          </div>
+        )}
       </div>
 
       <div className="cafe-details-body">
