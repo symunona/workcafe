@@ -51,6 +51,7 @@ from PIL.ExifTags import TAGS, GPSTAGS
 from utils import DATA_DIR, normalize_provider_id, get_tor_session
 from db_client import DBClient
 from disk_check import check_disk_limit, DiskLimitExceeded
+from image_utils import save_image
 
 _shutdown = threading.Event()
 
@@ -409,10 +410,7 @@ def process_one_page(dbc, session, cafe_id, provider_id, metadata, page, ua=None
             continue
 
         resolved = resolve_url(raw)
-        ext = os.path.splitext(urlparse(resolved.split('?')[0]).path)[1].lower()
-        if ext not in IMAGE_EXTENSIONS:
-            ext = '.jpg'
-        fname     = f"photo_{idx:04d}{ext}"
+        fname     = f"photo_{idx:04d}.jpg"
         save_path = os.path.join(img_dir, fname)
         local_path = f"/images/kakao/{safe_id}/images/{fname}"
 
@@ -447,10 +445,10 @@ def process_one_page(dbc, session, cafe_id, provider_id, metadata, page, ua=None
             time.sleep(DELAY_BETWEEN_IMGS)
             continue
 
-        with open(save_path, 'wb') as f:
-            f.write(img_bytes)
+        _, size_meta = save_image(img_bytes, save_path)
+        img_meta = extract_image_meta(img_bytes)   # EXIF from original bytes
+        img_meta.update(size_meta)                 # post-resize w/h/size override
 
-        img_meta = extract_image_meta(img_bytes)
         insert_image_row(dbc, {
             'cafe_id': cafe_id, 'provider': 'kakao',
             'local_path': local_path, 'image_url': raw,

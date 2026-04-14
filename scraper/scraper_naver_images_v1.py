@@ -91,6 +91,7 @@ from playwright.async_api import async_playwright
 from utils import DATA_DIR, normalize_provider_id
 from db_client import DBClient
 from disk_check import check_disk_limit, DiskLimitExceeded
+from image_utils import save_image
 
 _shutdown = threading.Event()
 
@@ -130,8 +131,6 @@ PHOTO_QUERY = (
     '  }\n'
     '}'
 )
-
-IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 
 INITIAL_CURSORS = [
     {'id': 'biz'}, {'id': 'clip'}, {'id': 'cp0'},
@@ -344,28 +343,14 @@ async def fetch_one_page(browser_page, place_id: str, business_type: str,
 
 # ── Image download ────────────────────────────────────────────────────────────
 
-def download_image(session: requests.Session, url: str, save_path: str) -> bool:
+def download_image(session: requests.Session, url: str) -> bytes | None:
     try:
-        resp = session.get(url, stream=True, timeout=20)
+        resp = session.get(url, timeout=20)
         resp.raise_for_status()
-        with open(save_path, 'wb') as f:
-            for chunk in resp.iter_content(8192):
-                f.write(chunk)
-        return True
+        return resp.content
     except Exception as e:
         log.debug(f"    Failed {url[:80]}: {e}")
-        if os.path.exists(save_path):
-            try:
-                os.remove(save_path)
-            except Exception:
-                pass
-        return False
-
-
-def ext_for_url(url: str) -> str:
-    path = urlparse(url.split('?')[0]).path
-    ext  = os.path.splitext(path)[1].lower()
-    return ext if ext in IMAGE_EXTENSIONS else '.jpg'
+        return None
 
 
 # ── Per-page processing ───────────────────────────────────────────────────────
@@ -426,9 +411,8 @@ async def process_one_page(dbc, browser_page, http_session,
         ):
             continue
 
-        ext       = ext_for_url(url)
-        fname     = f"photo_{idx:04d}{ext}"
-        save_path = os.path.join(img_dir, fname)
+        fname      = f"photo_{idx:04d}.jpg"
+        save_path  = os.path.join(img_dir, fname)
         local_path = f"/images/naver/{safe_id}/images/{fname}"
 
         # File on disk but no DB row — backfill (always insert, even without photo_id)
@@ -456,7 +440,9 @@ async def process_one_page(dbc, browser_page, http_session,
             log.warning(str(e))
             break
 
-        if download_image(http_session, url, save_path):
+        img_bytes = download_image(http_session, url)
+        if img_bytes is not None:
+            _, img_meta = save_image(img_bytes, save_path)
             idx += 1
             new_downloads += 1
             if local_path not in all_local:
@@ -464,14 +450,14 @@ async def process_one_page(dbc, browser_page, http_session,
             dbc.execute('''
                 INSERT OR REPLACE INTO images
                   (cafe_id, provider, local_path, image_url, gallery_url,
-                   photo_id, photo_type, registered_at, width, height)
-                VALUES (?,?,?,?,?,?,?,?,?,?)
+                   photo_id, photo_type, registered_at, width, height, file_size)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
             ''', (cafe_id, 'naver', local_path, url,
                   (ph.get('author') or {}).get('url', ''),
                   photo_id or f"{cafe_id}_{idx}",
                   ph.get('photoType', ''),
                   ph.get('date') or ph.get('originalDate') or '',
-                  ph.get('width'), ph.get('height')))
+                  img_meta['width'], img_meta['height'], img_meta['file_size']))
         else:
             failed += 1
 
