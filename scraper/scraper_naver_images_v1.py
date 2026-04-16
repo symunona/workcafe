@@ -96,6 +96,10 @@ from image_utils import save_image
 _shutdown = threading.Event()
 
 
+class BrowserDead(Exception):
+    """Raised when the Playwright browser process has crashed."""
+
+
 def _sigterm(sig, frame):
     log.info("SIGTERM received — finishing current page then exiting.")
     _shutdown.set()
@@ -240,16 +244,22 @@ async def _graphql_call(browser_page, cursor_state: list, place_id: str,
         result = await browser_page.evaluate('''async (args) => {
             const [url, payload, token, referer] = args;
             try {
-                const resp = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-wtm-graphql': token,
-                        'Referer': referer,
-                        'Origin': 'https://pcmap.place.naver.com',
-                    },
-                    body: JSON.stringify(payload),
-                });
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), 30000);
+                let resp;
+                try {
+                    resp = await fetch(url, {
+                        method: 'POST',
+                        signal: ctrl.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-wtm-graphql': token,
+                            'Referer': referer,
+                            'Origin': 'https://pcmap.place.naver.com',
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                } finally { clearTimeout(tid); }
                 const text = await resp.text();
                 let data;
                 try { data = JSON.parse(text); }
@@ -258,6 +268,9 @@ async def _graphql_call(browser_page, cursor_state: list, place_id: str,
             } catch(e) { return {status: -1, error: String(e)}; }
         }''', [GRAPHQL_URL, payload, token, referer])
     except Exception as e:
+        err = str(e)
+        if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed')):
+            raise BrowserDead(err)
         log.warning(f"  evaluate() error: {e}")
         return None
 
@@ -301,6 +314,9 @@ async def navigate_for_cafe(browser_page, place_id: str, business_type: str,
             await asyncio.sleep(2.0)
             return True
         except Exception as e:
+            err = str(e)
+            if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed')):
+                raise BrowserDead(err)
             if attempt < 2:
                 log.warning(f"  Nav attempt {attempt+1} failed: {e!s:.100}")
                 await asyncio.sleep(5)
@@ -489,14 +505,19 @@ async def run(args):
 
     navigated_for: set = set()
     pages_fetched = 0
+    consecutive_crashes = 0
+    MAX_CRASHES = 5
+
+    BROWSER_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote']
+
+    async def make_browser(pw):
+        b = await pw.chromium.launch(headless=True, args=BROWSER_ARGS)
+        ctx = await b.new_context(user_agent=MOBILE_UA, locale='ko-KR')
+        pg = await ctx.new_page()
+        return b, ctx, pg
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(
-            headless=True,
-            args=['--no-sandbox', '--disable-dev-shm-usage']
-        )
-        context = await browser.new_context(user_agent=MOBILE_UA, locale='ko-KR')
-        browser_page = await context.new_page()
+        browser, context, browser_page = await make_browser(pw)
 
         while not _shutdown.is_set():
             # ── Pick next cafe ────────────────────────────────────────────────
@@ -540,6 +561,21 @@ async def run(args):
                     cafe_id, provider_id, metadata,
                     business_type, cursor_state_json, navigated_for
                 )
+                consecutive_crashes = 0
+            except BrowserDead as e:
+                consecutive_crashes += 1
+                log.warning(f"Browser crash #{consecutive_crashes}: {e!s:.120} — restarting browser")
+                try:
+                    await browser.close()
+                except Exception:
+                    pass
+                if consecutive_crashes >= MAX_CRASHES:
+                    log.error(f"Browser crashed {consecutive_crashes} times in a row — giving up.")
+                    break
+                await asyncio.sleep(5)
+                browser, context, browser_page = await make_browser(pw)
+                navigated_for.clear()
+                continue
             except DiskLimitExceeded as e:
                 log.warning(str(e))
                 break

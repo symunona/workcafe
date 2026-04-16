@@ -37,6 +37,15 @@ sys.path.insert(0, _HERE)
 import requests
 from playwright.sync_api import sync_playwright
 
+try:
+    from stem import Signal
+    from stem.control import Controller
+    import logging as _logging
+    _logging.getLogger('stem').setLevel(_logging.WARNING)
+    _STEM_AVAILABLE = True
+except ImportError:
+    _STEM_AVAILABLE = False
+
 from utils import DATA_DIR, normalize_provider_id
 from db_client import DBClient
 from disk_check import check_disk_limit, DiskLimitExceeded
@@ -62,6 +71,167 @@ USER_AGENTS = [
 ]
 
 _shutdown = threading.Event()
+
+BROWSER_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-zygote']
+
+TOR_SOCKS = "socks5://127.0.0.1:9050"
+TOR_CONTROL_PORT = 9051
+# Optional extra proxies: set env var SCRAPER_PROXIES as comma-separated list
+# e.g. "socks5://1.2.3.4:1080,http://5.6.7.8:3128"
+_EXTRA_PROXIES = [p.strip() for p in os.environ.get("SCRAPER_PROXIES", "").split(",") if p.strip()]
+
+
+class ProxyManager:
+    """
+    Cycles through: no proxy → Tor → extra proxies → Tor (NEWNYM) → repeat.
+    On each CAPTCHA call rotate() to get a fresh identity.
+    """
+
+    def __init__(self):
+        self._slots = [None, TOR_SOCKS] + _EXTRA_PROXIES
+        self._idx = 0
+        self._tor_available = self._check_tor()
+
+    def _check_tor(self) -> bool:
+        try:
+            r = requests.get("http://httpbin.org/ip",
+                             proxies={"http": TOR_SOCKS, "https": TOR_SOCKS},
+                             timeout=10)
+            log.info(f"Tor reachable, exit IP: {r.json().get('origin')}")
+            return True
+        except Exception as e:
+            log.warning(f"Tor SOCKS not reachable: {e} — will skip Tor slots")
+            return False
+
+    def _newnym(self):
+        """Ask Tor for a new circuit."""
+        if not _STEM_AVAILABLE:
+            return
+        try:
+            with Controller.from_port(port=TOR_CONTROL_PORT) as ctrl:
+                ctrl.authenticate()
+                ctrl.signal(Signal.NEWNYM)
+            log.info("Tor NEWNYM sent — new circuit")
+            time.sleep(5)  # allow circuit to establish
+        except Exception as e:
+            log.warning(f"NEWNYM failed: {e}")
+
+    @property
+    def current(self):
+        """Current proxy string or None (direct)."""
+        slot = self._slots[self._idx % len(self._slots)]
+        if slot == TOR_SOCKS and not self._tor_available:
+            return None
+        return slot
+
+    def rotate(self):
+        """Advance to next proxy slot; request new Tor circuit when entering Tor slot."""
+        self._idx += 1
+        slot = self._slots[self._idx % len(self._slots)]
+        if slot == TOR_SOCKS:
+            self._newnym()
+        label = slot if slot else "direct"
+        log.info(f"Proxy rotated → {label}")
+        return self.current
+
+    def playwright_proxy(self):
+        """Playwright proxy dict or None."""
+        p = self.current
+        return {"server": p} if p else None
+
+    def requests_proxies(self):
+        """requests proxies dict or None."""
+        p = self.current
+        return {"http": p, "https": p} if p else None
+
+
+PROXY_STATS_FILE = os.path.join(_HERE, "google-proxy-stats.json")
+
+
+class ProxyStats:
+    """
+    Appends outcome events to google-proxy-stats.json.
+    Schema per event:
+      ts        – ISO timestamp
+      proxy     – proxy label ("direct", "tor", or URL)
+      cafe_id   – which cafe
+      outcome   – "captcha" | "success" | "nav_error" | "no_images"
+      images    – int (only for "success")
+    Aggregated summary per proxy kept in "summary" key for quick reading.
+    """
+
+    def __init__(self):
+        if os.path.exists(PROXY_STATS_FILE):
+            try:
+                with open(PROXY_STATS_FILE) as f:
+                    self._data = json.load(f)
+            except Exception:
+                self._data = {"summary": {}, "events": []}
+        else:
+            self._data = {"summary": {}, "events": []}
+
+    def _label(self, proxy: str | None) -> str:
+        if proxy is None:
+            return "direct"
+        if proxy == TOR_SOCKS:
+            return "tor"
+        return proxy
+
+    def record(self, proxy, cafe_id: str, outcome: str, images: int = 0):
+        label = self._label(proxy)
+        event = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "proxy": label,
+            "cafe_id": cafe_id,
+            "outcome": outcome,
+        }
+        if outcome == "success":
+            event["images"] = images
+
+        self._data["events"].append(event)
+
+        s = self._data["summary"].setdefault(label, {
+            "captcha": 0, "success": 0, "nav_error": 0, "no_images": 0, "images_total": 0
+        })
+        s[outcome] = s.get(outcome, 0) + 1
+        if outcome == "success":
+            s["images_total"] += images
+
+        self._save()
+        log.debug(f"ProxyStats: {label} {outcome} ({cafe_id})")
+
+    def _save(self):
+        try:
+            with open(PROXY_STATS_FILE, "w") as f:
+                json.dump(self._data, f, indent=2)
+        except Exception as e:
+            log.warning(f"ProxyStats save failed: {e}")
+
+    def log_summary(self):
+        log.info("=== Proxy stats summary ===")
+        for proxy, s in self._data["summary"].items():
+            log.info(
+                f"  {proxy:40s}  captcha={s.get('captcha',0):3d}"
+                f"  success={s.get('success',0):3d}"
+                f"  no_images={s.get('no_images',0):3d}"
+                f"  nav_err={s.get('nav_error',0):3d}"
+                f"  imgs={s.get('images_total',0)}"
+            )
+
+
+class PageDead(Exception):
+    """Renderer process crashed — create a new page."""
+
+
+class BrowserDead(Exception):
+    """Browser process crashed — restart the browser."""
+
+
+def _classify_nav_error(err: str):
+    if any(s in err for s in ('Connection closed', 'Browser closed', 'pipe closed')):
+        raise BrowserDead(err)
+    if any(s in err for s in ('Page crashed', 'Target closed')):
+        raise PageDead(err)
 
 
 def _sigterm(sig, frame):
@@ -134,7 +304,11 @@ def download_image(session, url, save_path):
         return False
 
 
-def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, force=False):
+class CaptchaHit(Exception):
+    """CAPTCHA detected — caller should rotate proxy and rebuild browser."""
+
+
+def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stats, force=False):
     safe_id = normalize_provider_id(provider_id)
     img_dir = os.path.join(DATA_DIR, 'google', safe_id, 'images')
 
@@ -152,17 +326,18 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, force=False
     try:
         page.goto(cafe_url, wait_until="domcontentloaded", timeout=25000)
     except Exception as e:
-        log.warning(f"  {cafe_id}: navigation error: {e}")
+        log.warning(f"  {cafe_id}: navigation error: {e!s:.120}")
+        stats.record(proxy, cafe_id, "nav_error")
+        _classify_nav_error(str(e))  # raises PageDead or BrowserDead if applicable
         return 0
 
     dismiss_consent(page)
     page.wait_for_timeout(3000)
 
     if is_captcha(page):
-        sleep_s = random.uniform(*CAPTCHA_SLEEP)
-        log.warning(f"  CAPTCHA detected, sleeping {sleep_s:.0f}s")
-        time.sleep(sleep_s)
-        return 0
+        log.warning(f"  CAPTCHA detected on {cafe_id}")
+        stats.record(proxy, cafe_id, "captcha")
+        raise CaptchaHit(cafe_id)
 
     imgs = page.evaluate("""() =>
         Array.from(document.querySelectorAll('img'))
@@ -175,6 +350,7 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, force=False
 
     if not imgs:
         log.info(f"  {cafe_id}: no images found on page")
+        stats.record(proxy, cafe_id, "no_images")
         return 0
 
     log.info(f"  {cafe_id}: {len(imgs)} images found")
@@ -217,6 +393,8 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, force=False
                 ''', (cafe_id, 'google', local_path, img_url, photo_id))
 
     log.info(f"  {cafe_id}: {downloaded}/{len(imgs)} downloaded")
+    if downloaded > 0:
+        stats.record(proxy, cafe_id, "success", images=downloaded)
     return downloaded
 
 
@@ -242,46 +420,119 @@ def run(args):
 
     log.info(f"Processing {len(rows)} Google cafes")
 
-    session = requests.Session()
-    session.headers.update({
-        'User-Agent': USER_AGENTS[0],
-        'Referer': 'https://www.google.com/',
-    })
+    proxy_mgr = ProxyManager()
+    stats = ProxyStats()
+
+    def make_session():
+        s = requests.Session()
+        ua = random.choice(USER_AGENTS)
+        s.headers.update({'User-Agent': ua, 'Referer': 'https://www.google.com/'})
+        proxies = proxy_mgr.requests_proxies()
+        if proxies:
+            s.proxies.update(proxies)
+        return s
 
     total = 0
+    consecutive_crashes = 0
+    consecutive_captchas = 0
+    MAX_CRASHES = 5
+    MAX_CAPTCHAS = len(proxy_mgr._slots) + 1  # give up after exhausting all proxies
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(
-            headless=True,
-            args=['--no-sandbox', '--disable-dev-shm-usage']
-        )
-        ctx = browser.new_context(
-            user_agent=random.choice(USER_AGENTS),
-            locale='en-US',
-        )
-        page = ctx.new_page()
-        warmup(page)
+        def make_browser():
+            b = pw.chromium.launch(headless=True, args=BROWSER_ARGS)
+            c = b.new_context(
+                user_agent=random.choice(USER_AGENTS),
+                locale='en-US',
+                proxy=proxy_mgr.playwright_proxy(),
+            )
+            p = c.new_page()
+            warmup(p)
+            return b, c, p
 
-        for i, (cafe_id, provider_id, cafe_url) in enumerate(rows):
-            if _shutdown.is_set():
-                log.info("Shutdown requested — exiting loop.")
+        browser, ctx, page = make_browser()
+        session = make_session()
+
+        i = 0
+        while i < len(rows) and not _shutdown.is_set():
+            cafe_id, provider_id, cafe_url = rows[i]
+
+            try:
+                n = process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url,
+                                 proxy=proxy_mgr.current, stats=stats, force=args.force)
+                total += n
+                consecutive_crashes = 0
+                consecutive_captchas = 0
+                i += 1
+            except CaptchaHit:
+                consecutive_captchas += 1
+                if consecutive_captchas >= MAX_CAPTCHAS:
+                    log.error(f"CAPTCHA on all {consecutive_captchas} proxy slots — giving up.")
+                    break
+                new_proxy = proxy_mgr.rotate()
+                log.warning(f"  CAPTCHA #{consecutive_captchas} — proxy → {new_proxy or 'direct'}, rebuilding browser")
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                # brief backoff so Tor circuit stabilises / IP ban expires
+                time.sleep(random.uniform(15, 30))
+                browser, ctx, page = make_browser()
+                session = make_session()
+                continue  # retry same cafe
+            except PageDead as e:
+                consecutive_crashes += 1
+                log.warning(f"Page crash #{consecutive_crashes} on {cafe_id}: {e!s:.80} — new page")
+                if consecutive_crashes >= MAX_CRASHES:
+                    log.error(f"{consecutive_crashes} consecutive crashes — giving up.")
+                    break
+                try:
+                    page.close()
+                except Exception:
+                    pass
+                try:
+                    page = ctx.new_page()
+                    warmup(page)
+                except Exception:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+                    browser, ctx, page = make_browser()
+                time.sleep(5)
+                continue  # retry same cafe
+            except BrowserDead as e:
+                consecutive_crashes += 1
+                log.warning(f"Browser crash #{consecutive_crashes} on {cafe_id}: {e!s:.80} — restarting")
+                if consecutive_crashes >= MAX_CRASHES:
+                    log.error(f"{consecutive_crashes} consecutive crashes — giving up.")
+                    break
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                time.sleep(5)
+                browser, ctx, page = make_browser()
+                continue  # retry same cafe
+            except DiskLimitExceeded as e:
+                log.warning(str(e))
                 break
 
-            n = process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url,
-                             force=args.force)
-            total += n
+            if (i) % 10 == 0:
+                log.info(f"Progress: {i}/{len(rows)} cafes, {total} images total")
 
-            if (i + 1) % 10 == 0:
-                log.info(f"Progress: {i+1}/{len(rows)} cafes, {total} images total")
-
-            if i < len(rows) - 1 and not _shutdown.is_set():
+            if i < len(rows) and not _shutdown.is_set():
                 sleep_s = random.uniform(*SLEEP_BETWEEN_CAFES)
                 log.info(f"  sleeping {sleep_s:.0f}s")
                 time.sleep(sleep_s)
 
-        browser.close()
+        try:
+            browser.close()
+        except Exception:
+            pass
 
     dbc.close()
+    stats.log_summary()
     log.info(f"Done. {total} total images downloaded.")
 
 

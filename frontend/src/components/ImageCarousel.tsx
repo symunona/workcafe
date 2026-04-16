@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { ExpandIcon } from './Icons'
+import type { ImagePair } from '../utils'
+import { ImageWithFallback } from './ImageWithFallback'
 
 interface ImageCarouselProps {
-  images: string[]
+  images: ImagePair[]
   alt: string
   onFullScreen?: (index: number) => void
 }
@@ -13,11 +15,11 @@ export function ImageCarousel({ images, alt, onFullScreen }: ImageCarouselProps)
   useEffect(() => {
     setIdx(0)
   }, [images])
-  
+
   if (images.length === 0) return null
 
   return (
-    <div 
+    <div
       className={`cafe-popup-img carousel ${onFullScreen ? 'cursor-pointer' : ''}`}
       onClick={(e) => {
         if (onFullScreen) {
@@ -26,7 +28,7 @@ export function ImageCarousel({ images, alt, onFullScreen }: ImageCarouselProps)
         }
       }}
     >
-      <img src={images[idx]} alt={alt} />
+      <ImageWithFallback pair={images[idx]} alt={alt} />
       
       {images.length > 1 && (
         <>

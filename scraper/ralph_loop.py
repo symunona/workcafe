@@ -23,7 +23,7 @@ def kill_gracefully(proc):
 
 
 def run_loop(scraper_script):
-    iterations = 100
+    iterations = 500
     consecutive_errors = 0
 
     while True:
@@ -33,7 +33,8 @@ def run_loop(scraper_script):
             ["../venv/bin/python", scraper_script, "--max-steps", str(iterations)]
         )
 
-        timeout = iterations * 60
+        # Each combo takes ~90s; 4 keywords per cell → 360s per cell + headroom
+        timeout = iterations * 400
         returncode = None
 
         try:

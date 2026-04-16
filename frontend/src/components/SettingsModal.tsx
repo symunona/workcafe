@@ -136,7 +136,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       row[`${s.provider}_cafes`] = s.cafes
       row[`${s.provider}_images`] = s.images
     })
-    return Array.from(map.values()).sort((a, b) => a.hour.localeCompare(b.hour))
+    const sorted = Array.from(map.values()).sort((a, b) => a.hour.localeCompare(b.hour))
+    // Drop the last bucket — it's the current partial hour and always looks like a drop
+    return sorted.slice(0, -1)
   }, [status?.hourly_stats])
 
   const fetchStatus = useCallback(() => {

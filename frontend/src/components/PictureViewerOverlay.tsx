@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Cafe } from '../types'
-import { getImages } from '../utils'
+import { getImagePairs } from '../utils'
+import { ImageWithFallback } from './ImageWithFallback'
 import { CloseIcon } from './Icons'
 
 interface PictureViewerOverlayProps {
@@ -10,7 +11,7 @@ interface PictureViewerOverlayProps {
 }
 
 export function PictureViewerOverlay({ cafe, initialIndex, onClose }: PictureViewerOverlayProps) {
-  const images = getImages(cafe)
+  const images = getImagePairs(cafe)
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [imageMeta, setImageMeta] = useState<{ width: number; height: number } | null>(null)
   const galleryRef = useRef<HTMLDivElement>(null)
@@ -51,7 +52,7 @@ export function PictureViewerOverlay({ cafe, initialIndex, onClose }: PictureVie
 
   if (!images.length) return null
 
-  const currentImageUrl = images[currentIndex]
+  const currentPair = images[currentIndex]
 
   return (
     <div className="picture-viewer-overlay">
@@ -61,13 +62,13 @@ export function PictureViewerOverlay({ cafe, initialIndex, onClose }: PictureVie
         </button>
 
         <div className="picture-viewer-center">
-          <img 
-            src={currentImageUrl} 
-            alt={`${cafe.name} ${currentIndex + 1}`} 
-            className="picture-viewer-img" 
+          <ImageWithFallback
+            pair={currentPair}
+            alt={`${cafe.name} ${currentIndex + 1}`}
+            className="picture-viewer-img"
             onLoad={handleImageLoad}
           />
-          
+
           {images.length > 1 && (
             <>
               <button className="picture-viewer-btn prev" onClick={handlePrev}>‹</button>
@@ -76,15 +77,15 @@ export function PictureViewerOverlay({ cafe, initialIndex, onClose }: PictureVie
             </>
           )}
         </div>
-        
+
         {/* Thumbnail gallery below */}
         {images.length > 1 && (
           <div className="picture-viewer-gallery-wrapper">
             <div className="picture-viewer-gallery" ref={galleryRef}>
-              {images.map((imgUrl, idx) => (
-                <img 
-                  key={idx} 
-                  src={imgUrl} 
+              {images.map((pair, idx) => (
+                <img
+                  key={idx}
+                  src={pair.src}
                   alt={`Thumbnail ${idx + 1}`}
                   className={`picture-viewer-thumb ${idx === currentIndex ? 'active' : ''}`}
                   onClick={() => {
@@ -101,7 +102,7 @@ export function PictureViewerOverlay({ cafe, initialIndex, onClose }: PictureVie
       <div className="picture-viewer-sidebar">
         <div className="cafe-details-body">
           <div className="cafe-details-name">Image Metadata</div>
-          
+
           <div className="cafe-details-rows mt-4">
             <div className="cafe-details-row">
               <strong>Source:</strong> {cafe.provider}
@@ -115,8 +116,13 @@ export function PictureViewerOverlay({ cafe, initialIndex, onClose }: PictureVie
               </div>
             )}
             <div className="cafe-details-row" style={{ wordBreak: 'break-all' }}>
-              <strong>URL:</strong> <a href={currentImageUrl} target="_blank" rel="noopener noreferrer" className="cafe-popup-link" style={{marginTop: '4px'}}>{currentImageUrl}</a>
+              <strong>URL:</strong> <a href={currentPair.src} target="_blank" rel="noopener noreferrer" className="cafe-popup-link" style={{marginTop: '4px'}}>{currentPair.src}</a>
             </div>
+            {currentPair.fallback && (
+              <div className="cafe-details-row" style={{ wordBreak: 'break-all' }}>
+                <strong>CDN fallback:</strong> <a href={currentPair.fallback} target="_blank" rel="noopener noreferrer" className="cafe-popup-link" style={{marginTop: '4px'}}>{currentPair.fallback}</a>
+              </div>
+            )}
           </div>
         </div>
       </div>

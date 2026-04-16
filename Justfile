@@ -11,25 +11,41 @@ start:
 
 # ── Managed services (systemd user) ─────────────────────────────────────────
 
+# Stop specific groups of services (scrape or all)
+stop target:
+    #!/usr/bin/env bash
+    if [ "{{target}}" = "scrape" ]; then
+        echo "Stopping all scrapers..."
+        systemctl --user stop workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
+        echo "All scrapers stopped."
+    elif [ "{{target}}" = "all" ]; then
+        echo "Stopping all workcafe services..."
+        systemctl --user stop workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
+        echo "All services stopped."
+    else
+        echo "Unknown target: {{target}}. Use 'scrape' or 'all'."
+        exit 1
+    fi
+
 # Kill all managed services
 kill:
-    #!/usr/bin/env bash
-    echo "Stopping all workcafe services..."
-    systemctl --user stop workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images
-    echo "All services stopped."
+    @just stop all
 
 # Restart all managed services
 restart:
     #!/usr/bin/env bash
     echo "Restarting all workcafe services..."
-    systemctl --user restart workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images
+    systemctl --user restart workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
     echo "All services restarted."
 
 # Usage: just service <target> [start|stop|status|restart]
-# Targets: kakao | google | osm | naver | imagescraper | naver_images | api | frontend
+# Targets: all | kakao | google | osm | naver | imagescraper | naver_images | api | frontend
 service target action="status":
     #!/usr/bin/env bash
     case "{{target}}" in
+      all)
+        systemctl --user {{action}} workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
+        exit 0 ;;
       kakao)        svc="workcafe-scraper-kakao" ;;
       google)       svc="workcafe-scraper-google" ;;
       osm)          svc="workcafe-scraper-osm" ;;
@@ -40,7 +56,7 @@ service target action="status":
       frontend)     svc="workcafe-frontend" ;;
       *)
         echo "Unknown target: {{target}}."
-        echo "Use: kakao | google | osm | naver | imagescraper | naver_images | api | frontend"
+        echo "Use: all | kakao | google | osm | naver | imagescraper | naver_images | api | frontend"
         exit 1 ;;
     esac
     systemctl --user {{action}} "$svc"

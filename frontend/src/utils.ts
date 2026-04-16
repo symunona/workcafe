@@ -27,35 +27,46 @@ export function getGoogleMeta(cafe: Cafe): GoogleMetadata | null {
   return cafe.metadata as unknown as GoogleMetadata
 }
 
-export function getImages(cafe: Cafe): string[] {
-  // Always prefer locally hosted images when available
-  const anyMeta = cafe.metadata as { local_images?: string[], local_image_paths?: string[] } | null
-  if (anyMeta?.local_images?.length) return anyMeta.local_images
-  if (anyMeta?.local_image_paths?.length) {
-    return anyMeta.local_image_paths.map(p => {
-      if (p.startsWith('../data/seoul/')) {
-        return p.replace('../data/seoul/', '/images/')
-      }
-      return p
-    })
-  }
+export interface ImagePair {
+  src: string
+  fallback?: string  // original CDN URL if src is a local path
+}
 
-  // Fall back to CDN URLs until scraper has downloaded them
+export function getImagePairs(cafe: Cafe): ImagePair[] {
   const naver = getMeta(cafe)
   if (naver) {
-    return naver.thumUrls?.length ? naver.thumUrls : naver.thumUrl ? [naver.thumUrl] : []
+    const cdnUrls = naver.thumUrls?.length ? naver.thumUrls : naver.thumUrl ? [naver.thumUrl] : []
+    if (naver.local_images?.length) {
+      return naver.local_images.map((src, i) => ({ src, fallback: cdnUrls[i] }))
+    }
+    return cdnUrls.map(src => ({ src }))
   }
   const kakao = getKakaoMeta(cafe)
   if (kakao) {
-    const urls = kakao.image_info?.image_main_urls
-    if (urls?.length) return urls
-    if (kakao.img) return [kakao.img]
+    const cdnUrls = kakao.image_info?.image_main_urls?.length
+      ? kakao.image_info.image_main_urls
+      : kakao.img ? [kakao.img] : []
+    if (kakao.local_images?.length) {
+      return kakao.local_images.map((src, i) => ({ src, fallback: cdnUrls[i] }))
+    }
+    return cdnUrls.map(src => ({ src }))
   }
   const google = getGoogleMeta(cafe)
-  if (google) {
-    if (google.local_images?.length) return google.local_images
+  if (google?.local_images?.length) {
+    return google.local_images.map(src => ({ src }))
+  }
+  const anyMeta = cafe.metadata as { local_images?: string[], local_image_paths?: string[] } | null
+  if (anyMeta?.local_images?.length) return anyMeta.local_images.map(src => ({ src }))
+  if (anyMeta?.local_image_paths?.length) {
+    return anyMeta.local_image_paths.map(p => ({
+      src: p.startsWith('../data/seoul/') ? p.replace('../data/seoul/', '/images/') : p
+    }))
   }
   return []
+}
+
+export function getImages(cafe: Cafe): string[] {
+  return getImagePairs(cafe).map(p => p.src)
 }
 
 export function isOpenNow(cafe: Cafe): boolean {

@@ -4,19 +4,26 @@ scraper_kakao_v2.py
 IMPROVEMENTS OVER v1 (scraper_kakao.py):
   - Proper API pagination via the searchJson endpoint intercepted from network traffic.
     Iterates pages until 'hasNext' is false instead of clicking "더보기" 3 times.
-  - Searches multiple keywords per grid: 카페, 커피, 브런치, 디저트카페
-    Each yields different long-tail places not in the main "카페" results.
-  - Progress tracked per keyword: progress key = "{provider}_{keyword}" so
-    we can resume per-keyword without re-scraping completed keywords.
+  - v2 original: searched multiple keywords per grid: 카페, 커피, 브런치, 디저트카페
+  - v2 updated: single keyword "카페" + category filter (CE7-equivalent).
+    Extracts txt_ginfo category text from HTML and skips non-cafe categories.
+    Progress key changed to "kakao_CE7" so previously scraped grids are re-scraped
+    with the cleaner category filter.
   - Coordinate conversion uses same pyproj transform from v1.
   - Image downloading removed from this scraper — handled by scraper_kakao_images_v3.py.
     This keeps the data scraper fast and focused.
 
 WHAT DID NOT WORK / LIMITATIONS:
-  - The searchJson API returns max 15 results per page. At 10+ pages that's 150+ per grid
-    which is good, but dense areas may still miss some places.
+  - The searchJson XHR endpoint appears to no longer fire on mobile web; results are
+    now server-rendered HTML. Scraper falls back to HTML parsing (data-id/wx/wy/title)
+    plus txt_ginfo for category.
+  - Dense areas may still miss some places due to page result limits.
   - No Tor for Kakao — the mobile API doesn't seem to rate-limit aggressively.
     Add Tor if you start seeing 429s.
+
+CATEGORY FILTER (CE7):
+  Kakao CE7 = 카페 group. Skips places whose txt_ginfo matches NON_CAFE_CATEGORIES.
+  Unknown/empty category is kept (keyword match "카페" implies relevance).
 """
 
 import os
@@ -31,7 +38,17 @@ from playwright.sync_api import sync_playwright
 from utils import init_db, get_spiral_coordinates, DATA_DIR, CENTER_LAT, CENTER_LON, normalize_provider_id, check_if_done
 from db_client import DBClient
 
-SEARCH_KEYWORDS = ["카페", "커피", "브런치", "디저트카페"]
+SEARCH_QUERY = "카페"
+PROGRESS_KEY = "kakao_CE7"
+
+# Place categories that are clearly not cafes — skip these.
+# Everything else (including blank) is kept; "카페" keyword match implies relevance.
+NON_CAFE_CATEGORIES = {
+    "편의점", "마트", "대형마트", "슈퍼마켓", "음식점", "한식", "중식", "일식",
+    "양식", "분식", "치킨", "피자", "햄버거", "패스트푸드", "술집", "호프",
+    "노래방", "PC방", "게임", "약국", "병원", "미용실", "헤어샵", "네일",
+    "은행", "주유소", "세탁소", "헬스장", "피트니스", "스포츠",
+}
 
 _shutdown = threading.Event()
 
@@ -49,12 +66,11 @@ def watchdog(timeout):
     os._exit(1)
 
 
-def scrape_keyword(browser, dbc, grid_x, grid_y, lat, lon, keyword):
+def scrape_grid(browser, dbc, grid_x, grid_y, lat, lon):
     provider = 'kakao'
-    progress_provider = f"{provider}_{keyword}"
 
     row = dbc.fetchone('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
-                       (grid_x, grid_y, progress_provider))
+                       (grid_x, grid_y, PROGRESS_KEY))
     if row and row[0] == 'completed':
         return True
 
@@ -85,7 +101,7 @@ def scrape_keyword(browser, dbc, grid_x, grid_y, lat, lon, keyword):
     page.on("response", handle_response)
 
     import urllib.parse
-    encoded_kw = urllib.parse.quote(keyword)
+    encoded_kw = urllib.parse.quote(SEARCH_QUERY)
     url = f"https://m.map.kakao.com/actions/searchView?q={encoded_kw}&wx={urlX}&wy={urlY}&level=4"
 
     try:
@@ -118,15 +134,25 @@ def scrape_keyword(browser, dbc, grid_x, grid_y, lat, lon, keyword):
 
         import re
         html = page.content()
-        html_places = re.findall(
-            r'<li class="search_item base" data-id="(\d+)".*?data-wx="(\d+)".*?data-wy="(\d+)".*?data-title="([^"]+)"',
-            html
+        # Extract id, coords, title, and category (txt_ginfo span) from each result item
+        item_pattern = re.compile(
+            r'<li[^>]*data-id="(\d+)"[^>]*data-wx="(\d+)"[^>]*data-wy="(\d+)"[^>]*data-title="([^"]+)"[^>]*>.*?'
+            r'(?:<span[^>]*class="[^"]*txt_ginfo[^"]*"[^>]*>(.*?)</span>)?',
+            re.DOTALL
         )
-        for pid, pwx, pwy, ptitle in html_places:
+        for m in item_pattern.finditer(html):
+            pid, pwx, pwy, ptitle, pcategory = m.group(1), m.group(2), m.group(3), m.group(4), (m.group(5) or '').strip()
             if pid not in unique:
-                unique[pid] = {'confirmid': pid, 'name': ptitle, 'x': int(pwx), 'y': int(pwy)}
+                unique[pid] = {'confirmid': pid, 'name': ptitle, 'x': int(pwx), 'y': int(pwy), 'category': pcategory}
 
-        print(f"  ({grid_x},{grid_y}) [{keyword}]: {len(unique)} places from {len(api_pages)} API pages")
+        # Apply CE7 category filter: skip places in NON_CAFE_CATEGORIES
+        filtered = {pid: p for pid, p in unique.items() if p.get('category', '') not in NON_CAFE_CATEGORIES}
+        skipped = len(unique) - len(filtered)
+        if skipped:
+            print(f"  ({grid_x},{grid_y}): skipped {skipped} non-cafe places (CE7 filter)")
+        unique = filtered
+
+        print(f"  ({grid_x},{grid_y}) [CE7]: {len(unique)} places from {len(api_pages)} searchJson + HTML")
 
         for pid, place in unique.items():
             name = place.get('name', '')
@@ -164,7 +190,7 @@ def scrape_keyword(browser, dbc, grid_x, grid_y, lat, lon, keyword):
         dbc.execute('''
             INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
             VALUES (?,?,?,?)
-        ''', (grid_x, grid_y, progress_provider, 'completed'))
+        ''', (grid_x, grid_y, PROGRESS_KEY, 'completed'))
 
         time.sleep(random.uniform(1.5, 3.0))
         page.close()
@@ -172,7 +198,7 @@ def scrape_keyword(browser, dbc, grid_x, grid_y, lat, lon, keyword):
         return True
 
     except Exception as e:
-        print(f"  Error ({grid_x},{grid_y}) [{keyword}]: {e}")
+        print(f"  Error ({grid_x},{grid_y}) [CE7]: {e}")
         try:
             page.close()
             context.close()
@@ -191,14 +217,14 @@ def main():
     dbc = DBClient()
     coords = get_spiral_coordinates(args.max_steps)
 
-    if args.max_steps >= 2000 and check_if_done(dbc, [f"kakao_{kw}" for kw in SEARCH_KEYWORDS], coords):
+    if args.max_steps >= 2000 and check_if_done(dbc, [PROGRESS_KEY], coords):
         print("All blocks within 20km radius are completed! Shutting down.")
         dbc.execute("INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status) VALUES (?, ?, ?, ?)",
                     (9999, 9999, 'kakao_finished', 'completed'))
         import sys; sys.exit(42)
 
     coords_to_process = coords[args.start_step:]
-    print(f"Processing {len(coords_to_process)} grids × {len(SEARCH_KEYWORDS)} keywords")
+    print(f"Processing {len(coords_to_process)} grids (CE7 category filter)")
 
     with sync_playwright() as p:
         try:
@@ -217,17 +243,14 @@ def main():
             grid_lat = CENTER_LAT + (gy * 0.01)
             grid_lon = CENTER_LON + (gx * 0.01)
 
-            for keyword in SEARCH_KEYWORDS:
-                if _shutdown.is_set():
-                    break
-                timer = threading.Timer(300, watchdog, args=[300])
-                timer.start()
-                try:
-                    ok = scrape_keyword(browser, dbc, gx, gy, grid_lat, grid_lon, keyword)
-                    if not ok:
-                        time.sleep(3)
-                finally:
-                    timer.cancel()
+            timer = threading.Timer(300, watchdog, args=[300])
+            timer.start()
+            try:
+                ok = scrape_grid(browser, dbc, gx, gy, grid_lat, grid_lon)
+                if not ok:
+                    time.sleep(3)
+            finally:
+                timer.cancel()
 
         browser.close()
 

@@ -9,7 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -168,8 +170,68 @@ func getServiceLastLog(unit string) string {
 	return ""
 }
 
+// Disk stats cache — recompute at most once every 5 minutes
+var (
+	diskCacheMu  sync.Mutex
+	diskCached   DiskStats
+	diskCachedAt time.Time
+)
+
+// Service status cache — recompute at most once every 15 seconds
+var (
+	svcCacheMu  sync.Mutex
+	svcCached   []ServiceStatus
+	svcCachedAt time.Time
+)
+
+func getCachedServices() []ServiceStatus {
+	const ttl = 15 * time.Second
+	svcCacheMu.Lock()
+	defer svcCacheMu.Unlock()
+	if time.Since(svcCachedAt) < ttl {
+		return svcCached
+	}
+	services := make([]ServiceStatus, len(serviceOrder))
+	var wg sync.WaitGroup
+	for i, name := range serviceOrder {
+		wg.Add(1)
+		go func(i int, name string) {
+			defer wg.Done()
+			unit := serviceMap[name]
+			state, active := getServiceState(unit)
+			svc := ServiceStatus{Name: name, Unit: unit, State: state, Active: active}
+			if !active {
+				svc.ExitStatus = getServiceExitStatus(unit)
+			}
+			svc.LastLog = getServiceLastLog(unit)
+			services[i] = svc
+		}(i, name)
+	}
+	wg.Wait()
+	svcCached = services
+	svcCachedAt = time.Now()
+	return services
+}
+
+// Full status response cache — serves repeat hits instantly
+var (
+	statusCacheMu   sync.Mutex
+	statusCacheBody []byte
+	statusCachedAt  time.Time
+)
+
+const statusCacheTTL = 8 * time.Second
+
 func getDiskStats(dataDir string) DiskStats {
 	const limitGB = 40.0
+	const ttl = 5 * time.Minute
+
+	diskCacheMu.Lock()
+	defer diskCacheMu.Unlock()
+	if time.Since(diskCachedAt) < ttl {
+		return diskCached
+	}
+
 	out, err := exec.Command("du", "-sb", dataDir).Output()
 	if err != nil {
 		return DiskStats{LimitGB: limitGB}
@@ -177,11 +239,13 @@ func getDiskStats(dataDir string) DiskStats {
 	var bytes int64
 	fmt.Sscanf(string(out), "%d", &bytes)
 	gb := float64(bytes) / (1024 * 1024 * 1024)
-	return DiskStats{
+	diskCached = DiskStats{
 		DataDirGB: math_round2(gb),
 		LimitGB:   limitGB,
 		UsedPct:   math_round2(gb / limitGB * 100),
 	}
+	diskCachedAt = time.Now()
+	return diskCached
 }
 
 func math_round2(f float64) float64 {
@@ -228,25 +292,56 @@ func main() {
 	// ── GET /api/cafes ────────────────────────────────────────────────────────
 	mux.HandleFunc("/api/cafes", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
-		minLat := q.Get("minLat")
-		maxLat := q.Get("maxLat")
-		minLon := q.Get("minLon")
-		maxLon := q.Get("maxLon")
 
 		const limit = 1000
-		var totalRows int
-		var rows *sql.Rows
-		var err error
+		var conditions []string
+		var args []interface{}
 
-		if minLat != "" && maxLat != "" && minLon != "" && maxLon != "" {
-			db.QueryRow(`SELECT COUNT(*) FROM cafes WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`,
-				minLat, maxLat, minLon, maxLon).Scan(&totalRows)
-			rows, err = db.Query(`SELECT id, provider, provider_id, name, lat, lon, COALESCE(address,''), COALESCE(url,''), COALESCE(metadata,'null'), COALESCE(scraped_at,'') FROM cafes WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ? LIMIT ?`,
-				minLat, maxLat, minLon, maxLon, limit)
-		} else {
-			db.QueryRow(`SELECT COUNT(*) FROM cafes`).Scan(&totalRows)
-			rows, err = db.Query(`SELECT id, provider, provider_id, name, lat, lon, COALESCE(address,''), COALESCE(url,''), COALESCE(metadata,'null'), COALESCE(scraped_at,'') FROM cafes LIMIT ?`, limit)
+		if minLat, maxLat, minLon, maxLon := q.Get("minLat"), q.Get("maxLat"), q.Get("minLon"), q.Get("maxLon"); minLat != "" && maxLat != "" && minLon != "" && maxLon != "" {
+			conditions = append(conditions, "lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?")
+			args = append(args, minLat, maxLat, minLon, maxLon)
 		}
+
+		if q.Get("multipleImages") == "true" {
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id) >= 2")
+		} else if q.Get("withImages") == "true" {
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id) >= 1")
+		}
+
+		if providers := q.Get("providers"); providers != "" {
+			provList := strings.Split(providers, ",")
+			placeholders := make([]string, len(provList))
+			for i, p := range provList {
+				placeholders[i] = "?"
+				args = append(args, p)
+			}
+			conditions = append(conditions, "provider IN ("+strings.Join(placeholders, ",")+")")
+		}
+
+		if maxScrapeDate := q.Get("maxScrapeDate"); maxScrapeDate != "" {
+			if ts, err := strconv.ParseInt(maxScrapeDate, 10, 64); err == nil {
+				dt := time.Unix(ts/1000, 0).UTC().Format("2006-01-02 15:04:05")
+				conditions = append(conditions, "scraped_at <= ?")
+				args = append(args, dt)
+			}
+		}
+
+		if q.Get("openNow") == "true" {
+			conditions = append(conditions, "json_extract(metadata, '$.businessStatus.status.code') = 2")
+		}
+
+		whereClause := ""
+		if len(conditions) > 0 {
+			whereClause = "WHERE " + strings.Join(conditions, " AND ")
+		}
+
+		var totalRows int
+		countArgs := make([]interface{}, len(args))
+		copy(countArgs, args)
+		db.QueryRow("SELECT COUNT(*) FROM cafes "+whereClause, countArgs...).Scan(&totalRows)
+
+		dataArgs := append(args, limit)
+		rows, err := db.Query("SELECT id, provider, provider_id, name, lat, lon, COALESCE(address,''), COALESCE(url,''), COALESCE(metadata,'null'), COALESCE(scraped_at,'') FROM cafes "+whereClause+" ORDER BY RANDOM() LIMIT ?", dataArgs...)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -273,21 +368,76 @@ func main() {
 		})
 	})
 
+	// ── GET /api/filter-stats ─────────────────────────────────────────────────
+	mux.HandleFunc("/api/filter-stats", func(w http.ResponseWriter, r *http.Request) {
+		type ProviderCount struct {
+			Name  string `json:"name"`
+			Count int    `json:"count"`
+		}
+		type FilterStats struct {
+			Total          int             `json:"total"`
+			WithImages     int             `json:"with_images"`
+			MultipleImages int             `json:"multiple_images"`
+			OpenNow        int             `json:"open_now"`
+			Providers      []ProviderCount `json:"providers"`
+			MinScrapeDate  string          `json:"min_scrape_date"`
+			MaxScrapeDate  string          `json:"max_scrape_date"`
+		}
+
+		var stats FilterStats
+
+		db.QueryRow(`SELECT COUNT(*) FROM cafes`).Scan(&stats.Total)
+
+		db.QueryRow(`
+			SELECT
+				COALESCE(SUM(CASE WHEN img_count >= 1 THEN 1 ELSE 0 END), 0),
+				COALESCE(SUM(CASE WHEN img_count >= 2 THEN 1 ELSE 0 END), 0)
+			FROM (SELECT cafe_id, COUNT(*) as img_count FROM images GROUP BY cafe_id)
+		`).Scan(&stats.WithImages, &stats.MultipleImages)
+
+		db.QueryRow(`
+			SELECT COUNT(*) FROM cafes
+			WHERE json_extract(metadata, '$.businessStatus.status.code') = 2
+		`).Scan(&stats.OpenNow)
+
+		var minDate, maxDate sql.NullString
+		db.QueryRow(`SELECT MIN(scraped_at), MAX(scraped_at) FROM cafes`).Scan(&minDate, &maxDate)
+		if minDate.Valid {
+			stats.MinScrapeDate = minDate.String
+		}
+		if maxDate.Valid {
+			stats.MaxScrapeDate = maxDate.String
+		}
+
+		provRows, err := db.Query(`SELECT provider, COUNT(*) FROM cafes GROUP BY provider ORDER BY COUNT(*) DESC`)
+		if err == nil {
+			defer provRows.Close()
+			for provRows.Next() {
+				var pc ProviderCount
+				provRows.Scan(&pc.Name, &pc.Count)
+				stats.Providers = append(stats.Providers, pc)
+			}
+		}
+
+		corsJSON(w)
+		json.NewEncoder(w).Encode(stats)
+	})
+
 	// ── GET /api/status ───────────────────────────────────────────────────────
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statusCacheMu.Lock()
+		if time.Since(statusCachedAt) < statusCacheTTL && statusCacheBody != nil {
+			body := statusCacheBody
+			statusCacheMu.Unlock()
+			w.Write(body)
+			return
+		}
+		statusCacheMu.Unlock()
+
 		resp := StatusResponse{}
 
-		// Service states
-		for _, name := range serviceOrder {
-			unit := serviceMap[name]
-			state, active := getServiceState(unit)
-			svc := ServiceStatus{Name: name, Unit: unit, State: state, Active: active}
-			if !active {
-				svc.ExitStatus = getServiceExitStatus(unit)
-			}
-			svc.LastLog = getServiceLastLog(unit)
-			resp.Services = append(resp.Services, svc)
-		}
+		resp.Services = getCachedServices()
 
 		now := time.Now().UTC()
 		h1ago := now.Add(-1 * time.Hour).Format("2006-01-02 15:04:05")
@@ -501,8 +651,17 @@ func main() {
 		resp.Disk = getDiskStats(dataDir)
 		resp.DbQueue = getQueueStats(dataDir)
 
-		corsJSON(w)
-		json.NewEncoder(w).Encode(resp)
+		body, err := json.Marshal(resp)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		statusCacheMu.Lock()
+		statusCacheBody = body
+		statusCachedAt = time.Now()
+		statusCacheMu.Unlock()
+
+		w.Write(body)
 	})
 
 	// ── POST /api/services/{name}/{action} ────────────────────────────────────
@@ -553,6 +712,56 @@ func main() {
 		result["active"] = active
 
 		json.NewEncoder(w).Encode(result)
+	})
+
+	scraperDir := os.Getenv("SCRAPER_DIR")
+	if scraperDir == "" {
+		scraperDir = "../scraper"
+	}
+
+	// ── GET /api/gscraper/stats ───────────────────────────────────────────────
+	mux.HandleFunc("/api/gscraper/stats", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statsPath := filepath.Join(scraperDir, "google-proxy-stats.json")
+		data, err := os.ReadFile(statsPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				w.Write([]byte(`{"summary":{},"events":[]}`))
+				return
+			}
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		w.Write(data)
+	})
+
+	// ── GET /api/gscraper/log?lines=N ─────────────────────────────────────────
+	mux.HandleFunc("/api/gscraper/log", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		nLines := 200
+		if n, err := strconv.Atoi(r.URL.Query().Get("lines")); err == nil && n > 0 && n <= 2000 {
+			nLines = n
+		}
+		logPath := filepath.Join(scraperDir, "log", "scraper_google_images_v1.log")
+		data, err := os.ReadFile(logPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				json.NewEncoder(w).Encode(map[string]interface{}{"lines": []string{}, "path": logPath})
+				return
+			}
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		all := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+		start := 0
+		if len(all) > nLines {
+			start = len(all) - nLines
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"lines": all[start:],
+			"total": len(all),
+			"path":  logPath,
+		})
 	})
 
 	addr := ":8090"

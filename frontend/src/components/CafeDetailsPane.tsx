@@ -1,5 +1,5 @@
 import type { Cafe } from '../types'
-import { getMeta, getImages, providerColor } from '../utils'
+import { getMeta, getKakaoMeta, getImagePairs, providerColor } from '../utils'
 import { ImageCarousel } from './ImageCarousel'
 import { PhoneIcon, PinIcon, StarIcon, ArrowIcon, CloseIcon } from './Icons'
 
@@ -9,9 +9,22 @@ interface CafeDetailsPaneProps {
   onFullScreenImage: (index: number) => void
 }
 
+function photoCountLine(cafe: Cafe, downloadedCount: number): string | null {
+  const kakao = getKakaoMeta(cafe)
+  const total = kakao?.photo_counts?.total
+  const scraped = kakao?.scraped_photos ?? getMeta(cafe)?.scraped_photos
+  if (total != null && total > 0) {
+    return `📷 ${downloadedCount} downloaded of ${total.toLocaleString()} available`
+  }
+  if (scraped != null && scraped > downloadedCount) {
+    return `📷 ${downloadedCount} shown · ${scraped.toLocaleString()} scraped`
+  }
+  return null
+}
+
 export function CafeDetailsPane({ cafe, onClose, onFullScreenImage }: CafeDetailsPaneProps) {
   const meta = getMeta(cafe)
-  const images = getImages(cafe)
+  const images = getImagePairs(cafe)
   const categories = meta?.category ?? []
   const status = meta?.businessStatus?.status
   const isOpen = status?.code === 2
@@ -66,8 +79,11 @@ export function CafeDetailsPane({ cafe, onClose, onFullScreenImage }: CafeDetail
         )}
 
         <div className="cafe-details-meta">
-          <div className="cafe-details-row" style={{ marginTop: '16px', fontSize: '12px', color: '#9ca3af', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-            Source: 
+          {(() => { const line = photoCountLine(cafe, images.length); return line && (
+            <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '8px' }}>{line}</div>
+          )})()}
+          <div className="cafe-details-row" style={{ marginTop: '8px', fontSize: '12px', color: '#9ca3af', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            Source:
             <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: providerColor(cafe.provider), margin: '0 4px 0 6px' }}></span>
             {cafe.provider}
             {cafe.scraped_at && ` • Scraped: ${new Date(cafe.scraped_at).toLocaleString()}`}

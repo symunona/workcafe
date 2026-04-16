@@ -4,6 +4,8 @@ export interface KakaoMetadata {
     image_main_urls?: string[]
     image_full_count?: number
   }
+  photo_counts?: { total?: number }
+  scraped_photos?: number
   reviewCount?: number
   tel?: string
   address?: string
@@ -37,6 +39,7 @@ export interface NaverMetadata {
   roadAddress?: string
   shortAddress?: string[]
   local_images?: string[]
+  scraped_photos?: number
 }
 
 export interface Cafe {
