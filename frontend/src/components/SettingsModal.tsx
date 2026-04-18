@@ -37,6 +37,7 @@ interface DiskStats {
   data_dir_gb: number
   limit_gb: number
   used_pct: number
+  free_gb: number
 }
 
 interface QueueEntry {
@@ -411,9 +412,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Storage</h3>
                 <div className="bg-gray-50 rounded-xl px-4 py-3 flex flex-col gap-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700">{status.disk.data_dir_gb} GB used of {status.disk.limit_gb} GB limit</span>
+                    <span className="text-gray-700">{status.disk.free_gb} GB remaining of {status.disk.limit_gb} GB total</span>
                     <span className={`font-semibold ${status.disk.used_pct > 85 ? 'text-red-600' : status.disk.used_pct > 60 ? 'text-yellow-600' : 'text-green-600'}`}>
-                      {status.disk.used_pct}%
+                      {status.disk.used_pct}% used
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">

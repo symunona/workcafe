@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -59,6 +60,7 @@ type DiskStats struct {
 	DataDirGB  float64 `json:"data_dir_gb"`
 	LimitGB    float64 `json:"limit_gb"`
 	UsedPct    float64 `json:"used_pct"`
+	FreeGB     float64 `json:"free_gb"`
 }
 
 type QueueEntry struct {
@@ -223,7 +225,6 @@ var (
 const statusCacheTTL = 8 * time.Second
 
 func getDiskStats(dataDir string) DiskStats {
-	const limitGB = 40.0
 	const ttl = 5 * time.Minute
 
 	diskCacheMu.Lock()
@@ -232,17 +233,30 @@ func getDiskStats(dataDir string) DiskStats {
 		return diskCached
 	}
 
-	out, err := exec.Command("du", "-sb", dataDir).Output()
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(dataDir, &stat)
 	if err != nil {
-		return DiskStats{LimitGB: limitGB}
+		return diskCached
 	}
-	var bytes int64
-	fmt.Sscanf(string(out), "%d", &bytes)
-	gb := float64(bytes) / (1024 * 1024 * 1024)
+
+	freeBytes := float64(stat.Bavail) * float64(stat.Bsize)
+	totalBytes := float64(stat.Blocks) * float64(stat.Bsize)
+	usedBytes := totalBytes - float64(stat.Bfree) * float64(stat.Bsize)
+
+	freeGB := freeBytes / (1024 * 1024 * 1024)
+	totalGB := totalBytes / (1024 * 1024 * 1024)
+	usedGB := usedBytes / (1024 * 1024 * 1024)
+
+	var usedPct float64
+	if totalGB > 0 {
+		usedPct = (usedGB / totalGB) * 100
+	}
+
 	diskCached = DiskStats{
-		DataDirGB: math_round2(gb),
-		LimitGB:   limitGB,
-		UsedPct:   math_round2(gb / limitGB * 100),
+		DataDirGB: math_round2(usedGB),
+		LimitGB:   math_round2(totalGB),
+		UsedPct:   math_round2(usedPct),
+		FreeGB:    math_round2(freeGB),
 	}
 	diskCachedAt = time.Now()
 	return diskCached
