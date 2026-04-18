@@ -19,7 +19,7 @@ def scrape_kakao_grid(browser, conn, grid_x, grid_y, lat, lon):
     cursor.execute('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?', (grid_x, grid_y, provider))
     row = cursor.fetchone()
     if row and row[0] == 'completed':
-        print(f"Skipping Kakao grid ({grid_x}, {grid_y}), already completed.")
+        pass # print(f"Skipping Kakao grid ({grid_x}, {grid_y}), already completed.")
         return True
 
     context = browser.new_context(
@@ -255,7 +255,7 @@ def main():
 
         for idx, (x, y) in enumerate(coords_to_process):
             current_step = args.start_step + idx
-            print(f"--- Step {current_step}/{args.max_steps} ---")
+            pass # print(f"--- Step {current_step}/{args.max_steps} ---")
             
             grid_lat = CENTER_LAT + (y * 0.01)
             grid_lon = CENTER_LON + (x * 0.01)

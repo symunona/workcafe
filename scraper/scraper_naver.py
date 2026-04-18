@@ -30,7 +30,7 @@ def scrape_naver_grid(context, dbc, grid_x, grid_y, lat, lon):
     row = dbc.fetchone('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
                        (grid_x, grid_y, provider))
     if row and row[0] == 'completed':
-        print(f"Skipping Naver grid ({grid_x}, {grid_y}), already completed.")
+        pass # print(f"Skipping Naver grid ({grid_x}, {grid_y}), already completed.")
         return True
 
     api_data = []
@@ -182,7 +182,7 @@ def main():
         import sys; sys.exit(42)
 
     coords_to_process = coords[args.start_step:]
-    print(f"Processing {len(coords_to_process)} grids starting from step {args.start_step}")
+    pass # print(f"Processing {len(coords_to_process)} grids starting from step {args.start_step}")
 
     with sync_playwright() as p:
         try:
@@ -201,7 +201,7 @@ def main():
                 break
 
             current_step = args.start_step + idx
-            print(f"--- Step {current_step}/{args.max_steps} ---")
+            pass # print(f"--- Step {current_step}/{args.max_steps} ---")
 
             success = False
             retries = 2
@@ -221,7 +221,7 @@ def main():
         browser.close()
 
     dbc.close()
-    print("Scraping iteration complete.")
+    pass # print("Scraping iteration complete.")
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))

@@ -24,7 +24,7 @@ def scrape_osm(session, dbc, grid_x, grid_y):
     row = dbc.fetchone('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
                        (grid_x, grid_y, provider))
     if row and row[0] == 'completed':
-        print(f"Skipping OSM grid ({grid_x}, {grid_y}), already completed.")
+        pass # print(f"Skipping OSM grid ({grid_x}, {grid_y}), already completed.")
         return True
 
     min_lat, min_lon, max_lat, max_lon = get_bounding_box(grid_x, grid_y)
@@ -128,7 +128,7 @@ def main():
         return
 
     coords_to_process = coords[args.start_step:]
-    print(f"Processing {len(coords_to_process)} grids starting from step {args.start_step}")
+    pass # print(f"Processing {len(coords_to_process)} grids starting from step {args.start_step}")
 
     for idx, (x, y) in enumerate(coords_to_process):
         if _shutdown.is_set():
@@ -136,7 +136,7 @@ def main():
             break
 
         current_step = args.start_step + idx
-        print(f"--- Step {current_step}/{args.max_steps} ---")
+        pass # print(f"--- Step {current_step}/{args.max_steps} ---")
         success = False
         retries = 3
         while not success and retries > 0:
@@ -146,7 +146,7 @@ def main():
                 time.sleep(5)
 
     dbc.close()
-    print("Scraping iteration complete.")
+    pass # print("Scraping iteration complete.")
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))

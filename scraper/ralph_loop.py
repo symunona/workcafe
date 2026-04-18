@@ -51,7 +51,7 @@ def run_loop(scraper_script):
 
         if returncode == 0:
             print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Success!", flush=True)
-            iterations += 100
+            iterations = min(iterations + 100, 2000)
             consecutive_errors = 0
             print(f"Increasing iterations to {iterations}.", flush=True)
         elif returncode == 42:

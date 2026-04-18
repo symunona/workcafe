@@ -224,7 +224,7 @@ def main():
         import sys; sys.exit(42)
 
     coords_to_process = coords[args.start_step:]
-    print(f"Processing {len(coords_to_process)} grids (CE7 category filter)")
+    pass # print(f"Processing {len(coords_to_process)} grids (CE7 category filter)")
 
     with sync_playwright() as p:
         try:
@@ -239,7 +239,7 @@ def main():
                 break
 
             step = args.start_step + idx
-            print(f"--- Step {step}/{args.max_steps} ({gx},{gy}) ---")
+            pass # print(f"--- Step {step}/{args.max_steps} ({gx},{gy}) ---")
             grid_lat = CENTER_LAT + (gy * 0.01)
             grid_lon = CENTER_LON + (gx * 0.01)
 
@@ -255,7 +255,7 @@ def main():
         browser.close()
 
     dbc.close()
-    print("Scraping iteration complete.")
+    pass # print("Scraping iteration complete.")
 
 
 if __name__ == "__main__":

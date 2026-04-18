@@ -29,7 +29,7 @@ def scrape_google_grid(page, conn, grid_x, grid_y, lat, lon):
     cursor.execute('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?', (grid_x, grid_y, provider))
     row = cursor.fetchone()
     if row and row[0] == 'completed':
-        logging.info(f"Skipping Google grid ({grid_x}, {grid_y}), already completed.")
+        pass # logging.info(f"Skipping Google grid ({grid_x}, {grid_y}), already completed.")
         return True
 
     logging.info(f"Scraping Google grid ({grid_x}, {grid_y}) at {lat}, {lon}")
@@ -279,7 +279,7 @@ def main():
     coords = get_spiral_coordinates(args.max_steps)
     coords_to_process = coords[args.start_step:]
     
-    logging.info(f"Processing {len(coords_to_process)} grids starting from step {args.start_step}")
+    pass # logging.info(f"Processing {len(coords_to_process)} grids starting from step {args.start_step}")
 
     with sync_playwright() as p:
         try:
@@ -313,7 +313,7 @@ def main():
 
         for idx, (x, y) in enumerate(coords_to_process):
             current_step = args.start_step + idx
-            logging.info(f"--- Step {current_step}/{args.max_steps} ---")
+            pass # logging.info(f"--- Step {current_step}/{args.max_steps} ---")
             
             grid_lat = CENTER_LAT + (y * 0.01)
             grid_lon = CENTER_LON + (x * 0.01)
@@ -341,7 +341,7 @@ def main():
                 
     flush_db_queue(conn)
     conn.close()
-    logging.info("Scraping iteration complete.")
+    pass # logging.info("Scraping iteration complete.")
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))

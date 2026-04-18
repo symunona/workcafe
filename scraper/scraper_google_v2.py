@@ -248,7 +248,7 @@ def main():
     coords = get_spiral_coordinates(args.max_steps)
     coords_to_process = coords[args.start_step:]
 
-    logging.info(f"Processing {len(coords_to_process)} grids, {len(SEARCH_KEYWORDS)} keywords each")
+    pass # logging.info(f"Processing {len(coords_to_process)} grids, {len(SEARCH_KEYWORDS)} keywords each")
 
     with sync_playwright() as p:
         try:
@@ -267,7 +267,7 @@ def main():
         page = context.new_page()
 
         for idx, (x, y) in enumerate(coords_to_process):
-            logging.info(f"--- Step {args.start_step + idx}/{args.max_steps} ({x},{y}) ---")
+            pass # logging.info(f"--- Step {args.start_step + idx}/{args.max_steps} ({x},{y}) ---")
             grid_lat = CENTER_LAT + (y * 0.01)
             grid_lon = CENTER_LON + (x * 0.01)
 
@@ -284,7 +284,7 @@ def main():
 
     flush_db_queue(conn)
     conn.close()
-    logging.info("Scraping iteration complete.")
+    pass # logging.info("Scraping iteration complete.")
 
 
 if __name__ == "__main__":
