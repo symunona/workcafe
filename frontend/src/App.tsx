@@ -224,7 +224,7 @@ export default function App() {
   // openNow still computed client-side (time-dependent, naver-only)
   const filteredOpenNow = useMemo(() => filtered.filter(isOpenNow), [filtered])
 
-  const availableProviders = filterStats?.providers.map(p => p.name) ?? [...new Set(cafes.map(c => c.provider))]
+  const availableProviders = filterStats?.providers?.map(p => p.name) ?? [...new Set(cafes.map(c => c.provider))]
 
   function toggleProvider(p: string) {
     setFilters(f => {

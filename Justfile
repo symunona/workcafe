@@ -165,6 +165,19 @@ install-services:
     echo ""
     echo "Done. Run: just service all start"
 
+# Show one-line status for all workcafe services
+status:
+    #!/usr/bin/env bash
+    for svc in workcafe-db-server workcafe-api workcafe-frontend \
+                workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver \
+                workcafe-kakao-images workcafe-naver-images workcafe-google-images; do
+        if systemctl --user is-active --quiet "$svc"; then
+            echo "✓ $svc"
+        else
+            echo "✗ $svc"
+        fi
+    done
+
 # Stop specific groups of services (scrape or all)
 stop target:
     #!/usr/bin/env bash

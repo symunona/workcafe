@@ -27,6 +27,7 @@ function localImagesPlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), tailwindcss(), localImagesPlugin()],
   server: {
+    host: true,
     allowedHosts: true,
     port: 5550,
     proxy: {
