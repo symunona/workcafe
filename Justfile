@@ -11,6 +11,160 @@ start:
 
 # ── Managed services (systemd user) ─────────────────────────────────────────
 
+# Install all systemd user services and enable them
+install-services:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    WDIR="$(pwd)"
+    UNIT_DIR="$HOME/.config/systemd/user"
+    NODE_BIN="$HOME/.nvm/versions/node/v22.21.1/bin"
+    PNPM="$NODE_BIN/pnpm"
+    mkdir -p "$UNIT_DIR"
+
+    # Create venv if missing
+    if [ ! -f "$WDIR/venv/bin/python3" ]; then
+        echo "Creating venv..."
+        python3 -m venv "$WDIR/venv"
+        "$WDIR/venv/bin/pip" install -q playwright Pillow pyproj requests
+        "$WDIR/venv/bin/playwright" install chromium
+        echo "  venv ready"
+    fi
+    VENV="$WDIR/venv/bin/python3"
+
+    # Create log dir for scrapers
+    mkdir -p "$WDIR/scraper/log"
+
+    # Install frontend deps if missing
+    if [ ! -d "$WDIR/frontend/node_modules" ]; then
+        echo "Installing frontend deps..."
+        cd "$WDIR/frontend" && "$NODE_BIN/pnpm" install
+    fi
+
+    write_unit() {
+        local name="$1"; local content="$2"
+        echo "$content" > "$UNIT_DIR/$name.service"
+        echo "  wrote $name.service"
+    }
+
+    write_unit workcafe-db-server "[Unit]
+Description=Workcafe DB Server (SQLite socket)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=$WDIR/scraper
+ExecStart=$VENV db_server.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target"
+
+    write_unit workcafe-api "[Unit]
+Description=Workcafe API (Go :8090)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=$WDIR/api
+ExecStartPre=/snap/bin/go build -o workcafe-api .
+ExecStart=$WDIR/api/workcafe-api
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target"
+
+    write_unit workcafe-frontend "[Unit]
+Description=Workcafe Frontend (Vite :5550)
+After=workcafe-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=$WDIR/frontend
+Environment=PATH=$NODE_BIN:/usr/local/bin:/usr/bin:/bin
+ExecStart=$PNPM dev
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target"
+
+    for provider in kakao google osm naver; do
+        case $provider in
+            kakao)  script="scraper_kakao_v2.py" ;;
+            google) script="scraper_google_v2.py" ;;
+            osm)    script="scraper_osm.py" ;;
+            naver)  script="scraper_naver.py" ;;
+        esac
+        write_unit "workcafe-scraper-$provider" "[Unit]
+Description=Workcafe scraper: $provider
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=$WDIR/scraper
+ExecStart=$VENV ralph_loop.py $script
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target"
+    done
+
+    write_unit workcafe-kakao-images "[Unit]
+Description=Workcafe image scraper: kakao
+After=workcafe-db-server.service
+Requires=workcafe-db-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=$WDIR/scraper
+ExecStart=$VENV scraper_kakao_images_v3.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target"
+
+    write_unit workcafe-naver-images "[Unit]
+Description=Workcafe image scraper: naver
+After=workcafe-db-server.service
+Requires=workcafe-db-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=$WDIR/scraper
+ExecStart=$VENV scraper_naver_images_v1.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target"
+
+    write_unit workcafe-google-images "[Unit]
+Description=Workcafe image scraper: google
+After=workcafe-db-server.service
+Requires=workcafe-db-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=$WDIR/scraper
+ExecStart=$VENV scraper_google_images_v1.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target"
+
+    systemctl --user daemon-reload
+    systemctl --user enable \
+        workcafe-db-server workcafe-api workcafe-frontend \
+        workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver \
+        workcafe-kakao-images workcafe-naver-images workcafe-google-images
+    echo ""
+    echo "Done. Run: just service all start"
+
 # Stop specific groups of services (scrape or all)
 stop target:
     #!/usr/bin/env bash
