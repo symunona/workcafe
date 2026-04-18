@@ -47,48 +47,48 @@ install-services:
     }
 
     write_unit workcafe-db-server "[Unit]
-Description=Workcafe DB Server (SQLite socket)
-After=network.target
+    Description=Workcafe DB Server (SQLite socket)
+    After=network.target
 
-[Service]
-Type=simple
-WorkingDirectory=$WDIR/scraper
-ExecStart=$VENV db_server.py
-Restart=on-failure
-RestartSec=3
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/scraper
+    ExecStart=$VENV db_server.py
+    Restart=on-failure
+    RestartSec=3
 
-[Install]
-WantedBy=default.target"
+    [Install]
+    WantedBy=default.target"
 
     write_unit workcafe-api "[Unit]
-Description=Workcafe API (Go :8090)
-After=network.target
+    Description=Workcafe API (Go :8090)
+    After=network.target
 
-[Service]
-Type=simple
-WorkingDirectory=$WDIR/api
-ExecStartPre=/snap/bin/go build -o workcafe-api .
-ExecStart=$WDIR/api/workcafe-api
-Restart=on-failure
-RestartSec=5
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/api
+    ExecStartPre=/snap/bin/go build -o workcafe-api .
+    ExecStart=$WDIR/api/workcafe-api
+    Restart=on-failure
+    RestartSec=5
 
-[Install]
-WantedBy=default.target"
+    [Install]
+    WantedBy=default.target"
 
     write_unit workcafe-frontend "[Unit]
-Description=Workcafe Frontend (Vite :5550)
-After=workcafe-api.service
+    Description=Workcafe Frontend (Vite :5550)
+    After=workcafe-api.service
 
-[Service]
-Type=simple
-WorkingDirectory=$WDIR/frontend
-Environment=PATH=$NODE_BIN:/usr/local/bin:/usr/bin:/bin
-ExecStart=$PNPM dev
-Restart=on-failure
-RestartSec=5
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/frontend
+    Environment=PATH=$NODE_BIN:/usr/local/bin:/usr/bin:/bin
+    ExecStart=$PNPM dev
+    Restart=on-failure
+    RestartSec=5
 
-[Install]
-WantedBy=default.target"
+    [Install]
+    WantedBy=default.target"
 
     for provider in kakao google osm naver; do
         case $provider in
@@ -98,64 +98,64 @@ WantedBy=default.target"
             naver)  script="scraper_naver.py" ;;
         esac
         write_unit "workcafe-scraper-$provider" "[Unit]
-Description=Workcafe scraper: $provider
-After=network.target
+    Description=Workcafe scraper: $provider
+    After=network.target
 
-[Service]
-Type=simple
-WorkingDirectory=$WDIR/scraper
-ExecStart=$VENV ralph_loop.py $script
-Restart=on-failure
-RestartSec=10
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/scraper
+    ExecStart=$VENV ralph_loop.py $script
+    Restart=on-failure
+    RestartSec=10
 
-[Install]
-WantedBy=default.target"
+    [Install]
+    WantedBy=default.target"
     done
 
     write_unit workcafe-kakao-images "[Unit]
-Description=Workcafe image scraper: kakao
-After=workcafe-db-server.service
-Requires=workcafe-db-server.service
+    Description=Workcafe image scraper: kakao
+    After=workcafe-db-server.service
+    Requires=workcafe-db-server.service
 
-[Service]
-Type=simple
-WorkingDirectory=$WDIR/scraper
-ExecStart=$VENV scraper_kakao_images_v3.py
-Restart=on-failure
-RestartSec=30
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/scraper
+    ExecStart=$VENV scraper_kakao_images_v3.py
+    Restart=on-failure
+    RestartSec=30
 
-[Install]
-WantedBy=default.target"
+    [Install]
+    WantedBy=default.target"
 
     write_unit workcafe-naver-images "[Unit]
-Description=Workcafe image scraper: naver
-After=workcafe-db-server.service
-Requires=workcafe-db-server.service
+    Description=Workcafe image scraper: naver
+    After=workcafe-db-server.service
+    Requires=workcafe-db-server.service
 
-[Service]
-Type=simple
-WorkingDirectory=$WDIR/scraper
-ExecStart=$VENV scraper_naver_images_v1.py
-Restart=on-failure
-RestartSec=30
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/scraper
+    ExecStart=$VENV scraper_naver_images_v1.py
+    Restart=on-failure
+    RestartSec=30
 
-[Install]
-WantedBy=default.target"
+    [Install]
+    WantedBy=default.target"
 
     write_unit workcafe-google-images "[Unit]
-Description=Workcafe image scraper: google
-After=workcafe-db-server.service
-Requires=workcafe-db-server.service
+    Description=Workcafe image scraper: google
+    After=workcafe-db-server.service
+    Requires=workcafe-db-server.service
 
-[Service]
-Type=simple
-WorkingDirectory=$WDIR/scraper
-ExecStart=$VENV scraper_google_images_v1.py
-Restart=on-failure
-RestartSec=30
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/scraper
+    ExecStart=$VENV scraper_google_images_v1.py
+    Restart=on-failure
+    RestartSec=30
 
-[Install]
-WantedBy=default.target"
+    [Install]
+    WantedBy=default.target"
 
     systemctl --user daemon-reload
     systemctl --user enable \
@@ -237,5 +237,3 @@ images cafe_id="":
     else
         python scraper/scraper_kakao_images_v3.py
     fi
-
-
