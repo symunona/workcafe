@@ -54,3 +54,46 @@ export interface Cafe {
   metadata: NaverMetadata | Record<string, unknown> | null
   scraped_at: string
 }
+
+export interface ImageInfo {
+  cafe_id: string
+  provider: string
+  local_path: string
+  image_url: string
+  photo_id: string
+  width: number
+  height: number
+  file_size: number
+  scraped_at: string
+}
+
+export interface SourceCafe {
+  id: string
+  provider: string
+  name: string
+  lat: number
+  lon: number
+  address: string
+  url: string
+  metadata: Record<string, unknown> | null
+  scraped_at: string
+  images: ImageInfo[]
+}
+
+export interface CleanCafe {
+  id: string
+  name: string
+  english_name?: string
+  lat: number
+  lon: number
+  providers: string[]
+  source_ids: string[]
+  address: string
+  url: string
+  chain_name?: string
+  chain_name_english?: string
+  image_count: number
+  // detail view only
+  sources?: SourceCafe[]
+  all_images?: ImageInfo[]
+}

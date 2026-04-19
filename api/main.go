@@ -832,6 +832,253 @@ func main() {
 		})
 	})
 
+	// ── GET /api/clean_cafes ─────────────────────────────────────────────────
+	mux.HandleFunc("/api/clean_cafes", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		const limit = 1000
+		var conditions []string
+		var args []interface{}
+
+		if minLat, maxLat, minLon, maxLon := q.Get("minLat"), q.Get("maxLat"), q.Get("minLon"), q.Get("maxLon"); minLat != "" {
+			conditions = append(conditions, "cc.avg_lat BETWEEN ? AND ? AND cc.avg_lon BETWEEN ? AND ?")
+			args = append(args, minLat, maxLat, minLon, maxLon)
+		}
+
+		if q.Get("withImages") == "true" {
+			conditions = append(conditions, `(
+				SELECT COUNT(*) FROM images i
+				JOIN cafes c ON c.id = i.cafe_id
+				WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0
+			) >= 1`)
+		}
+		if q.Get("multipleImages") == "true" {
+			conditions = append(conditions, `(
+				SELECT COUNT(*) FROM images i
+				JOIN cafes c ON c.id = i.cafe_id
+				WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0
+			) >= 2`)
+		}
+
+		if providers := q.Get("providers"); providers != "" {
+			// filter: clean_cafe must have at least one of these providers
+			provList := strings.Split(providers, ",")
+			var provConds []string
+			for _, p := range provList {
+				args = append(args, "%\""+p+"\"%")
+				provConds = append(provConds, "cc.providers LIKE ?")
+			}
+			conditions = append(conditions, "("+strings.Join(provConds, " OR ")+")")
+		}
+
+		where := ""
+		if len(conditions) > 0 {
+			where = "WHERE " + strings.Join(conditions, " AND ")
+		}
+
+		countArgs := make([]interface{}, len(args))
+		copy(countArgs, args)
+		var total int
+		db.QueryRow("SELECT COUNT(*) FROM clean_cafes cc "+where, countArgs...).Scan(&total)
+
+		rows, err := db.Query(`
+			SELECT cc.id, cc.name, COALESCE(cc.english_name,''), cc.avg_lat, cc.avg_lon,
+			       COALESCE(cc.providers,'[]'), COALESCE(cc.source_ids,'[]'),
+			       COALESCE(cc.address,''), COALESCE(cc.url,''),
+			       COALESCE(ch.name,''), COALESCE(ch.name_english,''),
+			       (SELECT COUNT(*) FROM images i JOIN cafes c ON c.id = i.cafe_id
+			        WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0) as img_count
+			FROM clean_cafes cc
+			LEFT JOIN cafe_chains ch ON ch.id = cc.chain_id
+			`+where+`
+			ORDER BY RANDOM() LIMIT ?`, append(args, limit)...)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer rows.Close()
+
+		type CleanCafe struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			EnglishName string `json:"english_name,omitempty"`
+			Lat         float64 `json:"lat"`
+			Lon         float64 `json:"lon"`
+			Providers   json.RawMessage `json:"providers"`
+			SourceIDs   json.RawMessage `json:"source_ids"`
+			Address     string `json:"address"`
+			URL         string `json:"url"`
+			ChainName   string `json:"chain_name,omitempty"`
+			ChainNameEN string `json:"chain_name_english,omitempty"`
+			ImageCount  int    `json:"image_count"`
+		}
+
+		cafes := make([]CleanCafe, 0, limit)
+		for rows.Next() {
+			var cc CleanCafe
+			var provJSON, srcJSON string
+			if err := rows.Scan(&cc.ID, &cc.Name, &cc.EnglishName, &cc.Lat, &cc.Lon,
+				&provJSON, &srcJSON, &cc.Address, &cc.URL,
+				&cc.ChainName, &cc.ChainNameEN, &cc.ImageCount); err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			cc.Providers = json.RawMessage(provJSON)
+			cc.SourceIDs = json.RawMessage(srcJSON)
+			cafes = append(cafes, cc)
+		}
+
+		corsJSON(w)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"cafes":   cafes,
+			"showing": len(cafes),
+			"total":   total,
+		})
+	})
+
+	// ── GET /api/clean_cafe?id=... ────────────────────────────────────────────
+	mux.HandleFunc("/api/clean_cafe", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "id required", 400)
+			return
+		}
+
+		// Clean cafe base info
+		row := db.QueryRow(`
+			SELECT cc.id, cc.name, COALESCE(cc.english_name,''), cc.avg_lat, cc.avg_lon,
+			       COALESCE(cc.providers,'[]'), COALESCE(cc.source_ids,'[]'),
+			       COALESCE(cc.address,''), COALESCE(cc.url,''),
+			       COALESCE(ch.name,''), COALESCE(ch.name_english,''), COALESCE(ch.id,'')
+			FROM clean_cafes cc
+			LEFT JOIN cafe_chains ch ON ch.id = cc.chain_id
+			WHERE cc.id = ?`, id)
+
+		var cleanID, name, englishName, address, url, chainName, chainNameEN, chainID string
+		var avgLat, avgLon float64
+		var provJSON, srcJSON string
+		if err := row.Scan(&cleanID, &name, &englishName, &avgLat, &avgLon,
+			&provJSON, &srcJSON, &address, &url,
+			&chainName, &chainNameEN, &chainID); err != nil {
+			http.Error(w, "not found", 404)
+			return
+		}
+
+		// Source cafes
+		sourceRows, err := db.Query(`
+			SELECT c.id, COALESCE(c.provider,''), COALESCE(c.name,''),
+			       c.lat, c.lon, COALESCE(c.address,''), COALESCE(c.url,''),
+			       COALESCE(c.metadata,'null'), COALESCE(c.scraped_at,'')
+			FROM cafes c WHERE c.belongs_to_cafe_id = ?`, id)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer sourceRows.Close()
+
+		type SourceCafe struct {
+			ID        string          `json:"id"`
+			Provider  string          `json:"provider"`
+			Name      string          `json:"name"`
+			Lat       float64         `json:"lat"`
+			Lon       float64         `json:"lon"`
+			Address   string          `json:"address"`
+			URL       string          `json:"url"`
+			Metadata  json.RawMessage `json:"metadata"`
+			ScrapedAt string          `json:"scraped_at"`
+			Images    json.RawMessage `json:"images"`
+		}
+
+		var sources []SourceCafe
+		var sourceIDs []string
+		for sourceRows.Next() {
+			var s SourceCafe
+			var meta string
+			if err := sourceRows.Scan(&s.ID, &s.Provider, &s.Name, &s.Lat, &s.Lon,
+				&s.Address, &s.URL, &meta, &s.ScrapedAt); err != nil {
+				continue
+			}
+			s.Metadata = json.RawMessage(meta)
+			sourceIDs = append(sourceIDs, s.ID)
+			sources = append(sources, s)
+		}
+
+		// Images for all source cafes
+		if len(sourceIDs) > 0 {
+			placeholders := make([]string, len(sourceIDs))
+			imgArgs := make([]interface{}, len(sourceIDs))
+			for i, sid := range sourceIDs {
+				placeholders[i] = "?"
+				imgArgs[i] = sid
+			}
+			imgRows, err := db.Query(`
+				SELECT cafe_id, provider, local_path, image_url, photo_id,
+				       width, height, file_size, scraped_at
+				FROM images
+				WHERE cafe_id IN (`+strings.Join(placeholders, ",")+`) AND file_size > 0
+				ORDER BY cafe_id, scraped_at DESC`, imgArgs...)
+			if err == nil {
+				defer imgRows.Close()
+				type ImageInfo struct {
+					CafeID    string `json:"cafe_id"`
+					Provider  string `json:"provider"`
+					LocalPath string `json:"local_path"`
+					ImageURL  string `json:"image_url"`
+					PhotoID   string `json:"photo_id"`
+					Width     int    `json:"width"`
+					Height    int    `json:"height"`
+					FileSize  int    `json:"file_size"`
+					ScrapedAt string `json:"scraped_at"`
+				}
+				imagesByCafe := map[string][]ImageInfo{}
+				var allImages []ImageInfo
+				for imgRows.Next() {
+					var img ImageInfo
+					imgRows.Scan(&img.CafeID, &img.Provider, &img.LocalPath,
+						&img.ImageURL, &img.PhotoID, &img.Width, &img.Height,
+						&img.FileSize, &img.ScrapedAt)
+					imagesByCafe[img.CafeID] = append(imagesByCafe[img.CafeID], img)
+					allImages = append(allImages, img)
+				}
+				for i := range sources {
+					imgs := imagesByCafe[sources[i].ID]
+					if imgs == nil {
+						imgs = []ImageInfo{}
+					}
+					b, _ := json.Marshal(imgs)
+					sources[i].Images = json.RawMessage(b)
+				}
+
+				corsJSON(w)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"id":               cleanID,
+					"name":             name,
+					"english_name":     englishName,
+					"avg_lat":          avgLat,
+					"avg_lon":          avgLon,
+					"providers":        json.RawMessage(provJSON),
+					"source_ids":       json.RawMessage(srcJSON),
+					"address":          address,
+					"url":              url,
+					"chain_name":       chainName,
+					"chain_name_english": chainNameEN,
+					"chain_id":         chainID,
+					"sources":          sources,
+					"all_images":       allImages,
+					"image_count":      len(allImages),
+				})
+				return
+			}
+		}
+
+		corsJSON(w)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id": cleanID, "name": name, "english_name": englishName,
+			"avg_lat": avgLat, "avg_lon": avgLon,
+			"providers": json.RawMessage(provJSON),
+			"sources": sources, "all_images": []interface{}{},
+		})
+	})
+
 	addr := ":8090"
 	log.Printf("Serving on %s (DB: %s)", addr, dbPath)
 	log.Fatal(http.ListenAndServe(addr, mux))
