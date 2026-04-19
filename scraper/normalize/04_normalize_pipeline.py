@@ -168,6 +168,7 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
     """
     Returns (clean_cafe_id, was_created).
     was_created=True if new clean_cafe row created, False if merged into existing.
+    Note: caller is responsible for updating cafes.belongs_to_cafe_id (batched).
     """
     lat, lon = cafe["lat"], cafe["lon"]
 
@@ -207,11 +208,7 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
 
     if matched_id:
         merge_into_clean_cafe(conn, dbc, matched_id, cafe)
-        if emb_blob:
-            dbc.execute("UPDATE cafes SET name_embedding = ? WHERE id = ?",
-                        (emb_blob, cafe["id"]))
-        dbc.execute("UPDATE cafes SET belongs_to_cafe_id = ? WHERE id = ?",
-                    (matched_id, cafe["id"]))
+        # belongs_to_cafe_id update deferred to batch (see main loop)
         return matched_id, False
 
     # Create new
@@ -223,13 +220,8 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
         if base not in chain_names:
             chain_names.append(base)
 
-    if emb_blob:
-        dbc.execute("UPDATE cafes SET name_embedding = ? WHERE id = ?",
-                    (emb_blob, cafe["id"]))
-
     clean_id = create_clean_cafe(dbc, cafe, chain_id, emb_blob)
-    dbc.execute("UPDATE cafes SET belongs_to_cafe_id = ? WHERE id = ?",
-                (clean_id, cafe["id"]))
+    # belongs_to_cafe_id update deferred to batch (see main loop)
     return clean_id, True
 
 
@@ -291,11 +283,13 @@ def main():
 
     try:
         while True:
-            rows = cursor.fetchmany(200)
+            rows = cursor.fetchmany(500)
             if not rows:
                 break
             if args.limit > 0 and done >= args.limit:
                 break
+
+            batch_links: list[tuple[str, str]] = []  # (clean_id, cafe_id)
 
             for row in rows:
                 if args.limit > 0 and done >= args.limit:
@@ -306,7 +300,8 @@ def main():
                     "address": row[5] or "", "url": row[6] or "",
                 }
                 try:
-                    _, was_created = process_cafe(conn, dbc, cafe, chain_names, args.embed)
+                    clean_id, was_created = process_cafe(conn, dbc, cafe, chain_names, args.embed)
+                    batch_links.append((clean_id, cafe["id"]))
                     if was_created:
                         created += 1
                     else:
@@ -322,6 +317,13 @@ def main():
                           f"  new={created} merged={merged} err={errors}",
                           end="", flush=True)
                     last_print = now
+
+            # Batch update belongs_to_cafe_id — 1 dbc call per batch instead of per cafe
+            if batch_links:
+                dbc.executemany(
+                    "UPDATE cafes SET belongs_to_cafe_id = ? WHERE id = ? AND belongs_to_cafe_id IS NULL",
+                    batch_links
+                )
 
     except KeyboardInterrupt:
         print("\nPaused.")
