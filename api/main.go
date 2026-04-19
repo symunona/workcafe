@@ -87,6 +87,7 @@ type StatusResponse struct {
 	Images24h      int                    `json:"images_24h"`
 	LastCafeAt     string                 `json:"last_cafe_at"`
 	LastImageAt    string                 `json:"last_image_at"`
+	MBPerDay       float64                `json:"mb_per_day"`
 	Disk           DiskStats              `json:"disk"`
 	DbQueue        map[string]QueueEntry  `json:"db_queue"`
 	HourlyStats    []HourlyStat           `json:"hourly_stats"`
@@ -468,6 +469,7 @@ func main() {
 		db.QueryRow(`SELECT COUNT(*) FROM cafes WHERE scraped_at >= ?`, h24ago).Scan(&resp.Cafes24h)
 		db.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h1ago).Scan(&resp.ImagesLastHour)
 		db.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h24ago).Scan(&resp.Images24h)
+		db.QueryRow(`SELECT ROUND(COALESCE(SUM(file_size),0)/1024.0/1024.0, 1) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.MBPerDay)
 
 		// Last activity timestamps
 		var lastCafe, lastImage sql.NullString

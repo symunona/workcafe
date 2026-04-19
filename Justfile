@@ -54,6 +54,7 @@ check:
             case "$pkg" in
                 PIL)  used="image scrapers (scraper_kakao_images_v3, scraper_naver_images_v1, scraper_google_images_v1)" ;;
                 stem) used="scraper_google_images_v1.py — Tor NEWNYM circuit rotation" ;;
+                socks) used="get_tor_session() — Tor SOCKS5 proxy for osm/google scrapers" ;;
                 pyproj) used="spiral grid coordinate math in scrapers" ;;
                 *) used="all scrapers (HTTP requests)" ;;
             esac
@@ -98,6 +99,16 @@ check:
     else fail "tor control port closed" \
         "sudo sed -i 's/#ControlPort 9051/ControlPort 9051/' /etc/tor/torrc && sudo systemctl reload tor" \
         "stem NEWNYM in scraper_google_images_v1.py (rotates Tor circuit on 429/block)"; fi
+
+    TOR_CTRL=$(cd "$WDIR/scraper" && "$VENV" check_tor.py 2>&1)
+    if groups | grep -qw debian-tor; then ok "user in debian-tor group (cookie auth)"
+    else fail "user not in debian-tor group" "sudo usermod -aG debian-tor \$USER  then log out/in" "tor cookie auth: read /run/tor/control.authcookie"
+    fi
+
+    if [ "$TOR_CTRL" = "ok" ]; then ok "tor NEWNYM (stem auth + circuit rotation)"
+    elif [ "$TOR_CTRL" = "no_stem" ]; then fail "tor NEWNYM: stem missing" "$WDIR/venv/bin/pip install stem" "google image scraper: Tor circuit rotation"
+    else fail "tor NEWNYM failed: $TOR_CTRL" "sudo usermod -aG debian-tor \$USER then log out/in" "google image scraper: circuit rotation on block"
+    fi
 
     echo ""
     echo "── Data ─────────────────────────────────────────────"
@@ -283,12 +294,19 @@ install-services:
 # Show one-line status for all workcafe services
 status:
     #!/usr/bin/env bash
+    G='\033[0;32m'; R='\033[0;31m'; GBG='\033[42;97m'; NC='\033[0m'
     chk() {
         local label="$1"; local svc="$2"
         if systemctl --user is-active --quiet "$svc"; then
-            echo "✓ $label"
+            printf "${G}✓${NC} %s\n" "$label"
         else
-            echo "✗ $label"
+            local exit_code
+            exit_code=$(systemctl --user show "$svc" --property=ExecMainStatus --value 2>/dev/null)
+            if [ "$exit_code" = "0" ]; then
+                printf "${GBG} ✓ ${NC} %s\n" "$label"
+            else
+                printf "${R}✗${NC} %s\n" "$label"
+            fi
         fi
     }
     echo "── core ─────────────────────────────────────────────"

@@ -402,6 +402,18 @@ export default function App() {
               <div className="filter-section">
                 <div className="filter-section-label">Source</div>
                 <div className="filter-chips">
+                  <button
+                    key="all"
+                    onClick={() => setFilters(f => ({ ...f, providers: new Set() }))}
+                    className={`chip ${filters.providers.size === 0 ? 'active' : ''}`}
+                  >
+                    All
+                    {filterStats && (
+                      <span style={{ opacity: 0.8, marginLeft: '4px' }}>
+                        ({cafes.length.toLocaleString()} / {filterStats.total.toLocaleString()})
+                      </span>
+                    )}
+                  </button>
                   {availableProviders.map(p => {
                     const count = filterStats?.providers.find(pr => pr.name === p)?.count
                     return (
@@ -465,7 +477,7 @@ export default function App() {
       </div>
 
       {/* Load more button */}
-      {viewportTotal !== null && viewportTotal > 1000 && (
+      {viewportTotal !== null && viewportTotal > cafes.length && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
           <button
             onClick={() => {
@@ -473,7 +485,7 @@ export default function App() {
             }}
             className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-md text-sm font-semibold text-gray-700 border border-gray-200"
           >
-            Showing 1000 of {viewportTotal.toLocaleString()} — zoom in to see more
+            Showing {cafes.length.toLocaleString()} of {viewportTotal.toLocaleString()} — zoom in to see more
           </button>
         </div>
       )}
@@ -484,7 +496,7 @@ export default function App() {
       </div>
 
       {/* Top-right buttons */}
-      <div className="absolute top-24 right-4 sm:top-6 sm:right-6 z-[1000] flex flex-col sm:flex-row items-end sm:items-center gap-4">
+      <div className="absolute bottom-20 right-4 sm:bottom-auto sm:top-6 sm:right-6 z-[1000] flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4">
         <button
           onClick={() => setShowStats(true)}
           className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-purple-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"

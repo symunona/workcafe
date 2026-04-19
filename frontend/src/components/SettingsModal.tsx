@@ -59,6 +59,7 @@ interface StatusData {
   disk: DiskStats
   db_queue: Record<string, QueueEntry>
   hourly_stats: HourlyStat[]
+  mb_per_day: number
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -205,12 +206,13 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             <div className="p-4 sm:p-6 flex flex-col gap-5">
 
               {/* Summary cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {[
                   { label: 'Cafes / hr', value: status.cafes_last_hour, sub: `${status.cafes_24h} today` },
                   { label: 'Images / hr', value: status.images_last_hour, sub: `${status.images_24h} today` },
                   { label: 'Total cafes', value: status.total_cafes.toLocaleString(), sub: `last ${timeSince(status.last_cafe_at)}` },
                   { label: 'Total images', value: status.total_images.toLocaleString(), sub: `last ${timeSince(status.last_image_at)}` },
+                  { label: 'MB / day', value: status.mb_per_day ? `${status.mb_per_day.toLocaleString()} MB` : '—', sub: status.mb_per_day ? `~${Math.round(status.mb_per_day / 24)} MB/hr` : '' },
                 ].map(card => (
                   <div key={card.label} className="bg-gray-50 rounded-xl p-3 flex flex-col gap-0.5">
                     <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">{card.label}</span>
@@ -247,7 +249,11 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                                 isToggling ? 'opacity-60' : ''
                               } ${svc.active ? 'bg-gray-50' : mood === 'error' ? 'bg-red-50/50' : 'bg-gray-50/60'}`}
                             >
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />
+                              {mood === 'success' ? (
+                                <span className="w-5 h-5 rounded-full bg-green-100 border-2 border-green-400 flex items-center justify-center text-green-600 text-xs font-bold shrink-0">✓</span>
+                              ) : (
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />
+                              )}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-medium text-gray-800">{SERVICE_LABELS[svc.name] ?? svc.name}</span>
