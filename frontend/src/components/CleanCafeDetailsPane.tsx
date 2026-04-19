@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { CleanCafe, ImageInfo } from '../types'
 import { PROVIDER_COLORS } from '../utils'
-import { ImageWithFallback } from './ImageWithFallback'
 
 interface Props {
   cafeId: string
@@ -75,10 +74,11 @@ export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
                 <div key={i} className="relative aspect-square cursor-pointer"
                   style={{ borderBottom: `3px solid ${PROVIDER_COLORS[img.provider] ?? '#6b7280'}` }}
                   onClick={() => setActiveImage(img)}>
-                  <ImageWithFallback
+                  <img
                     src={img.local_path?.startsWith('../') ? img.local_path.replace('../data/seoul/', '/images/') : img.local_path || img.image_url}
                     className="w-full h-full object-cover"
                     alt=""
+                    loading="lazy"
                   />
                   <span className="absolute bottom-0.5 right-0.5 text-[9px] bg-black/50 text-white px-0.5 rounded">
                     {img.provider}

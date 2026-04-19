@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import { MapContainer, TileLayer, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { CleanCafe } from './types'
@@ -17,8 +17,10 @@ interface Filters {
   providers: Set<string>
 }
 
-const API_BASE = '/api/clean_cafes'
-const SCRAPER_URL = '/scraper/'
+interface MarkerLayerProps {
+  cafes: Map<string, CleanCafe>
+  onSelect: (id: string) => void
+}
 
 function ViewportTracker({ onBoundsChange }: { onBoundsChange: (b: ViewportBounds) => void }) {
   const map = useMapEvents({
@@ -30,7 +32,57 @@ function ViewportTracker({ onBoundsChange }: { onBoundsChange: (b: ViewportBound
       const b = map.getBounds()
       onBoundsChange({ minLat: b.getSouth(), maxLat: b.getNorth(), minLon: b.getWest(), maxLon: b.getEast() })
     },
+    load: () => {
+      const b = map.getBounds()
+      onBoundsChange({ minLat: b.getSouth(), maxLat: b.getNorth(), minLon: b.getWest(), maxLon: b.getEast() })
+    },
   })
+  // Fire initial bounds after mount
+  useEffect(() => {
+    const b = map.getBounds()
+    onBoundsChange({ minLat: b.getSouth(), maxLat: b.getNorth(), minLon: b.getWest(), maxLon: b.getEast() })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
+
+function MarkerLayer({ cafes, onSelect }: MarkerLayerProps) {
+  const map = useMap()
+  const markersRef = useRef<Map<string, L.Marker>>(new Map())
+  const layerRef = useRef<L.LayerGroup | null>(null)
+
+  useEffect(() => {
+    if (!layerRef.current) {
+      layerRef.current = L.layerGroup().addTo(map)
+    }
+  }, [map])
+
+  useEffect(() => {
+    const layer = layerRef.current
+    if (!layer) return
+
+    const existing = markersRef.current
+    const toRemove = new Set(existing.keys())
+
+    for (const cafe of cafes.values()) {
+      toRemove.delete(cafe.id)
+      if (existing.has(cafe.id)) continue
+
+      const providers = Array.isArray(cafe.providers)
+        ? cafe.providers
+        : (JSON.parse(cafe.providers as unknown as string ?? '[]') as string[])
+      const icon = makePieIcon(providers, 12, cafe.image_count > 0)
+      const marker = L.marker([cafe.lat, cafe.lon], { icon })
+      marker.on('click', () => onSelect(cafe.id))
+      marker.addTo(layer)
+      existing.set(cafe.id, marker)
+    }
+
+    for (const id of toRemove) {
+      existing.get(id)?.remove()
+      existing.delete(id)
+    }
+  }, [cafes, onSelect])
+
   return null
 }
 
@@ -38,14 +90,11 @@ export default function CleanApp() {
   const [cafeMap, setCafeMap] = useState<Map<string, CleanCafe>>(new Map())
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [viewport, setViewport] = useState<ViewportBounds | null>(null)
   const [filters, setFilters] = useState<Filters>({ withImages: false, multipleImages: false, providers: new Set() })
   const [showFilters, setShowFilters] = useState(false)
   const [total, setTotal] = useState(0)
-  const mapRef = useRef<L.Map | null>(null)
-  const markersRef = useRef<Map<string, L.Marker>>(new Map())
-  const layerGroupRef = useRef<L.LayerGroup | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const boundsRef = useRef<ViewportBounds | null>(null)
 
   const fetchCafes = useCallback(async (bounds: ViewportBounds, f: Filters) => {
     if (abortRef.current) abortRef.current.abort()
@@ -63,14 +112,12 @@ export default function CleanApp() {
 
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}?${params}`, { signal: abortRef.current.signal })
+      const res = await fetch(`/api/clean_cafes?${params}`, { signal: abortRef.current.signal })
       const data = await res.json()
       setTotal(data.total ?? 0)
       setCafeMap(prev => {
         const next = new Map(prev)
-        for (const c of (data.cafes ?? [])) {
-          next.set(c.id, c)
-        }
+        for (const c of (data.cafes ?? [])) next.set(c.id, c)
         return next
       })
     } catch (e) {
@@ -81,42 +128,19 @@ export default function CleanApp() {
   }, [])
 
   const handleBoundsChange = useCallback((b: ViewportBounds) => {
-    setViewport(b)
+    boundsRef.current = b
     fetchCafes(b, filters)
   }, [fetchCafes, filters])
 
+  // Re-fetch when filters change
   useEffect(() => {
-    if (viewport) fetchCafes(viewport, filters)
+    if (boundsRef.current) {
+      setCafeMap(new Map())
+      fetchCafes(boundsRef.current, filters)
+    }
   }, [filters]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Render markers
-  useEffect(() => {
-    if (!mapRef.current) return
-    if (!layerGroupRef.current) {
-      layerGroupRef.current = L.layerGroup().addTo(mapRef.current)
-    }
-
-    const layer = layerGroupRef.current
-    const existing = markersRef.current
-    const toRemove = new Set(existing.keys())
-
-    for (const cafe of cafeMap.values()) {
-      toRemove.delete(cafe.id)
-      if (existing.has(cafe.id)) continue
-
-      const providers = Array.isArray(cafe.providers) ? cafe.providers : JSON.parse(cafe.providers as unknown as string ?? '[]')
-      const icon = makePieIcon(providers, 12, cafe.image_count > 0)
-      const marker = L.marker([cafe.lat, cafe.lon], { icon })
-      marker.on('click', () => setSelectedId(cafe.id))
-      marker.addTo(layer)
-      existing.set(cafe.id, marker)
-    }
-
-    for (const id of toRemove) {
-      existing.get(id)?.remove()
-      existing.delete(id)
-    }
-  }, [cafeMap])
+  const handleSelect = useCallback((id: string) => setSelectedId(id), [])
 
   const cafesInView = useMemo(() => cafeMap.size, [cafeMap])
 
@@ -126,13 +150,16 @@ export default function CleanApp() {
         center={[37.5665, 126.978]}
         zoom={14}
         className="w-full h-full"
-        ref={mapRef}
+        zoomControl={false}
       >
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='© <a href="https://openstreetmap.org">OSM</a>'
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={20}
         />
         <ViewportTracker onBoundsChange={handleBoundsChange} />
+        <MarkerLayer cafes={cafeMap} onSelect={handleSelect} />
       </MapContainer>
 
       {/* Top bar */}
@@ -140,40 +167,37 @@ export default function CleanApp() {
         <div className="bg-white rounded-lg shadow px-3 py-1.5 text-sm font-medium flex items-center gap-2">
           <span className="text-gray-700">☕ Workcafe</span>
           <span className="text-gray-400">|</span>
-          <span className="text-gray-500">
-            {loading ? '…' : `${cafesInView} / ${total}`}
+          <span className="text-gray-500 text-xs">
+            {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
           </span>
         </div>
         <button
-          className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50"
+          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 ${filters.withImages || filters.multipleImages || filters.providers.size > 0 ? 'ring-2 ring-blue-400' : ''}`}
           onClick={() => setShowFilters(!showFilters)}
         >
           Filter {filters.withImages || filters.multipleImages || filters.providers.size > 0 ? '●' : ''}
         </button>
-        <a
-          href={SCRAPER_URL}
-          className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-600"
-        >
+        <a href="/scraper/" className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500">
           Scraper →
         </a>
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-6 left-2 z-[500] bg-white rounded-lg shadow p-2">
-        <div className="text-xs text-gray-500 mb-1 font-medium">Providers</div>
+      <div className="absolute bottom-6 left-2 z-[500] bg-white/90 rounded-lg shadow p-2 text-xs">
+        <div className="text-gray-500 mb-1 font-medium">Providers</div>
         {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
-          <div key={p} className="flex items-center gap-1.5 text-xs py-0.5">
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
-            <span>{p}</span>
+          <div key={p} className="flex items-center gap-1.5 py-0.5">
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+            <span className="text-gray-600">{p}</span>
           </div>
         ))}
-        <div className="mt-1 pt-1 border-t text-xs text-gray-400">● = has images</div>
+        <div className="mt-1 pt-1 border-t text-gray-400">white ring = has images</div>
       </div>
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[500] bg-white rounded-lg shadow-lg p-4 w-72">
-          <h3 className="font-medium mb-3">Filters</h3>
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[600] bg-white rounded-xl shadow-lg p-4 w-72">
+          <h3 className="font-semibold mb-3 text-sm">Filters</h3>
           <label className="flex items-center gap-2 mb-2 text-sm cursor-pointer">
             <input type="checkbox" checked={filters.withImages}
               onChange={e => setFilters(f => ({ ...f, withImages: e.target.checked, multipleImages: e.target.checked ? f.multipleImages : false }))} />
@@ -184,7 +208,7 @@ export default function CleanApp() {
               onChange={e => setFilters(f => ({ ...f, multipleImages: e.target.checked, withImages: e.target.checked ? true : f.withImages }))} />
             Multiple images (2+)
           </label>
-          <div className="text-xs text-gray-500 mb-1 font-medium">Providers</div>
+          <div className="text-xs text-gray-500 mb-2 font-medium">Provider filter</div>
           {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
             <label key={p} className="flex items-center gap-2 mb-1.5 text-sm cursor-pointer">
               <input type="checkbox"
@@ -205,12 +229,8 @@ export default function CleanApp() {
         </div>
       )}
 
-      {/* Details pane */}
       {selectedId && (
-        <CleanCafeDetailsPane
-          cafeId={selectedId}
-          onClose={() => setSelectedId(null)}
-        />
+        <CleanCafeDetailsPane cafeId={selectedId} onClose={() => setSelectedId(null)} />
       )}
     </div>
   )
