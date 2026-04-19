@@ -2,10 +2,10 @@
   "summary": {
     "direct": {
       "captcha": 0,
-      "success": 534,
-      "nav_error": 0,
-      "no_images": 16,
-      "images_total": 6800
+      "success": 535,
+      "nav_error": 2,
+      "no_images": 17,
+      "images_total": 6802
     }
   },
   "events": [
@@ -3842,6 +3842,31 @@
       "cafe_id": "google_0x357c9f880ef13949:0xdad442e73091e40d",
       "outcome": "success",
       "images": 3
+    },
+    {
+      "ts": "2026-04-19T03:05:15",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca04cb63ed9cd:0x8c046c8c6d43cbba!8m2!3d37.4814054!4d126.9822402!16s%2Fg%2F11ghrh264_!19sChIJzdk-tkygfDURustDbYxsBIw?authuser=0",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-19T03:06:25",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca10006461b81:0xb333e02ad35f6356!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T03:07:33",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca100235a21e5:0x29de2327d0a4706d!8m2!3d37.4735217!4d126.9837606!16s%2Fg%2F11x912f5jm!19sChIJ5SFaIwChfDURbXCk0Ccj3ik?authuser=0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T03:08:34",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca1003b282a31:0x1ee795ef26c0cbd0!8m2!3d37.5052663!4d126.999927!16s%2Fg%2F11vt584jbc!19sChIJMSooOwChfDUR0MvAJu-V5x4?authuser=0",
+      "outcome": "nav_error"
     }
   ]
 }

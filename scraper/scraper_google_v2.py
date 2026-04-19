@@ -31,7 +31,8 @@ import threading
 import re
 from playwright.sync_api import sync_playwright
 import utils
-from utils import init_db, get_spiral_coordinates, DATA_DIR, CENTER_LAT, CENTER_LON, normalize_provider_id, db_execute, flush_db_queue
+from utils import init_db, get_spiral_coordinates, DATA_DIR, CENTER_LAT, CENTER_LON, normalize_provider_id
+from db_client import DBClient
 from download_utils import download_image
 
 logging.basicConfig(
@@ -91,14 +92,11 @@ def dismiss_consent(page):
         pass
 
 
-def scrape_keyword(page, conn, grid_x, grid_y, lat, lon, keyword):
+def scrape_keyword(page, dbc, grid_x, grid_y, lat, lon, keyword):
     provider = 'google'
-    progress_key = f"{grid_x}_{grid_y}_{keyword}"
 
-    cursor = conn.cursor()
-    cursor.execute('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
-                   (grid_x, grid_y, f"{provider}_{keyword}"))
-    row = cursor.fetchone()
+    row = dbc.fetchone('SELECT status FROM progress WHERE grid_x=? AND grid_y=? AND provider=?',
+                       (grid_x, grid_y, f"{provider}_{keyword}"))
     if row and row[0] == 'completed':
         return True
 
@@ -201,7 +199,7 @@ def scrape_keyword(page, conn, grid_x, grid_y, lat, lon, keyword):
             meta = {'name': name, 'lat': p_lat, 'lon': p_lon, 'url': place['url'],
                     'local_images': local_images, 'keyword': keyword}
 
-            db_execute(conn, '''
+            dbc.execute('''
                 INSERT OR REPLACE INTO cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?,?,?,?,?,?,?,?,?)
             ''', (global_id, provider, place_id, name, p_lat, p_lon, '', place['url'],
@@ -210,7 +208,7 @@ def scrape_keyword(page, conn, grid_x, grid_y, lat, lon, keyword):
             with open(os.path.join(cafe_dir, 'cafe.json'), 'w', encoding='utf-8') as f:
                 json.dump(meta, f, ensure_ascii=False, indent=2)
 
-        db_execute(conn, '''
+        dbc.execute('''
             INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
             VALUES (?,?,?,?)
         ''', (grid_x, grid_y, f"{provider}_{keyword}", 'completed'))
@@ -223,13 +221,13 @@ def scrape_keyword(page, conn, grid_x, grid_y, lat, lon, keyword):
         return False
 
 
-def scrape_google_grid(page, conn, grid_x, grid_y, lat, lon):
+def scrape_google_grid(page, dbc, grid_x, grid_y, lat, lon):
     results = []
     for keyword in SEARCH_KEYWORDS:
         timer = threading.Timer(300, watchdog, args=[300])
         timer.start()
         try:
-            ok = scrape_keyword(page, conn, grid_x, grid_y, lat, lon, keyword)
+            ok = scrape_keyword(page, dbc, grid_x, grid_y, lat, lon, keyword)
             results.append(ok)
         finally:
             timer.cancel()
@@ -243,12 +241,11 @@ def main():
     parser.add_argument("--start-step", type=int, default=0)
     args = parser.parse_args()
 
-    conn = init_db()
+    init_db()
+    dbc = DBClient()
     utils._current_provider = 'google'
     coords = get_spiral_coordinates(args.max_steps)
     coords_to_process = coords[args.start_step:]
-
-    pass # logging.info(f"Processing {len(coords_to_process)} grids, {len(SEARCH_KEYWORDS)} keywords each")
 
     with sync_playwright() as p:
         try:
@@ -273,7 +270,7 @@ def main():
 
             for attempt in range(2):
                 try:
-                    ok = scrape_google_grid(page, conn, x, y, grid_lat, grid_lon)
+                    ok = scrape_google_grid(page, dbc, x, y, grid_lat, grid_lon)
                     if ok:
                         break
                 except Exception as e:
@@ -282,9 +279,7 @@ def main():
 
         browser.close()
 
-    flush_db_queue(conn)
-    conn.close()
-    pass # logging.info("Scraping iteration complete.")
+    dbc.close()
 
 
 if __name__ == "__main__":

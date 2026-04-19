@@ -1,5 +1,120 @@
 default: start
 
+# ── Health check ─────────────────────────────────────────────────────────────
+
+# Install all missing dependencies (safe to re-run)
+install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    WDIR="$(pwd)"
+    VENV="$WDIR/venv/bin/python3"
+
+    echo "── Python venv ──────────────────────────────────────"
+    if [ ! -f "$VENV" ]; then
+        echo "Creating venv..."
+        uv venv "$WDIR/venv"
+    fi
+
+    echo "── Python packages ──────────────────────────────────"
+    uv pip install -q --python "$VENV" playwright Pillow pyproj requests stem PySocks
+    echo "  done"
+
+    echo "── Playwright chromium ──────────────────────────────"
+    if ! ls ~/.cache/ms-playwright/chromium-*/chrome-linux*/chrome &>/dev/null; then
+        "$WDIR/venv/bin/playwright" install chromium
+    else
+        echo "  already installed"
+    fi
+
+    echo "── Done. Run: just check ────────────────────────────"
+
+# Check all dependencies and services are correctly installed
+check:
+    #!/usr/bin/env bash
+    WDIR="$(pwd)"
+    NODE_BIN="$HOME/.nvm/versions/node/v22.21.1/bin"
+    VENV="$WDIR/venv/bin/python3"
+    G='\033[0;32m'; R='\033[0;31m'; Y='\033[0;33m'; NC='\033[0m'
+    ok()   { printf "${G}✓${NC} %s\n" "$1"; }
+    fail() { printf "${R}✗${NC} %-45s fix: %s\n  uses: %s\n" "$1" "$2" "$3"; }
+
+    echo ""
+    echo "── Python environment ───────────────────────────────"
+
+    if [ -f "$VENV" ]; then ok "venv ($WDIR/venv)"
+    else fail "venv missing" \
+        "uv venv $WDIR/venv" \
+        "all scrapers"; fi
+
+    for pkg in requests pyproj PIL stem socks; do
+        label="$pkg"; [ "$pkg" = "PIL" ] && label="Pillow"
+        if [ -f "$VENV" ] && "$VENV" -c "import $pkg" 2>/dev/null; then ok "python: $label"
+        else
+            fix="$WDIR/venv/bin/pip install $label"
+            case "$pkg" in
+                PIL)  used="image scrapers (scraper_kakao_images_v3, scraper_naver_images_v1, scraper_google_images_v1)" ;;
+                stem) used="scraper_google_images_v1.py — Tor NEWNYM circuit rotation" ;;
+                pyproj) used="spiral grid coordinate math in scrapers" ;;
+                *) used="all scrapers (HTTP requests)" ;;
+            esac
+            fail "python: $label" "$fix" "$used"
+        fi
+    done
+
+    if [ -f "$VENV" ] && "$VENV" -c "import playwright" 2>/dev/null; then ok "python: playwright"
+    else fail "python: playwright" "$WDIR/venv/bin/pip install playwright" "scraper_kakao_v2, scraper_naver (headless browser)"; fi
+
+    if ls ~/.cache/ms-playwright/chromium-*/chrome-linux*/chrome &>/dev/null; then ok "playwright: chromium browser"
+    else fail "playwright: chromium" "$WDIR/venv/bin/playwright install chromium" "scraper_kakao_v2, scraper_naver (headless browser scraping)"; fi
+
+    echo ""
+    echo "── Node / frontend ──────────────────────────────────"
+
+    if [ -d "$HOME/.nvm/versions/node/v22.21.1" ]; then ok "node v22.21.1"
+    else fail "node v22.21.1 missing" "nvm install 22.21.1" "frontend dev server, pnpm"; fi
+
+    if [ -f "$NODE_BIN/pnpm" ]; then ok "pnpm"
+    else fail "pnpm missing" "npm install -g pnpm" "frontend (pnpm dev, pnpm install)"; fi
+
+    if [ -d "$WDIR/frontend/node_modules" ]; then ok "frontend node_modules"
+    else fail "frontend node_modules" "cd $WDIR/frontend && $NODE_BIN/pnpm install" "frontend dev server (vite)"; fi
+
+    echo ""
+    echo "── Go ───────────────────────────────────────────────"
+
+    if /snap/bin/go version &>/dev/null 2>&1 || command -v go &>/dev/null; then ok "go compiler"
+    else fail "go missing" "snap install go --classic" "API build (ExecStartPre in workcafe-api.service)"; fi
+
+    echo ""
+    echo "── Tor ──────────────────────────────────────────────"
+
+    if [ -f /usr/sbin/tor ] || command -v tor &>/dev/null; then ok "tor binary"
+    else fail "tor not installed" "sudo apt install tor" "scraper_osm.py, scraper_google_images_v1.py (anon scraping via SOCKS5)"; fi
+
+    if nc -z 127.0.0.1 9050 2>/dev/null; then ok "tor SOCKS5 proxy (:9050)"
+    else fail "tor not running" "sudo systemctl start tor" "get_tor_session() — osm + google image scrapers route through Tor"; fi
+
+    if nc -z 127.0.0.1 9051 2>/dev/null; then ok "tor control port (:9051)"
+    else fail "tor control port closed" \
+        "sudo sed -i 's/#ControlPort 9051/ControlPort 9051/' /etc/tor/torrc && sudo systemctl reload tor" \
+        "stem NEWNYM in scraper_google_images_v1.py (rotates Tor circuit on 429/block)"; fi
+
+    echo ""
+    echo "── Data ─────────────────────────────────────────────"
+
+    if [ -f "$WDIR/data/seoul/cafedata.db" ]; then ok "cafedata.db"
+    else fail "cafedata.db missing" \
+        "ssh c \"gzip -c ~/dev/workcafe/data/seoul/cafedata.db\" | gunzip > $WDIR/data/seoul/cafedata.db" \
+        "API (/api/cafes), all scrapers (write target)"; fi
+
+    if [ -d "$WDIR/data/seoul" ]; then ok "data/seoul/ dir"
+    else fail "data/seoul/ missing" "mkdir -p $WDIR/data/seoul" "scrapers (image + DB storage)"; fi
+
+    if [ -d "$WDIR/scraper/log" ]; then ok "scraper/log/ dir"
+    else fail "scraper/log/ missing" "mkdir -p $WDIR/scraper/log" "ralph_loop.py (rotated log files per scraper)"; fi
+
+    echo ""
+
 # ── Web services ─────────────────────────────────────────────────────────────
 
 start:
@@ -24,9 +139,9 @@ install-services:
     # Create venv if missing
     if [ ! -f "$WDIR/venv/bin/python3" ]; then
         echo "Creating venv..."
-        python3 -m venv "$WDIR/venv"
-        "$WDIR/venv/bin/pip" install -q playwright Pillow pyproj requests
-        "$WDIR/venv/bin/playwright" install chromium
+        uv venv "$WDIR/venv"
+        uv pip install -q --python "$WDIR/venv/bin/python3" playwright Pillow pyproj requests stem
+        "$WDIR/venv/bin/python3" -m playwright install chromium
         echo "  venv ready"
     fi
     VENV="$WDIR/venv/bin/python3"
@@ -168,62 +283,64 @@ install-services:
 # Show one-line status for all workcafe services
 status:
     #!/usr/bin/env bash
-    for svc in workcafe-db-server workcafe-api workcafe-frontend \
-                workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver \
-                workcafe-kakao-images workcafe-naver-images workcafe-google-images; do
+    chk() {
+        local label="$1"; local svc="$2"
         if systemctl --user is-active --quiet "$svc"; then
-            echo "✓ $svc"
+            echo "✓ $label"
         else
-            echo "✗ $svc"
+            echo "✗ $label"
         fi
-    done
-
-# Stop specific groups of services (scrape or all)
-stop target:
-    #!/usr/bin/env bash
-    if [ "{{target}}" = "scrape" ]; then
-        echo "Stopping all scrapers..."
-        systemctl --user stop workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
-        echo "All scrapers stopped."
-    elif [ "{{target}}" = "all" ]; then
-        echo "Stopping all workcafe services..."
-        systemctl --user stop workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
-        echo "All services stopped."
-    else
-        echo "Unknown target: {{target}}. Use 'scrape' or 'all'."
-        exit 1
-    fi
+    }
+    echo "── core ─────────────────────────────────────────────"
+    chk db-server  workcafe-db-server
+    chk api        workcafe-api
+    chk frontend   workcafe-frontend
+    echo "── scraper (location data) ──────────────────────────"
+    chk kakao      workcafe-scraper-kakao
+    chk google     workcafe-scraper-google
+    chk osm        workcafe-scraper-osm
+    chk naver      workcafe-scraper-naver
+    echo "── image-scraper (photos) ───────────────────────────"
+    chk kakao-images  workcafe-kakao-images
+    chk naver-images  workcafe-naver-images
+    chk google-images workcafe-google-images
 
 # Kill all managed services
 kill:
-    @just stop all
+    @just service all stop
 
 # Restart all managed services
 restart:
-    #!/usr/bin/env bash
-    echo "Restarting all workcafe services..."
-    systemctl --user restart workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
-    echo "All services restarted."
+    @just service all restart
 
-# Usage: just service <target> [start|stop|status|restart]
-# Targets: all | kakao | google | osm | naver | imagescraper | naver_images | api | frontend
+# Manage services. Usage: just service <target> [start|stop|status|restart]
+# Targets:
+#   all           — every service
+#   scraper       — kakao + google + osm + naver (location scrapers)
+#   image-scraper — kakao-images + naver-images + google-images (photo scrapers)
+#   db-server | api | frontend | kakao | google | osm | naver | kakao-images | naver-images | google-images
 service target action="status":
     #!/usr/bin/env bash
+    ALL="workcafe-db-server workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images"
+    SCRAPERS="workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver"
+    IMAGES="workcafe-kakao-images workcafe-naver-images workcafe-google-images"
     case "{{target}}" in
-      all)
-        systemctl --user {{action}} workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images
-        exit 0 ;;
-      kakao)        svc="workcafe-scraper-kakao" ;;
-      google)       svc="workcafe-scraper-google" ;;
-      osm)          svc="workcafe-scraper-osm" ;;
-      naver)        svc="workcafe-scraper-naver" ;;
-      imagescraper) svc="workcafe-kakao-images" ;;
-      naver_images) svc="workcafe-naver-images" ;;
-      api)          svc="workcafe-api" ;;
-      frontend)     svc="workcafe-frontend" ;;
+      all)           systemctl --user {{action}} $ALL; exit 0 ;;
+      scraper)       systemctl --user {{action}} $SCRAPERS; exit 0 ;;
+      image-scraper) systemctl --user {{action}} $IMAGES; exit 0 ;;
+      db-server)     svc="workcafe-db-server" ;;
+      api)           svc="workcafe-api" ;;
+      frontend)      svc="workcafe-frontend" ;;
+      kakao)         svc="workcafe-scraper-kakao" ;;
+      google)        svc="workcafe-scraper-google" ;;
+      osm)           svc="workcafe-scraper-osm" ;;
+      naver)         svc="workcafe-scraper-naver" ;;
+      kakao-images)  svc="workcafe-kakao-images" ;;
+      naver-images)  svc="workcafe-naver-images" ;;
+      google-images) svc="workcafe-google-images" ;;
       *)
-        echo "Unknown target: {{target}}."
-        echo "Use: all | kakao | google | osm | naver | imagescraper | naver_images | api | frontend"
+        echo "Unknown target: {{target}}"
+        echo "Use: all | scraper | image-scraper | db-server | api | frontend | kakao | google | osm | naver | kakao-images | naver-images | google-images"
         exit 1 ;;
     esac
     systemctl --user {{action}} "$svc"

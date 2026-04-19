@@ -93,17 +93,19 @@ type StatusResponse struct {
 }
 
 var serviceMap = map[string]string{
-	"kakao":        "workcafe-scraper-kakao",
-	"google":       "workcafe-scraper-google",
-	"osm":          "workcafe-scraper-osm",
-	"naver":        "workcafe-scraper-naver",
-	"imagescraper": "workcafe-kakao-images",
-	"naver_images": "workcafe-naver-images",
-	"api":          "workcafe-api",
-	"frontend":     "workcafe-frontend",
+	"db-server":     "workcafe-db-server",
+	"api":           "workcafe-api",
+	"frontend":      "workcafe-frontend",
+	"kakao":         "workcafe-scraper-kakao",
+	"google":        "workcafe-scraper-google",
+	"osm":           "workcafe-scraper-osm",
+	"naver":         "workcafe-scraper-naver",
+	"kakao-images":  "workcafe-kakao-images",
+	"naver-images":  "workcafe-naver-images",
+	"google-images": "workcafe-google-images",
 }
 
-var serviceOrder = []string{"kakao", "google", "osm", "naver", "imagescraper", "naver_images", "api", "frontend"}
+var serviceOrder = []string{"db-server", "api", "frontend", "kakao", "google", "osm", "naver", "kakao-images", "naver-images", "google-images"}
 
 func getServiceState(unit string) (string, bool) {
 	out, err := exec.Command("systemctl", "--user", "is-active", unit).Output()
