@@ -431,19 +431,24 @@ async def process_one_page(dbc, browser_page, http_session,
         save_path  = os.path.join(img_dir, fname)
         local_path = f"/images/naver/{safe_id}/images/{fname}"
 
+        belongs_to = dbc.fetchval(
+            'SELECT belongs_to_cafe_id FROM cafes WHERE id = ?', (cafe_id,)
+        )
+
         # File on disk but no DB row — backfill (always insert, even without photo_id)
         if os.path.exists(save_path):
             dbc.execute('''
                 INSERT OR REPLACE INTO images
                   (cafe_id, provider, local_path, image_url, gallery_url,
-                   photo_id, photo_type, registered_at, width, height)
-                VALUES (?,?,?,?,?,?,?,?,?,?)
+                   photo_id, photo_type, registered_at, width, height,
+                   belongs_to_cafe_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
             ''', (cafe_id, 'naver', local_path, url,
                   (ph.get('author') or {}).get('url', ''),
                   photo_id or f"{cafe_id}_{idx}",
                   ph.get('photoType', ''),
                   ph.get('date') or ph.get('originalDate') or '',
-                  ph.get('width'), ph.get('height')))
+                  ph.get('width'), ph.get('height'), belongs_to))
             idx += 1
             new_downloads += 1
             if local_path not in all_local:
@@ -466,14 +471,16 @@ async def process_one_page(dbc, browser_page, http_session,
             dbc.execute('''
                 INSERT OR REPLACE INTO images
                   (cafe_id, provider, local_path, image_url, gallery_url,
-                   photo_id, photo_type, registered_at, width, height, file_size)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                   photo_id, photo_type, registered_at, width, height, file_size,
+                   belongs_to_cafe_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
             ''', (cafe_id, 'naver', local_path, url,
                   (ph.get('author') or {}).get('url', ''),
                   photo_id or f"{cafe_id}_{idx}",
                   ph.get('photoType', ''),
                   ph.get('date') or ph.get('originalDate') or '',
-                  img_meta['width'], img_meta['height'], img_meta['file_size']))
+                  img_meta['width'], img_meta['height'], img_meta['file_size'],
+                  belongs_to))
         else:
             failed += 1
 

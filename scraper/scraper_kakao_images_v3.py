@@ -305,12 +305,16 @@ def image_row_exists(dbc, cafe_id: str, photo_id: str) -> bool:
 
 
 def insert_image_row(dbc, row: dict):
+    belongs_to = dbc.fetchval(
+        'SELECT belongs_to_cafe_id FROM cafes WHERE id = ?', (row['cafe_id'],)
+    )
     dbc.execute('''
         INSERT OR REPLACE INTO images
           (cafe_id, provider, local_path, image_url, gallery_url,
            photo_id, photo_type, tags, registered_at,
-           width, height, file_size, exif_date, exif_lat, exif_lon)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+           width, height, file_size, exif_date, exif_lat, exif_lon,
+           belongs_to_cafe_id)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ''', (
         row['cafe_id'], row['provider'], row.get('local_path'), row.get('image_url'),
         row.get('gallery_url'), row.get('photo_id'), row.get('photo_type'),
@@ -318,6 +322,7 @@ def insert_image_row(dbc, row: dict):
         row.get('registered_at'),
         row.get('width'), row.get('height'), row.get('file_size'),
         row.get('exif_date'), row.get('exif_lat'), row.get('exif_lon'),
+        belongs_to,
     ))
 
 

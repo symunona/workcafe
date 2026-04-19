@@ -386,11 +386,14 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
                 (cafe_id, photo_id)
             )
             if not row_exists:
+                belongs_to = dbc.fetchval(
+                    'SELECT belongs_to_cafe_id FROM cafes WHERE id = ?', (cafe_id,)
+                )
                 dbc.execute('''
                     INSERT OR REPLACE INTO images
-                      (cafe_id, provider, local_path, image_url, photo_id)
-                    VALUES (?,?,?,?,?)
-                ''', (cafe_id, 'google', local_path, img_url, photo_id))
+                      (cafe_id, provider, local_path, image_url, photo_id, belongs_to_cafe_id)
+                    VALUES (?,?,?,?,?,?)
+                ''', (cafe_id, 'google', local_path, img_url, photo_id, belongs_to))
 
     log.info(f"  {cafe_id}: {downloaded}/{len(imgs)} downloaded")
     if downloaded > 0:
