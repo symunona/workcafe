@@ -385,3 +385,76 @@ images cafe_id="":
     else
         python scraper/scraper_kakao_images_v3.py
     fi
+
+# ── Normalization pipeline ────────────────────────────────────────────────────
+
+# Pull ollama models required for normalization (nomic-embed-text, qwen2.5:1.5b)
+pull-models:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python scraper/normalize/02_pull_models.py
+
+# Run DB migration to add clean_cafes, cafe_chains tables and new columns
+db-migrate:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python scraper/normalize/01_migrate_db.py
+
+# Normalize cafes into clean_cafes (safe to restart, skips already-processed)
+# Options: --embed (add embeddings, slower), --provider kakao/google/naver/osm
+normalize limit="0":
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    cd scraper
+    if [ "{{limit}}" = "0" ]; then
+        python normalize/04_normalize_pipeline.py
+    else
+        python normalize/04_normalize_pipeline.py --limit {{limit}}
+    fi
+
+# Generate English names for clean_cafes (runs after normalize)
+english-names:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    cd scraper
+    python normalize/05_english_names.py
+
+# Bulk-update images.belongs_to_cafe_id from cafes table (run after normalize)
+link-images:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    cd scraper
+    python normalize/06_update_image_links.py
+
+# Full normalization pass: migrate → normalize → link images → english names
+normalize-all:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    cd scraper
+    python normalize/01_migrate_db.py
+    python normalize/04_normalize_pipeline.py
+    python normalize/06_update_image_links.py
+    python normalize/05_english_names.py --chains-only
+
+# Clean up orphaned/incomplete normalization data (resets belongs_to_cafe_id for re-run)
+db-clean:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 -c "
+import sys; sys.path.insert(0, 'scraper')
+from db_client import DBClient
+dbc = DBClient()
+r1 = dbc.fetchval('SELECT COUNT(*) FROM clean_cafes')
+r2 = dbc.fetchval('SELECT COUNT(*) FROM cafe_chains')
+r3 = dbc.fetchval('SELECT COUNT(*) FROM cafes WHERE belongs_to_cafe_id IS NOT NULL')
+print(f'Before: clean_cafes={r1}  chains={r2}  cafes_linked={r3}')
+confirm = input('Reset all normalization data? [y/N] ')
+if confirm.strip().lower() == 'y':
+    dbc.execute('UPDATE cafes SET belongs_to_cafe_id = NULL, name_embedding = NULL')
+    dbc.execute('UPDATE images SET belongs_to_cafe_id = NULL')
+    dbc.execute('DELETE FROM clean_cafes')
+    dbc.execute('DELETE FROM cafe_chains')
+    print('Reset done. Run: just normalize-all')
+else:
+    print('Aborted.')
+"
