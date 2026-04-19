@@ -4,7 +4,7 @@
       "captcha": 0,
       "success": 577,
       "nav_error": 2,
-      "no_images": 39,
+      "no_images": 42,
       "images_total": 7272
     }
   },
@@ -4292,6 +4292,24 @@
       "ts": "2026-04-19T05:30:01",
       "proxy": "direct",
       "cafe_id": "google_0x357b5e20c204c1b9:0x61a63af5cc1605e4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:31:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e25365a9f99:0x968fb751590bc5f1",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:32:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e47c44da16d:0x1e117a68182dee05",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:33:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e48127003fd:0x826ea5cee2370d2c",
       "outcome": "no_images"
     }
   ]

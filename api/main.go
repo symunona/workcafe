@@ -93,6 +93,17 @@ type StatusResponse struct {
 	HourlyStats    []HourlyStat           `json:"hourly_stats"`
 }
 
+// patchLocalImages injects confirmed local_paths from the images table into metadata.
+func patchLocalImages(meta, imgPathsJSON string) json.RawMessage {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(meta), &m); err != nil {
+		m = map[string]json.RawMessage{}
+	}
+	m["local_images"] = json.RawMessage(imgPathsJSON)
+	out, _ := json.Marshal(m)
+	return json.RawMessage(out)
+}
+
 var serviceMap = map[string]string{
 	"db-server":     "workcafe-db-server",
 	"api":           "workcafe-api",
@@ -306,6 +317,35 @@ func main() {
 
 	mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(dataDir))))
 
+	// ── GET /api/cafe?id=... ─────────────────────────────────────────────────
+	mux.HandleFunc("/api/cafe", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "id required", 400)
+			return
+		}
+		row := db.QueryRow(`
+			SELECT c.id, COALESCE(c.provider,''), COALESCE(c.provider_id,''), COALESCE(c.name,''),
+			       c.lat, c.lon, COALESCE(c.address,''), COALESCE(c.url,''),
+			       COALESCE(c.metadata,'null'), COALESCE(c.scraped_at,''),
+			       COALESCE(img_agg.paths,'[]')
+			FROM cafes c
+			LEFT JOIN (
+			    SELECT cafe_id, json_group_array(local_path) as paths
+			    FROM images WHERE file_size > 0 GROUP BY cafe_id
+			) img_agg ON img_agg.cafe_id = c.id
+			WHERE c.id = ?`, id)
+		var c Cafe
+		var meta, imgPaths string
+		if err := row.Scan(&c.ID, &c.Provider, &c.ProviderID, &c.Name, &c.Lat, &c.Lon, &c.Address, &c.URL, &meta, &c.ScrapedAt, &imgPaths); err != nil {
+			http.Error(w, "not found", 404)
+			return
+		}
+		c.Metadata = patchLocalImages(meta, imgPaths)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(c)
+	})
+
 	// ── GET /api/cafes ────────────────────────────────────────────────────────
 	mux.HandleFunc("/api/cafes", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -320,9 +360,9 @@ func main() {
 		}
 
 		if q.Get("multipleImages") == "true" {
-			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id) >= 2")
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id AND file_size > 0) >= 2")
 		} else if q.Get("withImages") == "true" {
-			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id) >= 1")
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id AND file_size > 0) >= 1")
 		}
 
 		if providers := q.Get("providers"); providers != "" {
@@ -358,7 +398,17 @@ func main() {
 		db.QueryRow("SELECT COUNT(*) FROM cafes "+whereClause, countArgs...).Scan(&totalRows)
 
 		dataArgs := append(args, limit)
-		rows, err := db.Query("SELECT id, provider, provider_id, name, lat, lon, COALESCE(address,''), COALESCE(url,''), COALESCE(metadata,'null'), COALESCE(scraped_at,'') FROM cafes "+whereClause+" ORDER BY RANDOM() LIMIT ?", dataArgs...)
+		rows, err := db.Query(`
+			SELECT c.id, c.provider, c.provider_id, c.name, c.lat, c.lon,
+			       COALESCE(c.address,''), COALESCE(c.url,''),
+			       COALESCE(c.metadata,'null'), COALESCE(c.scraped_at,''),
+			       COALESCE(img_agg.paths,'[]')
+			FROM cafes c
+			LEFT JOIN (
+			    SELECT cafe_id, json_group_array(local_path) as paths
+			    FROM images WHERE file_size > 0 GROUP BY cafe_id
+			) img_agg ON img_agg.cafe_id = c.id
+			`+whereClause+` ORDER BY RANDOM() LIMIT ?`, dataArgs...)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -368,12 +418,12 @@ func main() {
 		cafes := make([]Cafe, 0, limit)
 		for rows.Next() {
 			var c Cafe
-			var meta string
-			if err := rows.Scan(&c.ID, &c.Provider, &c.ProviderID, &c.Name, &c.Lat, &c.Lon, &c.Address, &c.URL, &meta, &c.ScrapedAt); err != nil {
+			var meta, imgPaths string
+			if err := rows.Scan(&c.ID, &c.Provider, &c.ProviderID, &c.Name, &c.Lat, &c.Lon, &c.Address, &c.URL, &meta, &c.ScrapedAt, &imgPaths); err != nil {
 				http.Error(w, err.Error(), 500)
 				return
 			}
-			c.Metadata = json.RawMessage(meta)
+			c.Metadata = patchLocalImages(meta, imgPaths)
 			cafes = append(cafes, c)
 		}
 

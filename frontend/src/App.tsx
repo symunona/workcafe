@@ -106,6 +106,39 @@ export default function App() {
   const [selectedCafe, setSelectedCafe] = useState<Cafe | null>(null)
   const [fullScreenImageIndex, setFullScreenImageIndex] = useState<number | null>(null)
 
+  // Hash URL: sync selected cafe to/from #cafe/ENCODED_ID
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.startsWith('#cafe/')) {
+      const id = decodeURIComponent(hash.slice(6))
+      const cached = cafeMap.get(id)
+      if (cached) {
+        setSelectedCafe(cached)
+      } else {
+        fetch(`/api/cafe?id=${encodeURIComponent(id)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then((c: Cafe | null) => { if (c?.id) setSelectedCafe(c) })
+          .catch(() => {})
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selectedCafe) {
+      history.replaceState(null, '', '#cafe/' + encodeURIComponent(selectedCafe.id))
+    } else {
+      history.replaceState(null, '', window.location.pathname + window.location.search)
+    }
+  }, [selectedCafe])
+
+  useEffect(() => {
+    const onHashChange = () => {
+      if (!window.location.hash.startsWith('#cafe/')) setSelectedCafe(null)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
   const cafes = useMemo(() => [...cafeMap.values()], [cafeMap])
 
   // Fetch global filter stats from DB once on mount
@@ -496,7 +529,7 @@ export default function App() {
       </div>
 
       {/* Top-right buttons */}
-      <div className="absolute bottom-20 right-4 sm:bottom-auto sm:top-6 sm:right-6 z-[1000] flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-4">
+      <div className="absolute bottom-20 right-4 xl:bottom-auto xl:top-6 xl:right-6 z-[1000] flex flex-col xl:flex-row items-end xl:items-center gap-2">
         <button
           onClick={() => setShowStats(true)}
           className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-md text-sm font-semibold text-gray-700 hover:text-purple-600 hover:bg-white transition-colors border border-gray-100 flex items-center gap-2"

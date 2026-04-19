@@ -212,7 +212,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   { label: 'Images / hr', value: status.images_last_hour, sub: `${status.images_24h} today` },
                   { label: 'Total cafes', value: status.total_cafes.toLocaleString(), sub: `last ${timeSince(status.last_cafe_at)}` },
                   { label: 'Total images', value: status.total_images.toLocaleString(), sub: `last ${timeSince(status.last_image_at)}` },
-                  { label: 'MB / day', value: status.mb_per_day ? `${status.mb_per_day.toLocaleString()} MB` : '—', sub: status.mb_per_day ? `~${Math.round(status.mb_per_day / 24)} MB/hr` : '' },
+                  { label: 'GB / day', value: status.mb_per_day ? `${(status.mb_per_day / 1024).toFixed(1)} GB` : '—', sub: status.mb_per_day ? `~${Math.round(status.mb_per_day / 24)} MB/hr` : '' },
                 ].map(card => (
                   <div key={card.label} className="bg-gray-50 rounded-xl p-3 flex flex-col gap-0.5">
                     <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">{card.label}</span>
