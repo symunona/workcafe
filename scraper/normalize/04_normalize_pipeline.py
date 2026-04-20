@@ -28,16 +28,15 @@ sys.path.insert(0, os.path.join(_HERE, '..'))
 
 from normalize.cafe_norm_utils import (
     haversine_m, name_similarity, get_embedding, embed_to_blob,
-    is_chain_cafe, lat_lon_bbox
+    is_chain_cafe, lat_lon_bbox, get_english_name
 )
 from db_client import DBClient
 
 DB_PATH = os.path.abspath(os.path.join(_HERE, '..', '..', 'data', 'seoul', 'cafedata.db'))
 
-MERGE_RADIUS_AUTO = 20.0
-MERGE_RADIUS_MAX = 50.0
+MERGE_RADIUS_AUTO = 30.0
+MERGE_RADIUS_MAX = 150.0
 NAME_SIM_THRESHOLD = 0.4
-
 BRANCH_SUFFIXES = ["DT점", "DT", "역점", "공항점", "역사점", "터미널점", "점"]
 
 
@@ -113,26 +112,48 @@ def load_chain_cache(conn):
 
 # ─── Clean cafe operations ─────────────────────────────────────────────────────
 
+def extract_best_address(cafe: dict) -> str:
+    best_addr = cafe.get("address") or ""
+    if cafe.get("metadata"):
+        try:
+            meta = json.loads(cafe["metadata"])
+            if cafe["provider"] == "naver":
+                best_addr = meta.get("roadAddress") or meta.get("address") or best_addr
+            elif cafe["provider"] == "kakao":
+                best_addr = meta.get("new_address") or meta.get("address") or best_addr
+        except:
+            pass
+    return best_addr.strip() if best_addr else ""
+
 def create_clean_cafe(dbc: DBClient, cafe: dict, chain_id=None, emb_blob=None) -> str:
     clean_id = str(uuid.uuid4())
+    
+    metadata = {}
+    if cafe.get("metadata"):
+        try:
+            metadata[cafe["provider"]] = json.loads(cafe["metadata"])
+        except:
+            pass
+
+    best_addr = extract_best_address(cafe)
+
     dbc.execute("""
         INSERT INTO clean_cafes
             (id, chain_id, name, avg_lat, avg_lon,
-             address, url, providers, source_ids, name_embedding)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             address, url, providers, source_ids, name_embedding, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         clean_id, chain_id, cafe["name"],
         cafe["lat"], cafe["lon"],
-        cafe.get("address", ""), cafe.get("url", ""),
+        best_addr, cafe.get("url", ""),
         json.dumps([cafe["provider"]]), json.dumps([cafe["id"]]),
-        emb_blob,
+        emb_blob, json.dumps(metadata)
     ))
     return clean_id
 
-
 def merge_into_clean_cafe(conn, dbc: DBClient, clean_id: str, cafe: dict):
     row = conn.execute(
-        "SELECT avg_lat, avg_lon, providers, source_ids FROM clean_cafes WHERE id = ?",
+        "SELECT avg_lat, avg_lon, providers, source_ids, address, url, metadata FROM clean_cafes WHERE id = ?",
         (clean_id,)
     ).fetchone()
     if not row:
@@ -141,6 +162,15 @@ def merge_into_clean_cafe(conn, dbc: DBClient, clean_id: str, cafe: dict):
     old_lat, old_lon = row[0], row[1]
     providers = json.loads(row[2] or "[]")
     source_ids = json.loads(row[3] or "[]")
+    address = row[4] or ""
+    url = row[5] or ""
+    
+    metadata = {}
+    if row[6]:
+        try:
+            metadata = json.loads(row[6])
+        except:
+            pass
 
     if cafe["id"] in source_ids:
         return  # already merged
@@ -152,13 +182,25 @@ def merge_into_clean_cafe(conn, dbc: DBClient, clean_id: str, cafe: dict):
     avg_lat = (old_lat * (n - 1) + cafe["lat"]) / n
     avg_lon = (old_lon * (n - 1) + cafe["lon"]) / n
 
+    if not address:
+        address = extract_best_address(cafe)
+    if not url and cafe.get("url"):
+        url = cafe["url"]
+        
+    if cafe.get("metadata"):
+        try:
+            metadata[cafe["provider"]] = json.loads(cafe["metadata"])
+        except:
+            pass
+
     dbc.execute("""
         UPDATE clean_cafes
         SET providers = ?, source_ids = ?, avg_lat = ?, avg_lon = ?,
+            address = ?, url = ?, metadata = ?,
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     """, (json.dumps(sorted(providers_set)), json.dumps(source_ids),
-          avg_lat, avg_lon, clean_id))
+          avg_lat, avg_lon, address, url, json.dumps(metadata), clean_id))
 
 
 # ─── Core: process one cafe ────────────────────────────────────────────────────
@@ -179,6 +221,7 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
         if emb_vec is not None:
             emb_blob = embed_to_blob(emb_vec)
 
+    conn.commit()
     nearby = find_clean_cafes_nearby(conn, lat, lon, MERGE_RADIUS_MAX)
 
     matched_id = None
@@ -198,7 +241,7 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
         if nc["chain_id"]:
             cr = is_chain_cafe(cafe["name"], chain_names)
             if cr["is_chain"]:
-                chain_base = strip_branch_suffix(cafe["name"])
+                chain_base = cr.get("chain_name") or strip_branch_suffix(cafe["name"])
                 row = conn.execute(
                     "SELECT name FROM cafe_chains WHERE id = ?", (nc["chain_id"],)
                 ).fetchone()
@@ -215,7 +258,7 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
     chain_id = None
     cr = is_chain_cafe(cafe["name"], chain_names)
     if cr["is_chain"]:
-        base = strip_branch_suffix(cafe["name"])
+        base = cr.get("chain_name") or strip_branch_suffix(cafe["name"])
         chain_id = get_or_create_chain(conn, dbc, base)
         if base not in chain_names:
             chain_names.append(base)
@@ -248,12 +291,22 @@ def main():
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--embed", action="store_true", help="Generate embeddings (slow)")
     parser.add_argument("--provider", help="Only process this provider")
+    parser.add_argument("--reset", action="store_true", help="Reset clean data completely before running")
     args = parser.parse_args()
 
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA cache_size=10000")
     dbc = DBClient()
+
+    if args.reset:
+        print("WARNING: Resetting all clean data...")
+        conn.execute("DELETE FROM clean_cafes")
+        conn.execute("DELETE FROM cafe_chains")
+        conn.execute("UPDATE cafes SET belongs_to_cafe_id = NULL")
+        conn.execute("UPDATE images SET belongs_to_cafe_id = NULL")
+        conn.commit()
+        print("Clean data reset.")
 
     chain_names = load_chain_cache(conn)
     print(f"Chains loaded: {len(chain_names)}")
@@ -268,7 +321,7 @@ def main():
         total = min(total, args.limit)
     print(f"Cafes to process: {total}")
 
-    fetch_q = ("SELECT id, name, lat, lon, provider, address, url FROM cafes "
+    fetch_q = ("SELECT id, name, lat, lon, provider, address, url, metadata FROM cafes "
                "WHERE belongs_to_cafe_id IS NULL")
     if args.provider:
         fetch_q += " AND provider = ?"
@@ -298,6 +351,7 @@ def main():
                     "id": row[0], "name": row[1], "lat": row[2],
                     "lon": row[3], "provider": row[4],
                     "address": row[5] or "", "url": row[6] or "",
+                    "metadata": row[7] or ""
                 }
                 try:
                     clean_id, was_created = process_cafe(conn, dbc, cafe, chain_names, args.embed)
@@ -322,6 +376,10 @@ def main():
             if batch_links:
                 dbc.executemany(
                     "UPDATE cafes SET belongs_to_cafe_id = ? WHERE id = ? AND belongs_to_cafe_id IS NULL",
+                    batch_links
+                )
+                dbc.executemany(
+                    "UPDATE images SET belongs_to_cafe_id = ? WHERE cafe_id = ?",
                     batch_links
                 )
 

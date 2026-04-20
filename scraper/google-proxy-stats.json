@@ -2,10 +2,10 @@
   "summary": {
     "direct": {
       "captcha": 0,
-      "success": 577,
-      "nav_error": 2,
-      "no_images": 42,
-      "images_total": 7272
+      "success": 591,
+      "nav_error": 266,
+      "no_images": 58,
+      "images_total": 7383
     }
   },
   "events": [
@@ -4311,6 +4311,1784 @@
       "proxy": "direct",
       "cafe_id": "google_0x357b5e48127003fd:0x826ea5cee2370d2c",
       "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:35:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5ee3f70003bb:0x32c58640cd50ec5e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:36:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5ee4758ca087:0x7c3ce9f5d1ab4b0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:37:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5efc83e1ddf5:0xea5c382891610927",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:39:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0003b33b25:0x69c97a2deae4c684",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:40:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a120407:0xda5c8ed55b7f101a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:41:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a42dfff:0xba49f7ba5070d236",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:43:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000edda7d1:0x8ec28d7e91fe18ca",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:44:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00102008d5:0x1eb7952d69eb3710",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:45:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0023ca7eb7:0xd049860b4c48e3db",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:47:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0026d7176b:0x35e8202cd81cb642",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:48:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f002b44ee51:0x67ccaa85b1b03cda",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:50:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00316a96e3:0x367d496d383e832c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:51:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f004744a153:0x903a0219afe4e382",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T05:52:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0055503605:0x71e8cf6788cc87dd",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-19T05:54:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0055c7b147:0x26f2345e9bee37ec",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-19T05:55:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0057b3f525:0x721b7131bba80c4c",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-19T05:56:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f005856a903:0xb89e9c3d3dc5ca6c",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-19T05:57:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0059d547dd:0x63932297e184ebf3",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-19T05:59:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f005b4dd2b3:0xba8259e3bebb9d1b",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-19T06:00:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f005ee30f4f:0xf353d7f3c75a1f08",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T06:02:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f005fce9591:0x18f426b7a9a83c2b",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-19T06:03:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006020549d:0x5e09602a18ae8d2d",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-19T06:04:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006188edef:0xb07cc5af83a56f3e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T06:06:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006296a7a7:0x1ae5a4eac89c9b40",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-19T06:07:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006352b905:0x3c59adcf903c785b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-19T06:08:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006859adfb:0x509fe14c02e31c6a",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-19T06:10:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0068a3c157:0xa711f8c2259da30f",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-19T06:11:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0068d5dd61:0x451fcad4ef739512",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-19T06:12:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0068d6c7c5:0xcc947ccc7936fcfd",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-19T06:14:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0068e13419:0xfe3c97e77d77a9d7",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-19T06:15:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006d297247:0xe8ef27896cecabae",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:16:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006d66f571:0xde725ee10f14b094",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:17:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006dd939ab:0xf6351b5c7de53260",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:19:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006ee19885:0xa3ca18983c23c109",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:20:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00711fc6bd:0x7d5108ec6f8d9b33",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:21:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00750047a1:0x7246bb3ede0a5b62",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:23:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0075b45eb9:0x7c05463ea63e366",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:24:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00773b6761:0x1659dab966037341",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:25:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0078b568e9:0x461af32c11d4d61e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:26:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0078dff995:0x8cf1527c3bb65716",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:27:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007926429f:0x3dc4d66e935105aa",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:28:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007a83a159:0x3f3779cfda49ec97",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:30:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007aaffc79:0x5b217bd88ed081bd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:31:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007b1a2671:0x67a008204d83da88",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:32:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007c387fd1:0xdf43bb328ad4d441",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:34:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007c70db1f:0x7aaf3b97ba25d208",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:35:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007d9700dd:0x7d7b23c7b15e7812",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:36:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007ee2448b:0xf0e74da03b4c4e18",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:38:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007f12825f:0x5f375156a9478121",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:39:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0277664473:0xe0b406afec5d982b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:40:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f04b9e739c3:0xd535250b5dbc98ab",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:42:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f05f0d76c21:0xa6f973dda567206c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:43:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f068b5e0ffb:0x1d4cdeb7d3bceb14",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:44:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0743113e21:0x61c95ae7851d9422",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:45:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f09a38edc2d:0xff41d200eaef22cb",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:47:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0acf55e1d1:0x95271d8ceada6124",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:48:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0b5a164cf1:0x536ffa3e20925f6e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:49:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0e3f598ac1:0x359aceaacb1655c3",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:50:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0f615c6f19:0xd0e7fafe356a4e5a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:52:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0f7f30de07:0xf9b6376a09a205cf",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:53:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f11947a700f:0xf1f4fefb52f3f334",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:54:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f12544be073:0xbe28f8b1c717e78",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:55:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1285cf3d61:0x9572327e288babcc",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:56:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f13f001664b:0xfdc1d2021acf833b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:57:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f14d3781adf:0xbc6079ae26ac5bfd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T06:59:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1599450391:0x7c7aae84f43322be",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:00:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f15e9b91a77:0xe09a7343c6b4fb1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:01:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f16563dae03:0xce66a3602b30aeba",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:03:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f16b9b6c8a3:0x3a66f04e0a17bcce",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:04:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1732aeb5dd:0x8130d64e7b236f7a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:06:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1908d10bc7:0x19574ed47ad5446",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:07:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f193e0aeca7:0x7ca964e71fa62cdf",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:08:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1988fbfcb3:0x87f7a0df5b531b7d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:10:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f19c4f5a46d:0xc5d401e0c196f69e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:11:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1aa201eed9:0xd0a9947a7c70b121",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:12:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1b9a4981e3:0x77405bd3667168fc",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:13:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1bcac07c6b:0xd52ef11dfc50503c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:15:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f1f8d3de1cb:0x23efbdc37acbbf8a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:16:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f20fb80c88f:0x3e58f703d53c6a0a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:17:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f211af0a291:0xf5f4943617cf659c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:18:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f216cafeccf:0x5785e35748d6d909",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:20:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f21bf9757d1:0xd3aab76762beafeb",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:21:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f249626cab5:0xa1539d589972ef46",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:22:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f24f9ff3e65:0xf81da70ab0627bca",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:24:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f267337a167:0x7445006ae1439448",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:25:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f26ae7ff499:0xbbca4786beb728df",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:26:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f274a8ce8e3:0x14d67fa20aab2b0f",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:27:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2751cc0cc7:0x333a30aa7df4c78c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:29:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2a6a5320e3:0xfb3923fa7f19e7a0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:30:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2acf2b0b7f:0x232d2eb7a80f89c3",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:31:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2c5980be31:0x4e9fd354c0aed977",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:32:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2cfb94bcc5:0x5e5fbbbca2a1f6c4",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:34:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2d54f66621:0xbde662b9647fc651",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:35:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2de42003e5:0xd6148a791ec4efb5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:36:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2df05e5085:0x3dae0bcce5ff5428",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:38:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2e59253ba3:0x78ceb6f160215282",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:39:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2ece4844e5:0x775c88b7c11a537d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:40:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f2edcb2e83d:0x262bb5933e8adb1c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:42:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3038920fcf:0x7c4273983b19aa88",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:43:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f30bcab8099:0x96dd9d60e116945e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:44:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f316d08d4b9:0x60d8cef520818a13",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:46:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f31af0d9341:0xb54ec8c1a2d820f7",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:47:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f32f392a3c3:0x378378bd02dbf08b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:48:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f340e1b49e3:0x4d476106ddb632b7",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:50:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f352a55116d:0xcf2be7fc870aed6b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:51:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f353a57b4bf:0x3a2ac238a277627b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:52:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f35f4105aeb:0x56d059762ef32f6d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:54:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f36171640cd:0xdbdc775b02f97cfe",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:55:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f37a96ab021:0x3cf5268bd43495d6",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:56:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f39e69626f9:0xf6f370b5cc52f1cb",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:57:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3a3b8d72c1:0x24833be918781286",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T07:59:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3b1924dce9:0xc3ef87480a2b23ab",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:00:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3b637dd177:0x67450b2ef3f28b83",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:01:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3b6ce9700f:0xe8959b3c2b974637",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:02:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3cec37513b:0xc1de6e6f76b21139",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:04:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3d4955c0c9:0x1bb131470f7c6021",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:05:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3dc7961f75:0x90ce74f4e078b5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:06:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f3fac6abf17:0xf968ad3b0d90cea1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:07:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f408a92c285:0xaa1ed005a5fff960",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:09:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f41070f7305:0x18f3846af867697b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:10:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f41901733ef:0xc2fb0d50d5cb9c7f",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:11:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f419389eaeb:0xfc731f11d52a9d5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:12:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f4383df8c8f:0x1386b5ccc5c895f",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:13:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f44ffbe61a3:0x6dedc66b742b4c37",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:14:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f45727d9adb:0x1e481e8da013f7ff",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:16:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f46e8ee54dd:0x81da20c901d1120c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:17:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f48bdcfe80b:0x1f1635f18630a87a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:18:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f4a47aab041:0x2d7feebec7233a98",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:19:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f4c22722b21:0xbf23ece9c0da4033",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:21:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f4ccfb2150b:0xff9434a315540ffe",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:22:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f4d826d5d99:0x28fdcfecb89b1e68",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:23:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f4f16ffbfb9:0x94bb56380cf96a5c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:24:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f4f5ce9208f:0x2b77491c9835574e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:25:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f504804a11d:0xc2294cf375ca42dc",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:27:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f517ee76ba9:0x42e037f14b802219",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:28:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f51a0cc5bb9:0x4ebdb6c392d2b54d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:29:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f54d212a9df:0x3e1c1a55b2121826",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:30:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f561d20cf05:0xb874a9342f70bb7f",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:31:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f571e6c82d5:0x5eb2e6eb6d5a7ee0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:32:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f57269707fb:0x2ec39e6af9b87f99",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:33:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f57f739bf81:0xa4183d377ca384e3",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:35:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f5804ada32b:0xfdf2b77bcdaccf4d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:36:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f58a240e6dd:0x9731609f49ab89a8",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:38:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f59378df743:0xcf59a11b70a2ae77",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:39:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f598270001d:0xd3c7424939f1f519",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:40:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f5aede65d23:0x590c7aad2d8ea15d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:41:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f5cb1155d6d:0x35a6871deb58041b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:43:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f5d6b3c870f:0xe80064a3448d7ba1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:44:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f5f1d0cea9b:0x35fc076df4e7042d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:45:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f5f21bc6aad:0xe033f6b3fa7babf9",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:46:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f5f4fc51f6d:0x858e39ab6db0edda",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:47:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f61d3a39355:0x7e423349bd00d413",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:49:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f62a829eaed:0xe42acf319a178c6c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:50:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f62f4b8fa3d:0x67306b960607c82",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:51:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f634645c9b7:0x947bf79c4d51558c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:52:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f63d2f71f61:0xf32deb6a17a67060",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:53:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f64d7bf694b:0x11481a408f5a1671",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:54:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6661e3ec3f:0x7a434daf0cee3a47",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:55:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6823465b27:0x5df51b9fe797e619",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:56:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6886dca181:0x547d425a966cd4",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:58:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f68c2ca9481:0x8394ac1d23522487",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T08:59:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6907592507:0x30e7b1f2563275d0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:00:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6ab4b548eb:0xe4595bbaf4caa427",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:01:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6d8fc4a4c9:0x96f06267cf361a83",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:02:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6e6d7c51ab:0x69d5264289e52bab",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:03:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6f40f2b931:0x1f407d48b37894cd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:04:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6f9c62019d:0x91fef32166c6c8fe",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:05:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f706d8a143b:0x401192adc2133579",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:07:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f722474a6e7:0x3a5c47e9f53ef1a2",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:08:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f723acb7bbd:0x437cf0847f26b97d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:09:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f74b9b9bec3:0x7d8fef948263c55a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:10:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f75320a310d:0x2ac68b28ec2db546",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:12:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f75c8a13d43:0xa608f4057776489c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:13:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f764e9c55df:0xe0c1b4abed99bf25",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:14:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f77d908cf4b:0x94f3d16ea6c5c84f",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:15:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f78579791c7:0x673f95b19c448c43",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:17:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f78b22f2b47:0xa2d2bcb9c7a035f5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:18:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f78d8bc1c8d:0x5ad4d45afa69c326",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:19:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7932cd0da5:0x8eb94220a8df5be5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:20:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f795e8d30d9:0xf5a6ee126cc25835",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:22:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f79c3ce0951:0x1c49a41afa841a44",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:23:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f79fbb270a5:0x42396004075bf788",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:24:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7a090e1625:0xf01c279f86777e37",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:25:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7a6a88d609:0xd6cae6ca0b2423c6",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:27:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7a715a98ef:0x48d4e7d3f8bbd448",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:28:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7ae837556b:0x1efee888cee579ab",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:29:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7c4ccca565:0x1583a34fa2cb3429",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:30:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7d025f76f9:0xe0794098e53ca717",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:32:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7d1d2fc5df:0x96ff24513390bfb3",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:33:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7d70638a87:0xce38c1bb2622f1c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:34:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f7e760dbda5:0x739c307d598cbbd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:36:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f820fa68139:0xf3dc4c9ef8ba800",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:37:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f822157b117:0xbcb853a1f0a75fd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:38:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8316c416e9:0x1c2c5f9217a9a994",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:39:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f831a39bb81:0xcdb5ea769ccb7fe1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:41:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f833fffe9ff:0x1ad8111732a83ecb",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:42:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f833fffe9ff:0x452d06298921d291",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:43:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f83cdfe3a39:0x5b1767b83cd0fb02",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:45:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8414900385:0xb73fb816478178b7",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:46:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f843b7f7eb5:0xa09198749b2367fe",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:47:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f86a6a6dd8f:0xfe21a7cc3f4b84dd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:49:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8749e0f903:0x5a553052b9d6deb1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:50:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f882bc7ac0b:0xf9505460f3eb1690",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:51:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8a3508eaef:0xc2b2d8c85646777e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:52:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8a94bdc737:0xb6f5372758904357",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:53:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8c68e64e63:0x947b17bdcd878f5c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:54:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8ea1c5f095:0xba80ae74abfb3b5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:56:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f8fd1b6a30d:0x8cee2275393d7667",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:57:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f90a448b031:0xa3df4383186ca2d4",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T09:58:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f922583ac13:0x424e381004a33645",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:00:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f93b7794b8b:0x64d60c49ae119133",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:01:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9437d83239:0xf81302f440936fc0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:02:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f947b5d845b:0xbc93c0e814380ee1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:03:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9507a1c5e3:0xbcdae460060a47c2",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:04:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f95ddb1e4ab:0x9abfd1e27a810531",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:05:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9686d1f403:0x8eaaa1cd3494d656",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:07:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f98a24aaba9:0xa1ded8ce5c64c166",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:08:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f995377984f:0x21c5d6864726ce0a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:09:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f996584db1b:0x9b9224e75db23280",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:11:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9a197d4553:0xb8dff70f146f0653",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:12:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9a3d32c3a9:0x22bab497d6e15d47",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:13:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9b81777703:0x54fbaf4ea0f17799",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:14:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9be4077521:0x48d2e2f16ccef981",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:16:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9be5058c27:0xb2b2459fa51a18cb",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:17:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9bf244e6cf:0x2dea3402b32510e9",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:18:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9bf244e6cf:0xe386d3b779710889",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:19:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9bf450124b:0x39f40ccaf24c664a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:21:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9bfaab251b:0xb93e3da6fc16124c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:22:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c06a6e8d3:0x442771217d5c82ef",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:23:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c15cf412b:0x385e4ae90cf4560",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:24:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c1f48a131:0xc9ff341361da7b9d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:25:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c42c4f7ad:0xc1f7a0667d3582a4",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:26:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c42cd5373:0xa73fc317f054e94e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:27:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c42cd5373:0xf773ebb5b6a42ba6",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:29:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c44df6b19:0x1a4a89887cc952e6",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:30:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9c44df6b19:0xa1b38f878148c983",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:31:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9cce9ea87f:0xf9075d988aee175b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:33:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9dd8a6375f:0x7ce2f5eac3b3746d",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:34:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9e43714a81:0x2e805d9aa4286c92",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:35:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9e7e8de099:0xa14ebd9dbbe1b686",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:36:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9ea5619311:0xcabf93ad4f688b9",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:38:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9ea5ace947:0x40e840da580386ce",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:39:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9ea5ace947:0x811c6f0ce6477b9b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:40:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9eadcf1c19:0x1d87e3219a5097e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:41:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9eb57d9f59:0x882d21a875a7883c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:43:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9eca853b4b:0x176194e497817f8",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:44:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9eca8c9667:0x237b68d512122bf0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:45:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9eca8c9667:0xcfe966c8da4b5700",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:46:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9eca95049b:0x61e30a26d90512c0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:47:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9f026eefa3:0xa36dcf8c8e52597b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:49:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f9f1f2faf2f:0x50f753a8a3ee6379",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:50:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa042043469:0xe5189c368a71017c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:51:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa0d91b1975:0x4b7c1dc8f5f7b42e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:53:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa0eebfe4bd:0xb592a74c04bfba46",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:54:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa185824199:0x78243fe515636a95",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:55:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa185824199:0x917856953bce7ed1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:56:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa185824199:0xb996ae9c1bf3873a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:57:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa185824199:0xe7a91a0975a92200",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T10:59:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa185824199:0xe7cd7e518bcc2a67",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:00:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa22ff57f45:0xd218d8e9874c29ce",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:01:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa2339f12b7:0x96c569b57e71d57a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:03:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa382815919:0x53a4bfa029b6f9ab",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:04:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa38cdcc0fd:0xdfa02fef28599ca3",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:05:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa3ba97d15b:0x2cc2bc01a4db91b3",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:06:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa3d1c72bb1:0xbf346e57efc2948a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:07:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa477577f49:0xae658cc0ea2ac369",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:08:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa520479509:0x54f8a5bad29e3dbc",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:10:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa61181e4e5:0xe9ac1af5b57acb9a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:11:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa61f75bb33:0x394f9027c7b296d3",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:12:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa6d982b5b5:0x3c362a2bc1e8c870",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:14:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa7d2bbe467:0x85ce46d5964beac7",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:15:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa7d8f12637:0xf067b893e96b3ff6",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:16:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fa992ca316f:0x9bd3a92cddf82bce",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:18:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5faa44c3a585:0x326b5e727c790ea5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:19:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5faca60efc65:0x1730625be2f7ef26",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:20:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fad3c213c47:0x1e49701c41aa5e1e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:21:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fb0922630c5:0x365872d9a1ac4d4e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:22:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fb6e51affcf:0xef1b5ec209dc8493",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:23:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fb70668547f:0x6dd282853d19b5b9",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:25:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fb749019229:0xc14d4acff6f141f2",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:26:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fb837c61471:0x9f090539eb0687a5",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:27:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fba31c00945:0x9b586397ceac61c6",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:28:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fbcf91614b5:0x834e42ce9c0f87ad",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:30:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fbed159485d:0x522643ada8e5e08e",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:31:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fbfa7fbd253:0xae2f7e0acec01f1b",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:32:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fbfdc3831af:0xcf75467a3cfd17cd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:33:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc03344618f:0xb50986d606a3c6eb",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:34:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc060dc323b:0xea4a40f638e38464",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:36:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc3b5619015:0x54c77e45c05e637a",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:37:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc3c32c0ea9:0x13a45424acf51715",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:38:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc3df1cd6ad:0x9033cfb2a7d99ff2",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:39:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc49dab7539:0x58f5740c4ca9a1f0",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:40:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc4bae24bd3:0x65bcdbb2384c6aa1",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-19T11:41:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fc4ee1dfeb1:0x4a8ef53d92891f4b",
+      "outcome": "nav_error"
     }
   ]
 }

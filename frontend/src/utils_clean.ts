@@ -33,7 +33,7 @@ export function makePieIcon(providers: string[], size = 10, hasImages = false): 
   }
 
   const ring = hasImages
-    ? `<circle cx="${cx}" cy="${cy}" r="${r - 0.5}" fill="none" stroke="white" stroke-width="${border}" />`
+    ? `<circle cx="${cx}" cy="${cy}" r="${r - 0.5}" fill="none" stroke="black" stroke-width="${border}" />`
     : ''
 
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">

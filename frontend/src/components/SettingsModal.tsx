@@ -222,6 +222,39 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 ))}
               </div>
 
+              {/* Hourly chart */}
+              {chartData.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Activity (Last 24h)</h3>
+                  <div className="bg-white border border-gray-100 rounded-xl p-3 h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                        <XAxis
+                          dataKey="hour"
+                          tickFormatter={val => new Date(val.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          tick={{ fontSize: 11, fill: '#9ca3af' }}
+                          axisLine={false} tickLine={false}
+                        />
+                        <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
+                          labelFormatter={val => new Date(val.replace(' ', 'T') + 'Z').toLocaleString()}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '11px' }} />
+                        {status.per_provider.map(p => (
+                          <Line key={`${p.provider}_cafes`} yAxisId="left" type="monotone" dataKey={`${p.provider}_cafes`} name={`${p.provider} cafes`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+                        ))}
+                        {status.per_provider.map(p => (
+                          <Line key={`${p.provider}_images`} yAxisId="right" type="monotone" dataKey={`${p.provider}_images`} name={`${p.provider} imgs`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={1.5} strokeDasharray="4 4" dot={false} activeDot={{ r: 3 }} />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
               {/* Service groups */}
               <div className="flex flex-col gap-4">
                 {SERVICE_GROUPS.map(group => {
@@ -364,39 +397,6 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         })}
                       </tbody>
                     </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Hourly chart */}
-              {chartData.length > 0 && (
-                <div>
-                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Activity (Last 24h)</h3>
-                  <div className="bg-white border border-gray-100 rounded-xl p-3 h-[280px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                        <XAxis
-                          dataKey="hour"
-                          tickFormatter={val => new Date(val.replace(' ', 'T') + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          tick={{ fontSize: 11, fill: '#9ca3af' }}
-                          axisLine={false} tickLine={false}
-                        />
-                        <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                          labelFormatter={val => new Date(val.replace(' ', 'T') + 'Z').toLocaleString()}
-                        />
-                        <Legend wrapperStyle={{ fontSize: '11px' }} />
-                        {status.per_provider.map(p => (
-                          <Line key={`${p.provider}_cafes`} yAxisId="left" type="monotone" dataKey={`${p.provider}_cafes`} name={`${p.provider} cafes`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
-                        ))}
-                        {status.per_provider.map(p => (
-                          <Line key={`${p.provider}_images`} yAxisId="right" type="monotone" dataKey={`${p.provider}_images`} name={`${p.provider} imgs`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={1.5} strokeDasharray="4 4" dot={false} activeDot={{ r: 3 }} />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
                   </div>
                 </div>
               )}

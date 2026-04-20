@@ -832,6 +832,47 @@ func main() {
 		})
 	})
 
+	// ── GET /api/chains ────────────────────────────────────────────────────────
+	mux.HandleFunc("/api/chains", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		rows, err := db.Query(`
+			SELECT c.id, c.name, c.name_english, COUNT(cc.id) as count
+			FROM cafe_chains c
+			JOIN clean_cafes cc ON c.id = cc.chain_id
+			GROUP BY c.id
+			ORDER BY count DESC
+			LIMIT 100
+		`)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer rows.Close()
+
+		type Chain struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			NameEnglish string `json:"name_english"`
+			Count       int    `json:"count"`
+		}
+
+		var chains []Chain
+		for rows.Next() {
+			var c Chain
+			var ne *string
+			if err := rows.Scan(&c.ID, &c.Name, &ne, &c.Count); err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			if ne != nil {
+				c.NameEnglish = *ne
+			}
+			chains = append(chains, c)
+		}
+
+		json.NewEncoder(w).Encode(chains)
+	})
+
 	// ── GET /api/clean_cafes ─────────────────────────────────────────────────
 	mux.HandleFunc("/api/clean_cafes", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -868,6 +909,16 @@ func main() {
 				provConds = append(provConds, "cc.providers LIKE ?")
 			}
 			conditions = append(conditions, "("+strings.Join(provConds, " OR ")+")")
+		}
+
+		if chains := q.Get("chains"); chains != "" {
+			chainList := strings.Split(chains, ",")
+			var placeholders []string
+			for _, c := range chainList {
+				args = append(args, c)
+				placeholders = append(placeholders, "?")
+			}
+			conditions = append(conditions, "cc.chain_id IN ("+strings.Join(placeholders, ",")+")")
 		}
 
 		where := ""

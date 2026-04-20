@@ -80,6 +80,13 @@ export interface SourceCafe {
   images: ImageInfo[]
 }
 
+export interface Chain {
+  id: string
+  name: string
+  name_english: string
+  count: number
+}
+
 export interface CleanCafe {
   id: string
   name: string
@@ -96,4 +103,5 @@ export interface CleanCafe {
   // detail view only
   sources?: SourceCafe[]
   all_images?: ImageInfo[]
+  metadata?: any
 }

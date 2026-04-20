@@ -166,17 +166,43 @@ def is_chain_cafe(name: str, existing_chain_names: list[str]) -> dict:
     """
     name_lower = name.lower()
 
-    # Well-known Korean chains (prefix/exact match)
-    KNOWN_CHAINS = [
-        "스타벅스", "이디야", "빽다방", "메가커피", "투썸플레이스", "폴바셋",
-        "커피빈", "할리스", "엔제리너스", "탐앤탐스", "카페베네", "드롭탑",
-        "더벤티", "컴포즈커피", "요거프레소", "파스쿠찌", "ediya", "starbucks",
-        "twosome", "hollys", "caffe bene", "angel-in-us", "tom n toms",
-        "mega coffee", "paul bassett",
-    ]
-    for chain in KNOWN_CHAINS:
-        if name_lower.startswith(chain.lower()) or chain.lower() in name_lower:
-            return {"is_chain": True, "chain_name": name, "confidence": 0.95, "method": "known_list"}
+    # Well-known Korean chains (prefix/exact match) mapping to canonical English name
+    CHAIN_MAPPING = {
+        "스타벅스": "Starbucks",
+        "starbucks": "Starbucks",
+        "이디야": "Ediya Coffee",
+        "이디야커피": "Ediya Coffee",
+        "ediya": "Ediya Coffee",
+        "빽다방": "Paik's Coffee",
+        "메가커피": "Mega Coffee",
+        "mega coffee": "Mega Coffee",
+        "메가mgc": "Mega Coffee",
+        "투썸플레이스": "A Twosome Place",
+        "twosome": "A Twosome Place",
+        "a twosome place": "A Twosome Place",
+        "폴바셋": "Paul Bassett",
+        "paul bassett": "Paul Bassett",
+        "커피빈": "The Coffee Bean & Tea Leaf",
+        "coffee bean": "The Coffee Bean & Tea Leaf",
+        "할리스": "Hollys Coffee",
+        "할리스커피": "Hollys Coffee",
+        "hollys": "Hollys Coffee",
+        "엔제리너스": "Angel-in-us",
+        "angel-in-us": "Angel-in-us",
+        "탐앤탐스": "Tom N Toms",
+        "tom n toms": "Tom N Toms",
+        "카페베네": "Caffe Bene",
+        "caffe bene": "Caffe Bene",
+        "드롭탑": "Cafe Droptop",
+        "더벤티": "The Venti",
+        "컴포즈커피": "Compose Coffee",
+        "요거프레소": "Yoger Presso",
+        "파스쿠찌": "Caffe Pascucci",
+        "pascucci": "Caffe Pascucci",
+    }
+    for kr_en, canonical in CHAIN_MAPPING.items():
+        if name_lower.startswith(kr_en) or kr_en in name_lower:
+            return {"is_chain": True, "chain_name": canonical, "confidence": 0.95, "method": "known_list"}
 
     # Check if name matches existing chains via levenshtein
     for existing in existing_chain_names:

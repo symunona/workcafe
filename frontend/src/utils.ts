@@ -1,13 +1,11 @@
 import type { Cafe, NaverMetadata, KakaoMetadata, GoogleMetadata } from './types'
 
 export const PROVIDER_COLORS: Record<string, string> = {
-  naver:      '#7c3aed', // purple
+  naver:      '#22c55e', // green
   osm:        '#0ea5e9', // sky blue
   google:     '#ea4335', // google red
-  kakao:      '#f59e0b', // amber
-  foursquare: '#10b981', // emerald
+  kakao:      '#facc15', // yellow
 }
-
 export function providerColor(provider: string) {
   return PROVIDER_COLORS[provider] ?? '#6b7280'
 }

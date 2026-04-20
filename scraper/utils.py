@@ -106,7 +106,7 @@ def init_tables(conn):
 def init_db():
     """Create provider dirs. Tables are created by db_server on startup."""
     os.makedirs(DATA_DIR, exist_ok=True)
-    for provider in ['osm', 'google', 'kakao', 'naver', 'foursquare']:
+    for provider in ['osm', 'google', 'kakao', 'naver']:
         os.makedirs(os.path.join(DATA_DIR, provider), exist_ok=True)
 
 def check_if_done(dbc, providers, coords):

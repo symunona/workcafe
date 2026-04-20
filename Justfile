@@ -440,21 +440,4 @@ normalize-all:
 db-clean:
     #!/usr/bin/env bash
     source venv/bin/activate
-    python3 -c "
-import sys; sys.path.insert(0, 'scraper')
-from db_client import DBClient
-dbc = DBClient()
-r1 = dbc.fetchval('SELECT COUNT(*) FROM clean_cafes')
-r2 = dbc.fetchval('SELECT COUNT(*) FROM cafe_chains')
-r3 = dbc.fetchval('SELECT COUNT(*) FROM cafes WHERE belongs_to_cafe_id IS NOT NULL')
-print(f'Before: clean_cafes={r1}  chains={r2}  cafes_linked={r3}')
-confirm = input('Reset all normalization data? [y/N] ')
-if confirm.strip().lower() == 'y':
-    dbc.execute('UPDATE cafes SET belongs_to_cafe_id = NULL, name_embedding = NULL')
-    dbc.execute('UPDATE images SET belongs_to_cafe_id = NULL')
-    dbc.execute('DELETE FROM clean_cafes')
-    dbc.execute('DELETE FROM cafe_chains')
-    print('Reset done. Run: just normalize-all')
-else:
-    print('Aborted.')
-"
+    python3 scraper/normalize/db_clean.py

@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { MapContainer, TileLayer, useMapEvents, useMap } from 'react-leaflet'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { CleanCafe } from './types'
+import type { CleanCafe, Chain } from './types'
 import { PROVIDER_COLORS } from './utils'
 import { makePieIcon } from './utils_clean'
 import { CleanCafeDetailsPane } from './components/CleanCafeDetailsPane'
+import { CafeDetailsPage } from './components/CafeDetailsPage'
+import { SettingsModal } from './components/SettingsModal'
 
 interface ViewportBounds {
   minLat: number; maxLat: number; minLon: number; maxLon: number
@@ -15,6 +18,7 @@ interface Filters {
   withImages: boolean
   multipleImages: boolean
   providers: Set<string>
+  chains: Set<string>
 }
 
 interface MarkerLayerProps {
@@ -87,12 +91,22 @@ function MarkerLayer({ cafes, onSelect }: MarkerLayerProps) {
 }
 
 export default function CleanApp() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [cafeMap, setCafeMap] = useState<Map<string, CleanCafe>>(new Map())
   const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [filters, setFilters] = useState<Filters>({ withImages: false, multipleImages: false, providers: new Set() })
+  const [filters, setFilters] = useState<Filters>({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set() })
   const [showFilters, setShowFilters] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [chains, setChains] = useState<Chain[]>([])
   const [total, setTotal] = useState(0)
+
+  const selectedId = id || null
+
+  useEffect(() => {
+    fetch('/api/chains').then(r => r.json()).then(data => setChains(data.slice(0, 30))).catch(console.error)
+  }, [])
   const abortRef = useRef<AbortController | null>(null)
   const boundsRef = useRef<ViewportBounds | null>(null)
 
@@ -109,6 +123,7 @@ export default function CleanApp() {
     if (f.multipleImages) params.set('multipleImages', 'true')
     else if (f.withImages) params.set('withImages', 'true')
     if (f.providers.size > 0) params.set('providers', [...f.providers].join(','))
+    if (f.chains.size > 0) params.set('chains', [...f.chains].join(','))
 
     setLoading(true)
     try {
@@ -140,7 +155,7 @@ export default function CleanApp() {
     }
   }, [filters]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelect = useCallback((id: string) => setSelectedId(id), [])
+  const handleSelect = useCallback((cid: string) => navigate(`/cafe/${cid}`), [navigate])
 
   const cafesInView = useMemo(() => cafeMap.size, [cafeMap])
 
@@ -177,9 +192,12 @@ export default function CleanApp() {
         >
           Filter {filters.withImages || filters.multipleImages || filters.providers.size > 0 ? '●' : ''}
         </button>
-        <a href="/scraper/" className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500">
-          Scraper →
-        </a>
+        <button
+          className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
+          onClick={() => setShowSettings(true)}
+        >
+          Scraper Status
+        </button>
       </div>
 
       {/* Legend */}
@@ -191,46 +209,76 @@ export default function CleanApp() {
             <span className="text-gray-600">{p}</span>
           </div>
         ))}
-        <div className="mt-1 pt-1 border-t text-gray-400">white ring = has images</div>
+        <div className="mt-1 pt-1 border-t text-gray-400">black ring = has images</div>
       </div>
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[600] bg-white rounded-xl shadow-lg p-4 w-72">
-          <h3 className="font-semibold mb-3 text-sm">Filters</h3>
-          <label className="flex items-center gap-2 mb-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={filters.withImages}
-              onChange={e => setFilters(f => ({ ...f, withImages: e.target.checked, multipleImages: e.target.checked ? f.multipleImages : false }))} />
-            Has images
-          </label>
-          <label className="flex items-center gap-2 mb-3 text-sm cursor-pointer">
-            <input type="checkbox" checked={filters.multipleImages}
-              onChange={e => setFilters(f => ({ ...f, multipleImages: e.target.checked, withImages: e.target.checked ? true : f.withImages }))} />
-            Multiple images (2+)
-          </label>
-          <div className="text-xs text-gray-500 mb-2 font-medium">Provider filter</div>
-          {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
-            <label key={p} className="flex items-center gap-2 mb-1.5 text-sm cursor-pointer">
-              <input type="checkbox"
-                checked={filters.providers.has(p)}
-                onChange={e => setFilters(f => {
-                  const s = new Set(f.providers)
-                  e.target.checked ? s.add(p) : s.delete(p)
-                  return { ...f, providers: s }
-                })} />
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-              {p}
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[600] bg-white rounded-xl shadow-lg p-4 w-96 max-h-[80vh] overflow-y-auto flex gap-6">
+          <div className="flex-1">
+            <h3 className="font-semibold mb-3 text-sm">Filters</h3>
+            <label className="flex items-center gap-2 mb-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={filters.withImages}
+                onChange={e => setFilters(f => ({ ...f, withImages: e.target.checked, multipleImages: e.target.checked ? f.multipleImages : false }))} />
+              Has images
             </label>
-          ))}
-          <button className="mt-2 text-xs text-gray-400 hover:text-gray-600"
-            onClick={() => setFilters({ withImages: false, multipleImages: false, providers: new Set() })}>
-            Clear all
-          </button>
+            <label className="flex items-center gap-2 mb-3 text-sm cursor-pointer">
+              <input type="checkbox" checked={filters.multipleImages}
+                onChange={e => setFilters(f => ({ ...f, multipleImages: e.target.checked, withImages: e.target.checked ? true : f.withImages }))} />
+              Multiple images (2+)
+            </label>
+            <div className="text-xs text-gray-500 mb-2 font-medium">Provider filter</div>
+            {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
+              <label key={p} className="flex items-center gap-2 mb-1.5 text-sm cursor-pointer">
+                <input type="checkbox"
+                  checked={filters.providers.has(p)}
+                  onChange={e => setFilters(f => {
+                    const s = new Set(f.providers)
+                    e.target.checked ? s.add(p) : s.delete(p)
+                    return { ...f, providers: s }
+                  })} />
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                {p}
+              </label>
+            ))}
+            <button className="mt-4 text-xs text-gray-400 hover:text-gray-600"
+              onClick={() => setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set() })}>
+              Clear all
+            </button>
+          </div>
+          <div className="flex-1 border-l pl-6">
+            <div className="text-xs text-gray-500 mb-2 font-medium">Top Chains</div>
+            <div className="space-y-1">
+              {chains.map(c => (
+                <label key={c.id} className="flex items-center justify-between gap-2 text-sm cursor-pointer">
+                  <div className="flex items-center gap-2 truncate">
+                    <input type="checkbox"
+                      checked={filters.chains.has(c.id)}
+                      onChange={e => setFilters(f => {
+                        const s = new Set(f.chains)
+                        e.target.checked ? s.add(c.id) : s.delete(c.id)
+                        return { ...f, chains: s }
+                      })} />
+                    <span className="truncate" title={c.name}>{c.name}</span>
+                  </div>
+                  <span className="text-xs text-gray-400">{c.count}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {selectedId && (
-        <CleanCafeDetailsPane cafeId={selectedId} onClose={() => setSelectedId(null)} />
+        <CleanCafeDetailsPane cafeId={selectedId} onClose={() => navigate('/')} />
+      )}
+      
+      {selectedId && location.search && (
+        <CafeDetailsPage />
+      )}
+      
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
       )}
     </div>
   )

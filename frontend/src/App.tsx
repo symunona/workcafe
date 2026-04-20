@@ -7,6 +7,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/scraper/*" element={<ScraperApp />} />
+        <Route path="/cafe/:id" element={<CleanApp />} />
         <Route path="/*" element={<CleanApp />} />
       </Routes>
     </BrowserRouter>
