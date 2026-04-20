@@ -35,6 +35,7 @@ interface ProviderMetrics {
 
 interface DiskStats {
   data_dir_gb: number
+  folder_size_gb: number
   limit_gb: number
   used_pct: number
   free_gb: number
@@ -255,6 +256,28 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 </div>
               )}
 
+              {/* Disk + health */}
+              {status.disk && (
+                <div className="bg-gray-50 rounded-xl px-4 py-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Storage — {status.disk.free_gb} GB free of {status.disk.limit_gb} GB</span>
+                    <span className={`font-semibold text-sm ${status.disk.used_pct > 85 ? 'text-red-600' : status.disk.used_pct > 60 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      {status.disk.used_pct}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${status.disk.used_pct > 85 ? 'bg-red-500' : status.disk.used_pct > 60 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                      style={{ width: `${Math.min(status.disk.used_pct, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-sm pt-1 border-t border-gray-200/60 mt-1">
+                    <span className="text-gray-600">Data folder size</span>
+                    <span className="font-semibold text-gray-700">{status.disk.folder_size_gb} GB</span>
+                  </div>
+                </div>
+              )}
+
               {/* Service groups */}
               <div className="flex flex-col gap-4">
                 {SERVICE_GROUPS.map(group => {
@@ -401,23 +424,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 </div>
               )}
 
-              {/* Disk + health */}
-              {status.disk && (
-                <div className="bg-gray-50 rounded-xl px-4 py-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Storage — {status.disk.free_gb} GB free of {status.disk.limit_gb} GB</span>
-                    <span className={`font-semibold text-sm ${status.disk.used_pct > 85 ? 'text-red-600' : status.disk.used_pct > 60 ? 'text-yellow-600' : 'text-green-600'}`}>
-                      {status.disk.used_pct}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                    <div
-                      className={`h-1.5 rounded-full transition-all ${status.disk.used_pct > 85 ? 'bg-red-500' : status.disk.used_pct > 60 ? 'bg-yellow-500' : 'bg-green-500'}`}
-                      style={{ width: `${Math.min(status.disk.used_pct, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
+
 
               <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 rounded-xl px-4 py-3">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: healthColor(status.last_cafe_at || status.last_image_at, scraperActive) }} />

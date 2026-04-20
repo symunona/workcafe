@@ -57,10 +57,11 @@ type ProviderMetrics struct {
 }
 
 type DiskStats struct {
-	DataDirGB  float64 `json:"data_dir_gb"`
-	LimitGB    float64 `json:"limit_gb"`
-	UsedPct    float64 `json:"used_pct"`
-	FreeGB     float64 `json:"free_gb"`
+	DataDirGB    float64 `json:"data_dir_gb"`
+	FolderSizeGB float64 `json:"folder_size_gb"`
+	LimitGB      float64 `json:"limit_gb"`
+	UsedPct      float64 `json:"used_pct"`
+	FreeGB       float64 `json:"free_gb"`
 }
 
 type QueueEntry struct {
@@ -266,11 +267,27 @@ func getDiskStats(dataDir string) DiskStats {
 		usedPct = (usedGB / totalGB) * 100
 	}
 
+	var folderSize int64
+	filepath.WalkDir(dataDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !d.IsDir() {
+			info, err := d.Info()
+			if err == nil {
+				folderSize += info.Size()
+			}
+		}
+		return nil
+	})
+	folderSizeGB := float64(folderSize) / (1024 * 1024 * 1024)
+
 	diskCached = DiskStats{
-		DataDirGB: math_round2(usedGB),
-		LimitGB:   math_round2(totalGB),
-		UsedPct:   math_round2(usedPct),
-		FreeGB:    math_round2(freeGB),
+		DataDirGB:    math_round2(usedGB),
+		FolderSizeGB: math_round2(folderSizeGB),
+		LimitGB:      math_round2(totalGB),
+		UsedPct:      math_round2(usedPct),
+		FreeGB:       math_round2(freeGB),
 	}
 	diskCachedAt = time.Now()
 	return diskCached
