@@ -441,3 +441,48 @@ db-clean:
     #!/usr/bin/env bash
     source venv/bin/activate
     python3 scraper/normalize/db_clean.py
+
+# Full merge pipeline: dedup raw → reset clean data → merge → link images → stats
+merge-pipeline:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PY=/usr/bin/python3
+    B='\033[1m'; G='\033[0;32m'; Y='\033[0;33m'; NC='\033[0m'
+
+    echo ""
+    echo -e "${B}━━━ Step 1/4  Dedup raw cafes (same provider + location) ━━━${NC}"
+    $PY scraper/normalize/00_dedup_raw_cafes.py
+
+    echo ""
+    echo -e "${B}━━━ Step 2/4  Reset clean_cafes + cafe_chains ━━━━━━━━━━━━━${NC}"
+    printf 'y\n' | $PY scraper/normalize/db_clean.py
+
+    echo ""
+    echo -e "${B}━━━ Step 3/4  Merge cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    cd scraper && $PY normalize/04_normalize_pipeline.py
+    cd ..
+
+    echo ""
+    echo -e "${B}━━━ Step 4/4  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    cd scraper && $PY normalize/06_update_image_links.py
+    cd ..
+
+    echo ""
+    echo -e "${B}━━━ Stats ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    sqlite3 data/seoul/cafedata.db "
+        SELECT
+            'Raw cafes:         ' || COUNT(*)                                         FROM cafes
+        UNION ALL SELECT
+            'Clean cafes:       ' || COUNT(*)                                         FROM clean_cafes
+        UNION ALL SELECT
+            'Multi-provider:    ' || COUNT(*) || ' (' || ROUND(100.0*COUNT(*)/(SELECT COUNT(*) FROM clean_cafes),1) || '%)'
+                                                                                      FROM clean_cafes WHERE json_array_length(providers) > 1
+        UNION ALL SELECT
+            'Chains detected:   ' || COUNT(*)                                         FROM cafe_chains
+        UNION ALL SELECT
+            'Images linked:     ' || COUNT(*)                                         FROM images WHERE belongs_to_cafe_id IS NOT NULL
+        UNION ALL SELECT
+            'Unprocessed cafes: ' || COUNT(*)                                         FROM cafes WHERE belongs_to_cafe_id IS NULL
+    ;"
+    echo ""
+    echo -e "${G}Done.${NC}"
