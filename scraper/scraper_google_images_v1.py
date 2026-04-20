@@ -245,6 +245,17 @@ signal.signal(signal.SIGTERM, _sigterm)
 def dismiss_consent(page):
     try:
         page.wait_for_timeout(2000)
+        
+        for jsname in ['b3VHJd', 'tWT92d']:
+            try:
+                btn = page.locator(f"button[jsname='{jsname}']")
+                if btn.count() > 0 and btn.first.is_visible():
+                    btn.first.click(timeout=3000)
+                    page.wait_for_timeout(1500)
+                    return
+            except Exception:
+                pass
+
         for text in ["Accept all", "Reject all", "Alle akzeptieren", "Alle ablehnen",
                      "Tout accepter", "Tout refuser"]:
             try:
@@ -339,6 +350,18 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
         stats.record(proxy, cafe_id, "captcha")
         raise CaptchaHit(cafe_id)
 
+    # Try to click the "Photos" tab if it exists
+    try:
+        tabs = page.locator("button[role='tab']")
+        for i in range(tabs.count()):
+            text = tabs.nth(i).text_content()
+            if text and ("Photos" in text or "사진" in text):
+                tabs.nth(i).click(timeout=3000)
+                page.wait_for_timeout(3000)
+                break
+    except Exception:
+        pass
+
     imgs = page.evaluate("""() =>
         Array.from(document.querySelectorAll('img'))
             .map(i => i.src)
@@ -347,7 +370,6 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
             .filter((v, i, a) => a.indexOf(v) === i)
             .slice(0, 20)
     """)
-
     if not imgs:
         log.info(f"  {cafe_id}: no images found on page")
         stats.record(proxy, cafe_id, "no_images")
