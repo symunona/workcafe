@@ -1,17 +1,42 @@
 import L from 'leaflet'
 import { PROVIDER_COLORS } from './utils'
 
+export const CHAIN_COLORS: Record<string, string> = {
+  "Starbucks": "#00704A",
+  "Mega Coffee": "#FFC72C",
+  "Ediya Coffee": "#002A5C",
+  "A Twosome Place": "#D9182D",
+  "Hollys Coffee": "#B41E22",
+  "Compose Coffee": "#FEE100",
+  "Paik's Coffee": "#00205B",
+  "The Venti": "#6A2B86",
+  "The Coffee Bean & Tea Leaf": "#4B2A20",
+  "Caffe Pascucci": "#D11032",
+  "Angel-in-us": "#B28F5A",
+  "Yoger Presso": "#D6273C",
+  "Tom N Toms": "#4A2B23",
+  "Paul Bassett": "#E02B20",
+  "Caffe Bene": "#795231",
+  "Cafe Droptop": "#221E1F"
+}
+
 /**
  * Create a Leaflet DivIcon showing a pie-chart circle for multiple providers.
  * 1 provider: solid circle
  * 2+ providers: equal slices
+ * Outer ring: Chain color if available, else black if has images.
  */
-export function makePieIcon(providers: string[], size = 10, hasImages = false): L.DivIcon {
+export function makePieIcon(providers: string[], size = 10, hasImages = false, chainName?: string): L.DivIcon {
   const colors = providers.map(p => PROVIDER_COLORS[p] ?? '#6b7280')
+  
+  // If chain, use its color. Else black if images.
+  const chainColor = chainName ? CHAIN_COLORS[chainName] : undefined;
+  const showRing = !!chainColor || hasImages;
+  const ringColor = chainColor || "black";
+  const border = showRing ? 2 : 1;
   const r = size / 2
   const cx = r
   const cy = r
-  const border = hasImages ? 2 : 1
   const innerR = r - border
 
   let slices = ''
@@ -32,8 +57,8 @@ export function makePieIcon(providers: string[], size = 10, hasImages = false): 
     }
   }
 
-  const ring = hasImages
-    ? `<circle cx="${cx}" cy="${cy}" r="${r - 0.5}" fill="none" stroke="black" stroke-width="${border}" />`
+  const ring = showRing
+    ? `<circle cx="${cx}" cy="${cy}" r="${r - 0.5}" fill="none" stroke="${ringColor}" stroke-width="${border}" />`
     : ''
 
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">

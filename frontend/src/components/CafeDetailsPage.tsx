@@ -104,18 +104,18 @@ export function CafeDetailsPage() {
                 onClick={() => setActiveImageIndex(null)}>✕</button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {displayImages.map((img, i) => (
-                <div key={i} className="relative aspect-square cursor-pointer rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                <div key={i} className="relative aspect-video cursor-pointer rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group bg-white"
                   style={{ borderBottom: `4px solid ${PROVIDER_COLORS[img.provider] ?? '#6b7280'}` }}
                   onClick={() => setActiveImageIndex(i)}>
                   <img
                     src={img.local_path?.startsWith('../') ? img.local_path.replace('../data/seoul/', '/images/') : img.local_path || img.image_url}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     alt=""
                     loading="lazy"
                   />
-                  <span className="absolute bottom-1 right-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">
+                  <span className="absolute bottom-2 right-2 text-xs bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-md font-medium">
                     {img.provider}
                   </span>
                 </div>

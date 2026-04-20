@@ -226,6 +226,10 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
 
     matched_id = None
     for nc in nearby:
+        providers = json.loads(nc["providers"] or "[]")
+        if cafe["provider"] in providers:
+            continue
+
         dist = nc["distance_m"]
 
         if dist <= MERGE_RADIUS_AUTO:

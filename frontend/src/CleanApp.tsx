@@ -5,7 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { CleanCafe, Chain } from './types'
 import { PROVIDER_COLORS } from './utils'
-import { makePieIcon } from './utils_clean'
+import { makePieIcon, CHAIN_COLORS } from './utils_clean'
 import { CleanCafeDetailsPane } from './components/CleanCafeDetailsPane'
 import { CafeDetailsPage } from './components/CafeDetailsPage'
 import { SettingsModal } from './components/SettingsModal'
@@ -74,7 +74,7 @@ function MarkerLayer({ cafes, onSelect }: MarkerLayerProps) {
       const providers = Array.isArray(cafe.providers)
         ? cafe.providers
         : (JSON.parse(cafe.providers as unknown as string ?? '[]') as string[])
-      const icon = makePieIcon(providers, 12, cafe.image_count > 0)
+      const icon = makePieIcon(providers, 14, cafe.image_count > 0, cafe.chain_name_english || cafe.chain_name)
       const marker = L.marker([cafe.lat, cafe.lon], { icon })
       marker.on('click', () => onSelect(cafe.id))
       marker.addTo(layer)
@@ -214,56 +214,61 @@ export default function CleanApp() {
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[600] bg-white rounded-xl shadow-lg p-4 w-96 max-h-[80vh] overflow-y-auto flex gap-6">
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[600] bg-white rounded-xl shadow-2xl p-6 w-[500px] max-h-[80vh] overflow-y-auto flex gap-8">
           <div className="flex-1">
-            <h3 className="font-semibold mb-3 text-sm">Filters</h3>
-            <label className="flex items-center gap-2 mb-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={filters.withImages}
+            <h3 className="font-semibold mb-4 text-base">Filters</h3>
+            <label className="flex items-center gap-3 mb-3 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+              <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" checked={filters.withImages}
                 onChange={e => setFilters(f => ({ ...f, withImages: e.target.checked, multipleImages: e.target.checked ? f.multipleImages : false }))} />
               Has images
             </label>
-            <label className="flex items-center gap-2 mb-3 text-sm cursor-pointer">
-              <input type="checkbox" checked={filters.multipleImages}
+            <label className="flex items-center gap-3 mb-4 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+              <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" checked={filters.multipleImages}
                 onChange={e => setFilters(f => ({ ...f, multipleImages: e.target.checked, withImages: e.target.checked ? true : f.withImages }))} />
               Multiple images (2+)
             </label>
-            <div className="text-xs text-gray-500 mb-2 font-medium">Provider filter</div>
+            <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Provider filter</div>
             {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
-              <label key={p} className="flex items-center gap-2 mb-1.5 text-sm cursor-pointer">
-                <input type="checkbox"
+              <label key={p} className="flex items-center gap-3 mb-2 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                   checked={filters.providers.has(p)}
                   onChange={e => setFilters(f => {
                     const s = new Set(f.providers)
                     e.target.checked ? s.add(p) : s.delete(p)
                     return { ...f, providers: s }
                   })} />
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+                <span className="w-3 h-3 rounded-full shadow-sm" style={{ background: color }} />
                 {p}
               </label>
             ))}
-            <button className="mt-4 text-xs text-gray-400 hover:text-gray-600"
+            <button className="mt-6 text-sm font-medium text-gray-400 hover:text-gray-800 transition-colors"
               onClick={() => setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set() })}>
-              Clear all
+              Clear all filters
             </button>
           </div>
-          <div className="flex-1 border-l pl-6">
-            <div className="text-xs text-gray-500 mb-2 font-medium">Top Chains</div>
-            <div className="space-y-1">
-              {chains.map(c => (
-                <label key={c.id} className="flex items-center justify-between gap-2 text-sm cursor-pointer">
-                  <div className="flex items-center gap-2 truncate">
-                    <input type="checkbox"
+          <div className="flex-1">
+            <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Top Chains</div>
+            <div className="space-y-1.5">
+              {chains.map(c => {
+                const chainColor = CHAIN_COLORS[c.name_english || c.name];
+                return (
+                <label key={c.id} className="flex items-center justify-between gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+                  <div className="flex items-center gap-3 truncate">
+                    <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                       checked={filters.chains.has(c.id)}
                       onChange={e => setFilters(f => {
                         const s = new Set(f.chains)
                         e.target.checked ? s.add(c.id) : s.delete(c.id)
                         return { ...f, chains: s }
                       })} />
-                    <span className="truncate" title={c.name}>{c.name}</span>
+                    {chainColor && (
+                      <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: chainColor }} />
+                    )}
+                    <span className="truncate" title={c.name_english || c.name}>{c.name_english || c.name}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{c.count}</span>
+                  <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{c.count}</span>
                 </label>
-              ))}
+              )})}
             </div>
           </div>
         </div>

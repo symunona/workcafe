@@ -130,20 +130,20 @@ export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
         {/* Image gallery (Top 6 sampled) */}
         {sampledImages.length > 0 && (
           <div className="px-4 pt-3">
-            <p className="text-xs text-gray-500 mb-2 font-medium">Gallery</p>
-            <div className="grid grid-cols-3 gap-1">
+            <p className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Gallery</p>
+            <div className="grid grid-cols-2 gap-2">
               {sampledImages.map((img, i) => {
                 const originalIndex = allImages.indexOf(img);
                 return (
-                <div key={i} className="relative aspect-square cursor-pointer"
+                <div key={i} className="relative aspect-video cursor-pointer rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow group"
                   onClick={() => navigate(`/cafe/${cafe.id}?source=all&image=${originalIndex}`)}>
                   <img
                     src={img.local_path?.startsWith('../') ? img.local_path.replace('../data/seoul/', '/images/') : img.local_path || img.image_url}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     alt=""
                     loading="lazy"
                   />
-                  <span className="absolute bottom-0.5 right-0.5 text-[9px] bg-black/50 text-white px-0.5 rounded">
+                  <span className="absolute bottom-1 right-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded backdrop-blur-sm">
                     {img.provider}
                   </span>
                 </div>
