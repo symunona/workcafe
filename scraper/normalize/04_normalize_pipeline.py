@@ -315,42 +315,41 @@ def main():
     chain_names = load_chain_cache(conn)
     print(f"Chains loaded: {len(chain_names)}")
 
-    q = "SELECT COUNT(*) FROM cafes WHERE belongs_to_cafe_id IS NULL"
-    params = []
-    if args.provider:
-        q += " AND provider = ?"
-        params.append(args.provider)
-    total = conn.execute(q, params).fetchone()[0]
-    if args.limit > 0:
-        total = min(total, args.limit)
-    print(f"Cafes to process: {total}")
-
     fetch_q = ("SELECT id, name, lat, lon, provider, address, url, metadata FROM cafes "
                "WHERE belongs_to_cafe_id IS NULL")
+    params = []
     if args.provider:
         fetch_q += " AND provider = ?"
+        params.append(args.provider)
     fetch_q += " ORDER BY provider, id"
 
-    cursor = conn.execute(fetch_q, params)
+    # Pre-fetch all rows into memory so the cursor is closed before processing.
+    # Keeping an open cursor holds a SQLite read-transaction on conn, which prevents
+    # conn.commit() inside process_cafe from refreshing the clean_cafes snapshot —
+    # causing every cafe to create a new entry instead of merging into existing ones.
+    print("Loading cafes into memory...")
+    _cur = conn.execute(fetch_q, params)
+    all_rows = _cur.fetchall()
+    _cur.close()   # close cursor before commit so the read-transaction is fully released
+    del _cur
+    if args.limit > 0:
+        all_rows = all_rows[:args.limit]
+    total = len(all_rows)
+    conn.commit()  # now properly refreshes snapshot; process_cafe's conn.commit() will too
+
+    print(f"Cafes to process: {total}")
+    print("Running... (Ctrl+C to pause, safe to restart)")
+
     done = created = merged = errors = 0
     start = time.time()
     last_print = 0
 
-    print("Running... (Ctrl+C to pause, safe to restart)")
-
     try:
-        while True:
-            rows = cursor.fetchmany(500)
-            if not rows:
-                break
-            if args.limit > 0 and done >= args.limit:
-                break
-
+        for batch_start in range(0, len(all_rows), 500):
+            batch = all_rows[batch_start:batch_start + 500]
             batch_links: list[tuple[str, str]] = []  # (clean_id, cafe_id)
 
-            for row in rows:
-                if args.limit > 0 and done >= args.limit:
-                    break
+            for row in batch:
                 cafe = {
                     "id": row[0], "name": row[1], "lat": row[2],
                     "lon": row[3], "provider": row[4],

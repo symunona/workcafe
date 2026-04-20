@@ -9,6 +9,7 @@ import { makePieIcon, CHAIN_COLORS } from './utils_clean'
 import { CleanCafeDetailsPane } from './components/CleanCafeDetailsPane'
 import { CafeDetailsPage } from './components/CafeDetailsPage'
 import { SettingsModal } from './components/SettingsModal'
+import { Checkbox } from './components/Checkbox'
 
 interface ViewportBounds {
   minLat: number; maxLat: number; minLon: number; maxLon: number
@@ -46,6 +47,14 @@ function ViewportTracker({ onBoundsChange }: { onBoundsChange: (b: ViewportBound
     const b = map.getBounds()
     onBoundsChange({ minLat: b.getSouth(), maxLat: b.getNorth(), minLon: b.getWest(), maxLon: b.getEast() })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
+
+function MapPanner({ target }: { target: [number, number] | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (target) map.setView(target, Math.max(map.getZoom(), 16), { animate: true })
+  }, [target, map])
   return null
 }
 
@@ -103,10 +112,20 @@ export default function CleanApp() {
   const [total, setTotal] = useState(0)
 
   const selectedId = id || null
+  const [mapTarget, setMapTarget] = useState<[number, number] | null>(null)
 
   useEffect(() => {
     fetch('/api/chains').then(r => r.json()).then(data => setChains(data.slice(0, 30))).catch(console.error)
   }, [])
+
+  // Pan map to cafe when navigating directly to a /cafe/:id URL
+  useEffect(() => {
+    if (!selectedId) return
+    fetch(`/api/clean_cafe?id=${encodeURIComponent(selectedId)}`)
+      .then(r => r.json())
+      .then(data => { if (data?.lat && data?.lon) setMapTarget([data.lat, data.lon]) })
+      .catch(() => {})
+  }, [selectedId])
   const abortRef = useRef<AbortController | null>(null)
   const boundsRef = useRef<ViewportBounds | null>(null)
 
@@ -174,6 +193,7 @@ export default function CleanApp() {
           maxZoom={20}
         />
         <ViewportTracker onBoundsChange={handleBoundsChange} />
+        <MapPanner target={mapTarget} />
         <MarkerLayer cafes={cafeMap} onSelect={handleSelect} />
       </MapContainer>
 
@@ -217,29 +237,38 @@ export default function CleanApp() {
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[600] bg-white rounded-xl shadow-2xl p-6 w-[500px] max-h-[80vh] overflow-y-auto flex gap-8">
           <div className="flex-1">
             <h3 className="font-semibold mb-4 text-base">Filters</h3>
-            <label className="flex items-center gap-3 mb-3 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-              <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" checked={filters.withImages}
-                onChange={e => setFilters(f => ({ ...f, withImages: e.target.checked, multipleImages: e.target.checked ? f.multipleImages : false }))} />
-              Has images
-            </label>
-            <label className="flex items-center gap-3 mb-4 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-              <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" checked={filters.multipleImages}
-                onChange={e => setFilters(f => ({ ...f, multipleImages: e.target.checked, withImages: e.target.checked ? true : f.withImages }))} />
-              Multiple images (2+)
-            </label>
+            <div className="mb-3 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+              <Checkbox
+                checked={filters.withImages}
+                onChange={v => setFilters(f => ({ ...f, withImages: v, multipleImages: v ? f.multipleImages : false }))}
+                label={<span className="text-sm">Has images</span>}
+              />
+            </div>
+            <div className="mb-4 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+              <Checkbox
+                checked={filters.multipleImages}
+                onChange={v => setFilters(f => ({ ...f, multipleImages: v, withImages: v ? true : f.withImages }))}
+                label={<span className="text-sm">Multiple images (2+)</span>}
+              />
+            </div>
             <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Provider filter</div>
             {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
-              <label key={p} className="flex items-center gap-3 mb-2 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+              <div key={p} className="mb-2 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+                <Checkbox
                   checked={filters.providers.has(p)}
-                  onChange={e => setFilters(f => {
+                  onChange={v => setFilters(f => {
                     const s = new Set(f.providers)
-                    e.target.checked ? s.add(p) : s.delete(p)
+                    v ? s.add(p) : s.delete(p)
                     return { ...f, providers: s }
-                  })} />
-                <span className="w-3 h-3 rounded-full shadow-sm" style={{ background: color }} />
-                {p}
-              </label>
+                  })}
+                  label={
+                    <span className="flex items-center gap-2 text-sm">
+                      <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: color }} />
+                      {p}
+                    </span>
+                  }
+                />
+              </div>
             ))}
             <button className="mt-6 text-sm font-medium text-gray-400 hover:text-gray-800 transition-colors"
               onClick={() => setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set() })}>
@@ -252,22 +281,25 @@ export default function CleanApp() {
               {chains.map(c => {
                 const chainColor = CHAIN_COLORS[c.name_english || c.name];
                 return (
-                <label key={c.id} className="flex items-center justify-between gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-                  <div className="flex items-center gap-3 truncate">
-                    <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      checked={filters.chains.has(c.id)}
-                      onChange={e => setFilters(f => {
-                        const s = new Set(f.chains)
-                        e.target.checked ? s.add(c.id) : s.delete(c.id)
-                        return { ...f, chains: s }
-                      })} />
-                    {chainColor && (
-                      <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: chainColor }} />
-                    )}
-                    <span className="truncate" title={c.name_english || c.name}>{c.name_english || c.name}</span>
-                  </div>
-                  <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{c.count}</span>
-                </label>
+                <div key={c.id} className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+                  <Checkbox
+                    checked={filters.chains.has(c.id)}
+                    onChange={v => setFilters(f => {
+                      const s = new Set(f.chains)
+                      v ? s.add(c.id) : s.delete(c.id)
+                      return { ...f, chains: s }
+                    })}
+                    label={
+                      <span className="flex items-center justify-between gap-2 text-sm w-full">
+                        <span className="flex items-center gap-2 truncate">
+                          {chainColor && <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: chainColor }} />}
+                          <span className="truncate" title={c.name_english || c.name}>{c.name_english || c.name}</span>
+                        </span>
+                        <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">{c.count}</span>
+                      </span>
+                    }
+                  />
+                </div>
               )})}
             </div>
           </div>
