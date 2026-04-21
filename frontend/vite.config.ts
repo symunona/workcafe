@@ -31,7 +31,7 @@ export default defineConfig({
     allowedHosts: true,
     port: 5550,
     proxy: {
-      '/api': 'http://localhost:8090',
+      '/api': 'http://127.0.0.1:13854',
     },
   },
 })
