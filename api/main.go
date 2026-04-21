@@ -377,9 +377,9 @@ func main() {
 		}
 
 		if q.Get("multipleImages") == "true" {
-			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = scraped_cafes.id AND file_size > 0) >= 2")
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = c.id AND file_size > 0) >= 2")
 		} else if q.Get("withImages") == "true" {
-			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = scraped_cafes.id AND file_size > 0) >= 1")
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = c.id AND file_size > 0) >= 1")
 		}
 
 		if providers := q.Get("providers"); providers != "" {
