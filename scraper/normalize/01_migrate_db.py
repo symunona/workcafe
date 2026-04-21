@@ -8,6 +8,7 @@ Does NOT touch scraper data — only adds new columns/tables.
 import os
 import sys
 import sqlite3
+import argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_HERE, '..'))
@@ -23,8 +24,8 @@ def col_exists(conn, table, col):
     return any(r[1] == col for r in rows)
 
 
-def migrate(conn):
-    print(f"DB: {DB_PATH_ABS}")
+def migrate(conn, db_path):
+    print(f"DB: {db_path}")
 
     # 1. Extend cafes: belongs_to_cafe_id, name_embedding
     for col, typedef in [
@@ -88,9 +89,13 @@ def migrate(conn):
 
 
 if __name__ == "__main__":
-    conn = sqlite3.connect(DB_PATH_ABS, timeout=30)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db", default=DB_PATH_ABS, help="Path to SQLite DB")
+    args = parser.parse_args()
+
+    conn = sqlite3.connect(args.db, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     try:
-        migrate(conn)
+        migrate(conn, args.db)
     finally:
         conn.close()

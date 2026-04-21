@@ -450,26 +450,34 @@ merge-pipeline:
     B='\033[1m'; G='\033[0;32m'; Y='\033[0;33m'; NC='\033[0m'
 
     echo ""
-    echo -e "${B}━━━ Step 1/4  Dedup raw cafes (same provider + location) ━━━${NC}"
-    $PY scraper/normalize/00_dedup_raw_cafes.py
+    echo -e "${B}━━━ Step 0/5  Copy scraper DB to clean DB ━━━━━━━━━━━━━━━━━${NC}"
+    sqlite3 data/seoul/cafedata.db ".backup data/seoul/clean-data.db"
 
     echo ""
-    echo -e "${B}━━━ Step 2/4  Reset clean_cafes + cafe_chains ━━━━━━━━━━━━━${NC}"
-    printf 'y\n' | $PY scraper/normalize/db_clean.py
+    echo -e "${B}━━━ Step 1/5  Start play DB server ━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    bash start_play_db.sh
 
     echo ""
-    echo -e "${B}━━━ Step 3/4  Merge cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
-    cd scraper && $PY normalize/04_normalize_pipeline.py
+    echo -e "${B}━━━ Step 2/5  Dedup raw cafes (same provider + location) ━━━${NC}"
+    $PY scraper/normalize/00_dedup_raw_cafes.py --db data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
+
+    echo ""
+    echo -e "${B}━━━ Step 3/5  Reset clean_cafes + cafe_chains ━━━━━━━━━━━━━${NC}"
+    printf 'y\n' | $PY scraper/normalize/db_clean.py --socket /tmp/workcafe_play_db.sock
+
+    echo ""
+    echo -e "${B}━━━ Step 4/5  Merge cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    cd scraper && $PY normalize/04_normalize_pipeline.py --db ../data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
     cd ..
 
     echo ""
-    echo -e "${B}━━━ Step 4/4  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
-    cd scraper && $PY normalize/06_update_image_links.py
+    echo -e "${B}━━━ Step 5/5  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    cd scraper && $PY normalize/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
     cd ..
 
     echo ""
     echo -e "${B}━━━ Stats ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    sqlite3 data/seoul/cafedata.db "
+    sqlite3 data/seoul/clean-data.db "
         SELECT
             'Raw cafes:         ' || COUNT(*)                                         FROM cafes
         UNION ALL SELECT
@@ -484,5 +492,9 @@ merge-pipeline:
         UNION ALL SELECT
             'Unprocessed cafes: ' || COUNT(*)                                         FROM cafes WHERE belongs_to_cafe_id IS NULL
     ;"
+    echo ""
+    echo -e "${B}━━━ Restart API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    just service api restart || true
+
     echo ""
     echo -e "${G}Done.${NC}"

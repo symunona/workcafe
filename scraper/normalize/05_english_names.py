@@ -36,9 +36,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--chains-only", action="store_true")
+    parser.add_argument("--socket", default="/tmp/workcafe_db.sock", help="Unix socket path")
     args = parser.parse_args()
 
-    dbc = DBClient()
+    dbc = DBClient(socket_path=args.socket)
 
     print("=== English name generation ===")
 

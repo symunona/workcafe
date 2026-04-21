@@ -317,7 +317,7 @@ func corsJSON(w http.ResponseWriter) {
 func main() {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "../data/seoul/cafedata.db"
+		dbPath = "../data/seoul/clean-data.db"
 	}
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {

@@ -34,9 +34,9 @@ from db_client import DBClient
 
 DB_PATH = os.path.abspath(os.path.join(_HERE, '..', '..', 'data', 'seoul', 'cafedata.db'))
 
-MERGE_RADIUS_AUTO = 30.0
+MERGE_RADIUS_AUTO = 8.0
 MERGE_RADIUS_MAX = 150.0
-NAME_SIM_THRESHOLD = 0.4
+NAME_SIM_THRESHOLD = 0.8
 BRANCH_SUFFIXES = ["DT점", "DT", "역점", "공항점", "역사점", "터미널점", "점"]
 
 
@@ -296,12 +296,14 @@ def main():
     parser.add_argument("--embed", action="store_true", help="Generate embeddings (slow)")
     parser.add_argument("--provider", help="Only process this provider")
     parser.add_argument("--reset", action="store_true", help="Reset clean data completely before running")
+    parser.add_argument("--db", help="Override SQLite DB path", default=DB_PATH)
+    parser.add_argument("--socket", help="Override db_server socket path", default="/tmp/workcafe_db.sock")
     args = parser.parse_args()
 
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn = sqlite3.connect(args.db, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA cache_size=10000")
-    dbc = DBClient()
+    dbc = DBClient(socket_path=args.socket)
 
     if args.reset:
         print("WARNING: Resetting all clean data...")

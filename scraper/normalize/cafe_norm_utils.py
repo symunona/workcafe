@@ -196,6 +196,7 @@ def is_chain_cafe(name: str, existing_chain_names: list[str]) -> dict:
         "드롭탑": "Cafe Droptop",
         "더벤티": "The Venti",
         "컴포즈커피": "Compose Coffee",
+        "compose coffee": "Compose Coffee",
         "요거프레소": "Yoger Presso",
         "파스쿠찌": "Caffe Pascucci",
         "pascucci": "Caffe Pascucci",

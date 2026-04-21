@@ -7,13 +7,18 @@ Run after 04_normalize_pipeline.py completes.
 """
 import os
 import sys
+import argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_HERE, '..'))
 
 from db_client import DBClient
 
-dbc = DBClient()
+parser = argparse.ArgumentParser()
+parser.add_argument("--socket", default="/tmp/workcafe_db.sock", help="Unix socket path")
+args = parser.parse_args()
+
+dbc = DBClient(socket_path=args.socket)
 
 before = dbc.fetchval("SELECT COUNT(*) FROM images WHERE belongs_to_cafe_id IS NOT NULL")
 print(f"Images with belongs_to_cafe_id before: {before}")

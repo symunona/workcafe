@@ -13,18 +13,21 @@ Run BEFORE the normalize pipeline.
 import os
 import sys
 import sqlite3
+import argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_HERE, '..'))
 from db_client import DBClient
 
-DB_PATH = os.path.abspath(os.path.join(_HERE, '..', '..', 'data', 'seoul', 'cafedata.db'))
-
-
 def main():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--db", default=os.path.abspath(os.path.join(_HERE, '..', '..', 'data', 'seoul', 'cafedata.db')), help="Path to DB")
+    parser.add_argument("--socket", default="/tmp/workcafe_db.sock", help="Unix socket path")
+    args = parser.parse_args()
+
+    conn = sqlite3.connect(args.db, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")
-    dbc = DBClient()
+    dbc = DBClient(socket_path=args.socket)
 
     # Find all duplicate groups
     rows = conn.execute("""

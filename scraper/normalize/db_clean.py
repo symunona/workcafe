@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 import sys
 import os
+import argparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from db_client import DBClient
 
-dbc = DBClient()
+parser = argparse.ArgumentParser()
+parser.add_argument("--socket", default="/tmp/workcafe_db.sock", help="Unix socket path")
+args = parser.parse_args()
+
+dbc = DBClient(socket_path=args.socket)
 r1 = dbc.fetchval('SELECT COUNT(*) FROM clean_cafes')
 r2 = dbc.fetchval('SELECT COUNT(*) FROM cafe_chains')
 r3 = dbc.fetchval('SELECT COUNT(*) FROM cafes WHERE belongs_to_cafe_id IS NOT NULL')
