@@ -24,9 +24,9 @@ Usage:
     cd scraper && source ../venv/bin/activate
     python scraper_kakao_images_v1.py [--limit N] [--cafe-id kakao_XXXXX]
 
-    --limit N         max cafes to process (default: all)
+    --limit N         max scraped_cafes to process (default: all)
     --cafe-id ID      process a single cafe by its global ID (e.g. kakao_21340017)
-    --skip-existing   skip cafes that already have downloaded images (default: True)
+    --skip-existing   skip scraped_cafes that already have downloaded images (default: True)
     --force           re-download even if images already exist
 """
 
@@ -204,7 +204,7 @@ def process_cafe(conn, session, cafe_id, provider_id, metadata, force=False):
         if 'all_photos' not in metadata or 'scraped_photos' not in metadata:
             metadata['scraped_photos'] = len(existing)
             db_execute(conn,
-                'UPDATE cafes SET metadata=? WHERE id=?',
+                'UPDATE scraped_cafes SET metadata=? WHERE id=?',
                 (json.dumps(metadata, ensure_ascii=False), cafe_id)
             )
         log.info(f"  Skipping {cafe_id}: already has {len(existing)} images")
@@ -218,7 +218,7 @@ def process_cafe(conn, session, cafe_id, provider_id, metadata, force=False):
         metadata['all_photos'] = total_count
         metadata['scraped_photos'] = 0
         db_execute(conn,
-            'UPDATE cafes SET metadata=? WHERE id=?',
+            'UPDATE scraped_cafes SET metadata=? WHERE id=?',
             (json.dumps(metadata, ensure_ascii=False), cafe_id)
         )
         return 0
@@ -260,7 +260,7 @@ def process_cafe(conn, session, cafe_id, provider_id, metadata, force=False):
     metadata['photo_counts'] = counts_meta
 
     db_execute(conn,
-        'UPDATE cafes SET metadata=? WHERE id=?',
+        'UPDATE scraped_cafes SET metadata=? WHERE id=?',
         (json.dumps(metadata, ensure_ascii=False), cafe_id)
     )
     log.info(f"  Done: {len(all_files)} downloaded / {total_count} total for {cafe_id}")
@@ -269,7 +269,7 @@ def process_cafe(conn, session, cafe_id, provider_id, metadata, force=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Kakao image scraper v1 — full pagination via REST API")
-    parser.add_argument('--limit', type=int, default=0, help="Max cafes to process (0=all)")
+    parser.add_argument('--limit', type=int, default=0, help="Max scraped_cafes to process (0=all)")
     parser.add_argument('--cafe-id', type=str, help="Process a single cafe by global id")
     parser.add_argument('--force', action='store_true', help="Re-download even if images exist")
     args = parser.parse_args()
@@ -278,12 +278,12 @@ def main():
     cursor = conn.cursor()
 
     if args.cafe_id:
-        cursor.execute('SELECT id, provider_id, metadata FROM cafes WHERE id=? AND provider=?',
+        cursor.execute('SELECT id, provider_id, metadata FROM scraped_cafes WHERE id=? AND provider=?',
                        (args.cafe_id, 'kakao'))
     else:
-        # Prioritise cafes with zero or few images
+        # Prioritise scraped_cafes with zero or few images
         cursor.execute('''
-            SELECT id, provider_id, metadata FROM cafes
+            SELECT id, provider_id, metadata FROM scraped_cafes
             WHERE provider = 'kakao'
             ORDER BY
                 CASE WHEN json_extract(metadata, '$.local_images') IS NULL THEN 0 ELSE 1 END ASC,
@@ -294,7 +294,7 @@ def main():
     if args.limit > 0:
         rows = rows[:args.limit]
 
-    log.info(f"Processing {len(rows)} Kakao cafes")
+    log.info(f"Processing {len(rows)} Kakao scraped_cafes")
     session = make_session()
     total_downloaded = 0
 
@@ -318,7 +318,7 @@ def main():
         time.sleep(delay)
 
         if (i + 1) % 10 == 0:
-            log.info(f"Progress: {i+1}/{len(rows)} cafes, {total_downloaded} images total")
+            log.info(f"Progress: {i+1}/{len(rows)} scraped_cafes, {total_downloaded} images total")
 
     flush_db_queue(conn)
     conn.close()

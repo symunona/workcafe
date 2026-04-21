@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backfill local_images for google cafes that have images on disk but no path in metadata.
+Backfill local_images for google scraped_cafes that have images on disk but no path in metadata.
 Also clears bad local_images paths that point to non-existent files.
 """
 import os, json, sqlite3, re
@@ -19,7 +19,7 @@ backfilled = 0
 cleared = 0
 skipped = 0
 
-for row in conn.execute("SELECT id, provider_id, metadata FROM cafes WHERE provider='google'"):
+for row in conn.execute("SELECT id, provider_id, metadata FROM scraped_cafes WHERE provider='google'"):
     cafe_id, provider_id, meta_str = row
     meta = json.loads(meta_str or '{}')
     existing = meta.get('local_images', [])
@@ -37,7 +37,7 @@ for row in conn.execute("SELECT id, provider_id, metadata FROM cafes WHERE provi
         if valid:
             # Some valid, some not — keep valid ones
             meta['local_images'] = valid
-            conn.execute("UPDATE cafes SET metadata=? WHERE id=?", (json.dumps(meta, ensure_ascii=False), cafe_id))
+            conn.execute("UPDATE scraped_cafes SET metadata=? WHERE id=?", (json.dumps(meta, ensure_ascii=False), cafe_id))
             cleared += 1
             continue
         # None valid — fall through to check disk by safe_id
@@ -49,7 +49,7 @@ for row in conn.execute("SELECT id, provider_id, metadata FROM cafes WHERE provi
         files = sorted(f for f in os.listdir(img_dir) if f.startswith('img_'))
         if files:
             meta['local_images'] = [f"/images/google/{safe_id}/images/{f}" for f in files]
-            conn.execute("UPDATE cafes SET metadata=? WHERE id=?", (json.dumps(meta, ensure_ascii=False), cafe_id))
+            conn.execute("UPDATE scraped_cafes SET metadata=? WHERE id=?", (json.dumps(meta, ensure_ascii=False), cafe_id))
             backfilled += 1
             if backfilled % 100 == 0:
                 conn.commit()
@@ -59,7 +59,7 @@ for row in conn.execute("SELECT id, provider_id, metadata FROM cafes WHERE provi
     # No images anywhere — clear bad paths if any
     if existing:
         meta['local_images'] = []
-        conn.execute("UPDATE cafes SET metadata=? WHERE id=?", (json.dumps(meta, ensure_ascii=False), cafe_id))
+        conn.execute("UPDATE scraped_cafes SET metadata=? WHERE id=?", (json.dumps(meta, ensure_ascii=False), cafe_id))
         cleared += 1
 
 conn.commit()

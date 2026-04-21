@@ -17,7 +17,7 @@ WHAT CHANGED IN v2:
 
 WHAT DID NOT WORK / LIMITATIONS:
   - Some blog photos (few %) still fail even through cthumb — likely expired links.
-  - Very large cafes (>500 photos) take minutes — run as background service.
+  - Very large scraped_cafes (>500 photos) take minutes — run as background service.
   - No Tor: API and cthumb don't appear to rate-limit at 1 cafe/3s. Add if you get 429s.
 
 Usage:
@@ -204,7 +204,7 @@ def process_cafe(conn, session, cafe_id, provider_id, metadata, force=False):
     if not photo_urls:
         metadata['all_photos'] = total
         metadata['scraped_photos'] = 0
-        db_execute(conn, 'UPDATE cafes SET metadata=? WHERE id=?',
+        db_execute(conn, 'UPDATE scraped_cafes SET metadata=? WHERE id=?',
                    (json.dumps(metadata, ensure_ascii=False), cafe_id))
         return 0
 
@@ -247,7 +247,7 @@ def process_cafe(conn, session, cafe_id, provider_id, metadata, force=False):
     metadata['scraped_photos'] = len(all_files)
     metadata['photo_counts'] = counts
 
-    db_execute(conn, 'UPDATE cafes SET metadata=? WHERE id=?',
+    db_execute(conn, 'UPDATE scraped_cafes SET metadata=? WHERE id=?',
                (json.dumps(metadata, ensure_ascii=False), cafe_id))
 
     log.info(f"  {cafe_id}: {len(all_files)} saved, {failed} failed / {total} total")
@@ -265,11 +265,11 @@ def main():
     cursor = conn.cursor()
 
     if args.cafe_id:
-        cursor.execute('SELECT id, provider_id, metadata FROM cafes WHERE id=? AND provider=?',
+        cursor.execute('SELECT id, provider_id, metadata FROM scraped_cafes WHERE id=? AND provider=?',
                        (args.cafe_id, 'kakao'))
     else:
         cursor.execute('''
-            SELECT id, provider_id, metadata FROM cafes
+            SELECT id, provider_id, metadata FROM scraped_cafes
             WHERE provider = 'kakao'
             ORDER BY
                 CASE WHEN json_extract(metadata, '$.local_images') IS NULL THEN 0 ELSE 1 END ASC,
@@ -280,7 +280,7 @@ def main():
     if args.limit > 0:
         rows = rows[:args.limit]
 
-    log.info(f"Processing {len(rows)} cafes")
+    log.info(f"Processing {len(rows)} scraped_cafes")
     session = make_session()
     total_dl = 0
 
@@ -303,7 +303,7 @@ def main():
         time.sleep(random.uniform(*DELAY_BETWEEN_CAFES))
 
         if (i + 1) % 10 == 0:
-            log.info(f"Progress: {i+1}/{len(rows)} cafes processed, {total_dl} images total")
+            log.info(f"Progress: {i+1}/{len(rows)} scraped_cafes processed, {total_dl} images total")
 
     flush_db_queue(conn)
     conn.close()

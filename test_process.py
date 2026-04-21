@@ -19,13 +19,13 @@ conn = sqlite3.connect(db_path)
 conn.row_factory = sqlite3.Row
 dbc = DBClient(socket_path="/tmp/workcafe_play_db.sock")
 
-# Get raw cafes for both
-raw_google = dict(conn.execute("SELECT * FROM cafes WHERE id='google_0x357ca1a4b27c7f01:0x67c8d0f1dd3bb2f5'").fetchone())
-raw_kakao = dict(conn.execute("SELECT * FROM cafes WHERE id='kakao_27346318'").fetchone())
-raw_naver = dict(conn.execute("SELECT * FROM cafes WHERE id='naver_37411185'").fetchone())
+# Get raw scraped_cafes for both
+raw_google = dict(conn.execute("SELECT * FROM scraped_cafes WHERE id='google_0x357ca1a4b27c7f01:0x67c8d0f1dd3bb2f5'").fetchone())
+raw_kakao = dict(conn.execute("SELECT * FROM scraped_cafes WHERE id='kakao_27346318'").fetchone())
+raw_naver = dict(conn.execute("SELECT * FROM scraped_cafes WHERE id='naver_37411185'").fetchone())
 
 # Reset their belongs_to_cafe_id
-dbc.execute("UPDATE cafes SET belongs_to_cafe_id = NULL WHERE id IN (?, ?, ?)", (raw_google['id'], raw_kakao['id'], raw_naver['id']))
+dbc.execute("UPDATE scraped_cafes SET belongs_to_cafe_id = NULL WHERE id IN (?, ?, ?)", (raw_google['id'], raw_kakao['id'], raw_naver['id']))
 # Delete from clean_cafes
 dbc.execute("DELETE FROM clean_cafes")
 dbc.execute("DELETE FROM cafe_chains")

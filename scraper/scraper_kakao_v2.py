@@ -41,7 +41,7 @@ from db_client import DBClient
 SEARCH_QUERY = "카페"
 PROGRESS_KEY = "kakao_CE7"
 
-# Place categories that are clearly not cafes — skip these.
+# Place categories that are clearly not scraped_cafes — skip these.
 # Everything else (including blank) is kept; "카페" keyword match implies relevance.
 NON_CAFE_CATEGORIES = {
     "편의점", "마트", "대형마트", "슈퍼마켓", "음식점", "한식", "중식", "일식",
@@ -174,7 +174,7 @@ def scrape_grid(browser, dbc, grid_x, grid_y, lat, lon):
             os.makedirs(cafe_dir, exist_ok=True)
 
             dbc.execute('''
-                INSERT OR REPLACE INTO cafes
+                INSERT OR REPLACE INTO scraped_cafes
                     (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?,?,?,?,?,?,?,?,?)
             ''', (global_id, provider, pid, name, p_lat, p_lon, address, cafe_url,

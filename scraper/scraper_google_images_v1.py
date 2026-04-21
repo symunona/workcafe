@@ -5,14 +5,14 @@ scraper_google_images_v1.py
 Standalone image scraper for Google Maps cafe entries.
 
 Strategy:
-  - Reads existing Google cafes from the DB (those without entries in the
+  - Reads existing Google scraped_cafes from the DB (those without entries in the
     `images` table come first).
   - For each cafe, opens its stored Google Maps URL in a fresh Playwright
     browser context, dismisses the consent popup, and extracts all
     googleusercontent.com images from the rendered DOM.
   - Writes downloaded images to data/seoul/google/{safe_id}/images/ and
     inserts rows into the `images` table (same schema as Kakao v3).
-  - Sleeps 60–90s between cafes to avoid reCAPTCHA.
+  - Sleeps 60–90s between scraped_cafes to avoid reCAPTCHA.
   - On CAPTCHA detection backs off 5–15 min.
 
 Usage:
@@ -409,7 +409,7 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
             )
             if not row_exists:
                 belongs_to = dbc.fetchval(
-                    'SELECT belongs_to_cafe_id FROM cafes WHERE id = ?', (cafe_id,)
+                    'SELECT belongs_to_cafe_id FROM scraped_cafes WHERE id = ?', (cafe_id,)
                 )
                 dbc.execute('''
                     INSERT OR REPLACE INTO images
@@ -428,12 +428,12 @@ def run(args):
 
     if args.cafe_id:
         rows = dbc.fetchall(
-            'SELECT id, provider_id, url FROM cafes WHERE id=? AND provider=?',
+            'SELECT id, provider_id, url FROM scraped_cafes WHERE id=? AND provider=?',
             (args.cafe_id, 'google')
         )
     else:
         rows = dbc.fetchall('''
-            SELECT c.id, c.provider_id, c.url FROM cafes c
+            SELECT c.id, c.provider_id, c.url FROM scraped_cafes c
             WHERE c.provider = 'google'
             ORDER BY
                 (SELECT COUNT(*) FROM images i WHERE i.cafe_id = c.id) ASC,
@@ -443,7 +443,7 @@ def run(args):
     if args.limit > 0:
         rows = rows[:args.limit]
 
-    log.info(f"Processing {len(rows)} Google cafes")
+    log.info(f"Processing {len(rows)} Google scraped_cafes")
 
     proxy_mgr = ProxyManager()
     stats = ProxyStats()
@@ -544,7 +544,7 @@ def run(args):
                 break
 
             if (i) % 10 == 0:
-                log.info(f"Progress: {i}/{len(rows)} cafes, {total} images total")
+                log.info(f"Progress: {i}/{len(rows)} scraped_cafes, {total} images total")
 
             if i < len(rows) and not _shutdown.is_set():
                 sleep_s = random.uniform(*SLEEP_BETWEEN_CAFES)
@@ -563,7 +563,7 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description='Google Maps image scraper v1')
-    parser.add_argument('--limit', type=int, default=0, help='Max cafes to process')
+    parser.add_argument('--limit', type=int, default=0, help='Max scraped_cafes to process')
     parser.add_argument('--cafe-id', type=str, help='Process a single cafe by DB id')
     parser.add_argument('--force', action='store_true', help='Re-download even if images exist')
     args = parser.parse_args()

@@ -100,10 +100,10 @@ def scrape_kakao_grid(browser, conn, grid_x, grid_y, lat, lon):
                 
         places = list(unique_places.values())
         
-        print(f"Found {len(places)} cafes in this grid.")
+        print(f"Found {len(places)} scraped_cafes in this grid.")
         
         if not places:
-            print("No cafes found.")
+            print("No scraped_cafes found.")
             db_execute(conn, '''
                 INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)
                 VALUES (?, ?, ?, ?)
@@ -126,7 +126,7 @@ def scrape_kakao_grid(browser, conn, grid_x, grid_y, lat, lon):
             global_id = f"{provider}_{provider_id}"
             
             db_execute(conn, '''
-                INSERT OR REPLACE INTO cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
+                INSERT OR REPLACE INTO scraped_cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (global_id, provider, provider_id, name, p_lat, p_lon, address.strip(), cafe_url, json.dumps(place.get('metadata', {}))))
             
@@ -190,7 +190,7 @@ def scrape_kakao_grid(browser, conn, grid_x, grid_y, lat, lon):
             if downloaded_files:
                 local_images = [f"/images/{provider}/{safe_id}/images/{f}" for f in downloaded_files]
                 db_execute(conn, 
-                    'UPDATE cafes SET metadata = json_set(COALESCE(metadata, "{}"), "$.local_images", json(?)) WHERE id = ?',
+                    'UPDATE scraped_cafes SET metadata = json_set(COALESCE(metadata, "{}"), "$.local_images", json(?)) WHERE id = ?',
                     (json.dumps(local_images), global_id)
                 )
 
@@ -207,7 +207,7 @@ def scrape_kakao_grid(browser, conn, grid_x, grid_y, lat, lon):
                     'metadata': place.get('metadata', {})
                 }, f, ensure_ascii=False, indent=2)
             
-        print(f"Exported {len(places)} Kakao cafes.")
+        print(f"Exported {len(places)} Kakao scraped_cafes.")
                 
         db_execute(conn, '''
             INSERT OR REPLACE INTO progress (grid_x, grid_y, provider, status)

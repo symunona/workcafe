@@ -46,8 +46,8 @@ def scrape_images_for_provider(provider):
     conn = get_db_conn()
     cursor = conn.cursor()
     
-    # We fetch all cafes for this provider where we have metadata stored
-    cursor.execute('SELECT id, provider_id, metadata FROM cafes WHERE provider = ?', (provider,))
+    # We fetch all scraped_cafes for this provider where we have metadata stored
+    cursor.execute('SELECT id, provider_id, metadata FROM scraped_cafes WHERE provider = ?', (provider,))
     rows = cursor.fetchall()
     
     session = get_tor_session()
@@ -207,7 +207,7 @@ def scrape_images_for_provider(provider):
                 if local_paths:
                     metadata['local_images'] = local_paths
                     db_execute(conn, 
-                        'UPDATE cafes SET metadata = ? WHERE id = ?',
+                        'UPDATE scraped_cafes SET metadata = ? WHERE id = ?',
                         (json.dumps(metadata, ensure_ascii=False), cafe_id)
                     )
                     logging.info(f"Saved {len(local_paths)} Google photos for {p_name}")
@@ -256,7 +256,7 @@ def scrape_images_for_provider(provider):
                 local_paths = [f'/images/{provider}/{encoded_id}/images/{f}' for f in downloaded_files]
                 metadata['local_images'] = local_paths
                 db_execute(conn, 
-                    'UPDATE cafes SET metadata = ? WHERE id = ?',
+                    'UPDATE scraped_cafes SET metadata = ? WHERE id = ?',
                     (json.dumps(metadata, ensure_ascii=False), cafe_id)
                 )
                 logging.info(f"Saved {len(local_paths)} local image paths for cafe {cafe_id}")

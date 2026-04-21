@@ -80,10 +80,10 @@ export function hasMultipleImages(cafe: Cafe): boolean {
   return getImages(cafe).length > 1
 }
 
-export function imageCount(cafes: Cafe[]): number {
-  return cafes.filter(hasImage).length
+export function imageCount(scraped_cafes: Cafe[]): number {
+  return scraped_cafes.filter(hasImage).length
 }
 
-export function multiImgCount(cafes: Cafe[]): number {
-  return cafes.filter(hasMultipleImages).length
+export function multiImgCount(scraped_cafes: Cafe[]): number {
+  return scraped_cafes.filter(hasMultipleImages).length
 }

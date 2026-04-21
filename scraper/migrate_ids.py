@@ -20,7 +20,7 @@ def migrate():
     conn = get_db_conn()
     cursor = conn.cursor()
 
-    cursor.execute('SELECT id, provider, provider_id FROM cafes')
+    cursor.execute('SELECT id, provider, provider_id FROM scraped_cafes')
     rows = cursor.fetchall()
 
     renamed = 0

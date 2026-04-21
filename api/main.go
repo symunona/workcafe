@@ -71,7 +71,7 @@ type QueueEntry struct {
 
 type HourlyStat struct {
 	Hour   string `json:"hour"`
-	Cafes  int    `json:"cafes"`
+	Cafes  int    `json:"scraped_cafes"`
 	Images int    `json:"images"`
 	Provider string `json:"provider"`
 }
@@ -346,7 +346,7 @@ func main() {
 			       c.lat, c.lon, COALESCE(c.address,''), COALESCE(c.url,''),
 			       COALESCE(c.metadata,'null'), COALESCE(c.scraped_at,''),
 			       COALESCE(img_agg.paths,'[]')
-			FROM cafes c
+			FROM scraped_cafes c
 			LEFT JOIN (
 			    SELECT cafe_id, json_group_array(local_path) as paths
 			    FROM images WHERE file_size > 0 GROUP BY cafe_id
@@ -363,8 +363,8 @@ func main() {
 		json.NewEncoder(w).Encode(c)
 	})
 
-	// ── GET /api/cafes ────────────────────────────────────────────────────────
-	mux.HandleFunc("/api/cafes", func(w http.ResponseWriter, r *http.Request) {
+	// ── GET /api/scraped_cafes ────────────────────────────────────────────────────────
+	mux.HandleFunc("/api/scraped_cafes", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 
 		const limit = 1000
@@ -377,9 +377,9 @@ func main() {
 		}
 
 		if q.Get("multipleImages") == "true" {
-			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id AND file_size > 0) >= 2")
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = scraped_cafes.id AND file_size > 0) >= 2")
 		} else if q.Get("withImages") == "true" {
-			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = cafes.id AND file_size > 0) >= 1")
+			conditions = append(conditions, "(SELECT COUNT(*) FROM images WHERE cafe_id = scraped_cafes.id AND file_size > 0) >= 1")
 		}
 
 		if providers := q.Get("providers"); providers != "" {
@@ -412,7 +412,7 @@ func main() {
 		var totalRows int
 		countArgs := make([]interface{}, len(args))
 		copy(countArgs, args)
-		db.QueryRow("SELECT COUNT(*) FROM cafes "+whereClause, countArgs...).Scan(&totalRows)
+		db.QueryRow("SELECT COUNT(*) FROM scraped_cafes "+whereClause, countArgs...).Scan(&totalRows)
 
 		dataArgs := append(args, limit)
 		rows, err := db.Query(`
@@ -420,7 +420,7 @@ func main() {
 			       COALESCE(c.address,''), COALESCE(c.url,''),
 			       COALESCE(c.metadata,'null'), COALESCE(c.scraped_at,''),
 			       COALESCE(img_agg.paths,'[]')
-			FROM cafes c
+			FROM scraped_cafes c
 			LEFT JOIN (
 			    SELECT cafe_id, json_group_array(local_path) as paths
 			    FROM images WHERE file_size > 0 GROUP BY cafe_id
@@ -432,7 +432,7 @@ func main() {
 		}
 		defer rows.Close()
 
-		cafes := make([]Cafe, 0, limit)
+		scraped_cafes := make([]Cafe, 0, limit)
 		for rows.Next() {
 			var c Cafe
 			var meta, imgPaths string
@@ -441,13 +441,13 @@ func main() {
 				return
 			}
 			c.Metadata = patchLocalImages(meta, imgPaths)
-			cafes = append(cafes, c)
+			scraped_cafes = append(scraped_cafes, c)
 		}
 
 		corsJSON(w)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"cafes":   cafes,
-			"showing": len(cafes),
+			"scraped_cafes":   scraped_cafes,
+			"showing": len(scraped_cafes),
 			"total":   totalRows,
 		})
 	})
@@ -470,7 +470,7 @@ func main() {
 
 		var stats FilterStats
 
-		db.QueryRow(`SELECT COUNT(*) FROM cafes`).Scan(&stats.Total)
+		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&stats.Total)
 
 		db.QueryRow(`
 			SELECT
@@ -480,12 +480,12 @@ func main() {
 		`).Scan(&stats.WithImages, &stats.MultipleImages)
 
 		db.QueryRow(`
-			SELECT COUNT(*) FROM cafes
+			SELECT COUNT(*) FROM scraped_cafes
 			WHERE json_extract(metadata, '$.businessStatus.status.code') = 2
 		`).Scan(&stats.OpenNow)
 
 		var minDate, maxDate sql.NullString
-		db.QueryRow(`SELECT MIN(scraped_at), MAX(scraped_at) FROM cafes`).Scan(&minDate, &maxDate)
+		db.QueryRow(`SELECT MIN(scraped_at), MAX(scraped_at) FROM scraped_cafes`).Scan(&minDate, &maxDate)
 		if minDate.Valid {
 			stats.MinScrapeDate = minDate.String
 		}
@@ -493,7 +493,7 @@ func main() {
 			stats.MaxScrapeDate = maxDate.String
 		}
 
-		provRows, err := db.Query(`SELECT provider, COUNT(*) FROM cafes GROUP BY provider ORDER BY COUNT(*) DESC`)
+		provRows, err := db.Query(`SELECT provider, COUNT(*) FROM scraped_cafes GROUP BY provider ORDER BY COUNT(*) DESC`)
 		if err == nil {
 			defer provRows.Close()
 			for provRows.Next() {
@@ -528,19 +528,19 @@ func main() {
 		h24ago := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
 
 		// Total counts
-		db.QueryRow(`SELECT COUNT(*) FROM cafes`).Scan(&resp.TotalCafes)
+		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&resp.TotalCafes)
 		db.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&resp.TotalImages)
 
 		// Global time-window metrics
-		db.QueryRow(`SELECT COUNT(*) FROM cafes WHERE scraped_at >= ?`, h1ago).Scan(&resp.CafesLastHour)
-		db.QueryRow(`SELECT COUNT(*) FROM cafes WHERE scraped_at >= ?`, h24ago).Scan(&resp.Cafes24h)
+		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h1ago).Scan(&resp.CafesLastHour)
+		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h24ago).Scan(&resp.Cafes24h)
 		db.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h1ago).Scan(&resp.ImagesLastHour)
 		db.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h24ago).Scan(&resp.Images24h)
 		db.QueryRow(`SELECT ROUND(COALESCE(SUM(file_size),0)/1024.0/1024.0, 1) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.MBPerDay)
 
 		// Last activity timestamps
 		var lastCafe, lastImage sql.NullString
-		db.QueryRow(`SELECT MAX(scraped_at) FROM cafes`).Scan(&lastCafe)
+		db.QueryRow(`SELECT MAX(scraped_at) FROM scraped_cafes`).Scan(&lastCafe)
 		db.QueryRow(`SELECT MAX(scraped_at) FROM images`).Scan(&lastImage)
 		if lastCafe.Valid {
 			resp.LastCafeAt = lastCafe.String
@@ -556,7 +556,7 @@ func main() {
 				COUNT(*) as total,
 				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_hour,
 				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h
-			FROM cafes GROUP BY provider ORDER BY total DESC
+			FROM scraped_cafes GROUP BY provider ORDER BY total DESC
 		`, h1ago, h24ago)
 		if err == nil {
 			defer providerRows.Close()
@@ -637,7 +637,7 @@ func main() {
 
 		cafeHourlyRows, err := db.Query(`
 			SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
-			FROM cafes WHERE scraped_at >= ? GROUP BY hour
+			FROM scraped_cafes WHERE scraped_at >= ? GROUP BY hour
 		`, h24ago)
 		if err == nil {
 			defer cafeHourlyRows.Close()
@@ -689,7 +689,7 @@ func main() {
 
 		provCafeHourlyRows, err := db.Query(`
 			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
-			FROM cafes WHERE scraped_at >= ? GROUP BY provider, hour
+			FROM scraped_cafes WHERE scraped_at >= ? GROUP BY provider, hour
 		`, h24ago)
 		if err == nil {
 			defer provCafeHourlyRows.Close()
@@ -905,14 +905,14 @@ func main() {
 		if q.Get("withImages") == "true" {
 			conditions = append(conditions, `(
 				SELECT COUNT(*) FROM images i
-				JOIN cafes c ON c.id = i.cafe_id
+				JOIN scraped_cafes c ON c.id = i.cafe_id
 				WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0
 			) >= 1`)
 		}
 		if q.Get("multipleImages") == "true" {
 			conditions = append(conditions, `(
 				SELECT COUNT(*) FROM images i
-				JOIN cafes c ON c.id = i.cafe_id
+				JOIN scraped_cafes c ON c.id = i.cafe_id
 				WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0
 			) >= 2`)
 		}
@@ -953,7 +953,7 @@ func main() {
 			       COALESCE(cc.providers,'[]'), COALESCE(cc.source_ids,'[]'),
 			       COALESCE(cc.address,''), COALESCE(cc.url,''),
 			       COALESCE(ch.name,''), COALESCE(ch.name_english,''),
-			       (SELECT COUNT(*) FROM images i JOIN cafes c ON c.id = i.cafe_id
+			       (SELECT COUNT(*) FROM images i JOIN scraped_cafes c ON c.id = i.cafe_id
 			        WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0) as img_count
 			FROM clean_cafes cc
 			LEFT JOIN cafe_chains ch ON ch.id = cc.chain_id
@@ -980,7 +980,7 @@ func main() {
 			ImageCount  int    `json:"image_count"`
 		}
 
-		cafes := make([]CleanCafe, 0, limit)
+		scraped_cafes := make([]CleanCafe, 0, limit)
 		for rows.Next() {
 			var cc CleanCafe
 			var provJSON, srcJSON string
@@ -992,13 +992,13 @@ func main() {
 			}
 			cc.Providers = json.RawMessage(provJSON)
 			cc.SourceIDs = json.RawMessage(srcJSON)
-			cafes = append(cafes, cc)
+			scraped_cafes = append(scraped_cafes, cc)
 		}
 
 		corsJSON(w)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"cafes":   cafes,
-			"showing": len(cafes),
+			"scraped_cafes":   scraped_cafes,
+			"showing": len(scraped_cafes),
 			"total":   total,
 		})
 	})
@@ -1031,12 +1031,12 @@ func main() {
 			return
 		}
 
-		// Source cafes
+		// Source scraped_cafes
 		sourceRows, err := db.Query(`
 			SELECT c.id, COALESCE(c.provider,''), COALESCE(c.name,''),
 			       c.lat, c.lon, COALESCE(c.address,''), COALESCE(c.url,''),
 			       COALESCE(c.metadata,'null'), COALESCE(c.scraped_at,'')
-			FROM cafes c WHERE c.belongs_to_cafe_id = ?`, id)
+			FROM scraped_cafes c WHERE c.belongs_to_cafe_id = ?`, id)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -1070,7 +1070,7 @@ func main() {
 			sources = append(sources, s)
 		}
 
-		// Images for all source cafes
+		// Images for all source scraped_cafes
 		if len(sourceIDs) > 0 {
 			placeholders := make([]string, len(sourceIDs))
 			imgArgs := make([]interface{}, len(sourceIDs))

@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 interface HourlyStat {
   hour: string
-  cafes: number
+  scraped_cafes: number
   images: number
   provider: string
 }
@@ -147,7 +147,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       if (s.provider === 'all') return
       if (!map.has(s.hour)) map.set(s.hour, { hour: s.hour })
       const row = map.get(s.hour)
-      row[`${s.provider}_cafes`] = s.cafes
+      row[`${s.provider}_cafes`] = s.scraped_cafes
       row[`${s.provider}_images`] = s.images
     })
     const sorted = Array.from(map.values()).sort((a, b) => a.hour.localeCompare(b.hour))
@@ -211,7 +211,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 {[
                   { label: 'Cafes / hr', value: status.cafes_last_hour, sub: `${status.cafes_24h} today` },
                   { label: 'Images / hr', value: status.images_last_hour, sub: `${status.images_24h} today` },
-                  { label: 'Total cafes', value: status.total_cafes.toLocaleString(), sub: `last ${timeSince(status.last_cafe_at)}` },
+                  { label: 'Total scraped_cafes', value: status.total_cafes.toLocaleString(), sub: `last ${timeSince(status.last_cafe_at)}` },
                   { label: 'Total images', value: status.total_images.toLocaleString(), sub: `last ${timeSince(status.last_image_at)}` },
                   { label: 'GB / day', value: status.mb_per_day ? `${(status.mb_per_day / 1024).toFixed(1)} GB` : '—', sub: status.mb_per_day ? `~${Math.round(status.mb_per_day / 24)} MB/hr` : '' },
                 ].map(card => (
@@ -245,7 +245,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         />
                         <Legend wrapperStyle={{ fontSize: '11px' }} />
                         {status.per_provider.map(p => (
-                          <Line key={`${p.provider}_cafes`} yAxisId="left" type="monotone" dataKey={`${p.provider}_cafes`} name={`${p.provider} cafes`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+                          <Line key={`${p.provider}_cafes`} yAxisId="left" type="monotone" dataKey={`${p.provider}_cafes`} name={`${p.provider} scraped_cafes`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
                         ))}
                         {status.per_provider.map(p => (
                           <Line key={`${p.provider}_images`} yAxisId="right" type="monotone" dataKey={`${p.provider}_images`} name={`${p.provider} imgs`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={1.5} strokeDasharray="4 4" dot={false} activeDot={{ r: 3 }} />

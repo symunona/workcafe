@@ -53,7 +53,7 @@ def scrape_osm(session, dbc, grid_x, grid_y):
         data = response.json()
 
         elements = data.get('elements', [])
-        print(f"Found {len(elements)} cafes in this grid.")
+        print(f"Found {len(elements)} scraped_cafes in this grid.")
 
         for el in elements:
             provider_id = str(el['id'])
@@ -75,7 +75,7 @@ def scrape_osm(session, dbc, grid_x, grid_y):
             global_id = f"{provider}_{provider_id}"
 
             dbc.execute('''
-                INSERT OR REPLACE INTO cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
+                INSERT OR REPLACE INTO scraped_cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (global_id, provider, provider_id, name, lat, lon, address.strip(), url, json.dumps(tags)))
 

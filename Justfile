@@ -118,7 +118,7 @@ check:
     if [ -f "$WDIR/data/seoul/cafedata.db" ]; then ok "cafedata.db"
     else fail "cafedata.db missing" \
         "ssh c \"gzip -c ~/dev/workcafe/data/seoul/cafedata.db\" | gunzip > $WDIR/data/seoul/cafedata.db" \
-        "API (/api/cafes), all scrapers (write target)"; fi
+        "API (/api/scraped_cafes), all scrapers (write target)"; fi
 
     if [ -d "$WDIR/data/seoul" ]; then ok "data/seoul/ dir"
     else fail "data/seoul/ missing" "mkdir -p $WDIR/data/seoul" "scrapers (image + DB storage)"; fi
@@ -407,16 +407,16 @@ images cafe_id="":
 pull-models:
     #!/usr/bin/env bash
     source venv/bin/activate
-    python scraper/normalize/02_pull_models.py
+    python data-processing/cleaner/02_pull_models.py
 
 # Run DB migration to add clean_cafes, cafe_chains tables and new columns
 [group('Data Pipeline')]
 db-migrate:
     #!/usr/bin/env bash
     source venv/bin/activate
-    python scraper/normalize/01_migrate_db.py
+    python data-processing/cleaner/01_migrate_db.py
 
-# Normalize cafes into clean_cafes (safe to restart, skips already-processed)
+# Normalize scraped_cafes into clean_cafes (safe to restart, skips already-processed)
 # Options: --embed (add embeddings, slower), --provider kakao/google/naver/osm
 [group('Data Pipeline')]
 normalize limit="0":
@@ -424,9 +424,9 @@ normalize limit="0":
     source venv/bin/activate
     cd scraper
     if [ "{{limit}}" = "0" ]; then
-        python normalize/04_normalize_pipeline.py
+        python data-processing/cleaner/04_normalize_pipeline.py
     else
-        python normalize/04_normalize_pipeline.py --limit {{limit}}
+        python data-processing/cleaner/04_normalize_pipeline.py --limit {{limit}}
     fi
 
 # Generate English names for clean_cafes (runs after normalize)
@@ -435,15 +435,15 @@ english-names:
     #!/usr/bin/env bash
     source venv/bin/activate
     cd scraper
-    python normalize/05_english_names.py
+    python data-processing/cleaner/05_english_names.py
 
-# Bulk-update images.belongs_to_cafe_id from cafes table (run after normalize)
+# Bulk-update images.belongs_to_cafe_id from scraped_cafes table (run after normalize)
 [group('Data Pipeline')]
 link-images:
     #!/usr/bin/env bash
     source venv/bin/activate
     cd scraper
-    python normalize/06_update_image_links.py
+    python data-processing/cleaner/06_update_image_links.py
 
 # Full normalization pass: migrate → normalize → link images → english names
 [group('Data Pipeline')]
@@ -451,17 +451,18 @@ normalize-all:
     #!/usr/bin/env bash
     source venv/bin/activate
     cd scraper
-    python normalize/01_migrate_db.py
-    python normalize/04_normalize_pipeline.py
-    python normalize/06_update_image_links.py
-    python normalize/05_english_names.py --chains-only
+    python data-processing/cleaner/01_migrate_db.py
+    python data-processing/cleaner/04_normalize_pipeline.py
+    python data-processing/cleaner/06_update_image_links.py
+    python data-processing/cleaner/05_english_names.py --chains-only
 
 # Clean up orphaned/incomplete normalization data (resets belongs_to_cafe_id for re-run)
 [group('Data Pipeline')]
 db-clean:
     #!/usr/bin/env bash
+    cp -f data/seoul/cafedata.db data/seoul/clean-data.db
     source venv/bin/activate
-    python3 scraper/normalize/db_clean.py
+    printf 'y\n' | python3 data-processing/cleaner/db_clean.py
 
 # Full merge pipeline: dedup raw → reset clean data → merge → link images → stats
 [group('Data Pipeline')]
@@ -473,37 +474,37 @@ merge-pipeline:
 
     echo ""
     echo -e "${B}━━━ Step 0/5  Copy scraper DB to clean DB ━━━━━━━━━━━━━━━━━${NC}"
-    sqlite3 data/seoul/cafedata.db ".backup data/seoul/clean-data.db"
+    just db-clean
 
     echo ""
     echo -e "${B}━━━ Step 1/5  Start play DB server ━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     bash start_play_db.sh
 
     echo ""
-    echo -e "${B}━━━ Step 2/5  Dedup raw cafes (same provider + location) ━━━${NC}"
-    $PY scraper/normalize/00_dedup_raw_cafes.py --db data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
+    echo -e "${B}━━━ Step 2/5  Dedup raw scraped_cafes (same provider + location) ━━━${NC}"
+    $PY data-processing/cleaner/00_dedup_raw_cafes.py --db data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
 
     echo ""
     echo -e "${B}━━━ Step 3/5  Reset clean_cafes + cafe_chains ━━━━━━━━━━━━━${NC}"
-    printf 'y\n' | $PY scraper/normalize/db_clean.py --socket /tmp/workcafe_play_db.sock
+    printf 'y\n' | $PY data-processing/cleaner/db_clean.py --socket /tmp/workcafe_play_db.sock
 
     echo ""
-    echo -e "${B}━━━ Step 4/5  Merge cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
-    cd scraper && $PY normalize/04_normalize_pipeline.py --db ../data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
+    echo -e "${B}━━━ Step 4/5  Merge scraped_cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    cd scraper && $PY ../data-processing/cleaner/04_normalize_pipeline.py --db ../data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
     cd ..
 
     echo ""
     echo -e "${B}━━━ Step 5/5  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
-    cd scraper && $PY normalize/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
+    cd scraper && $PY ../data-processing/cleaner/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
     cd ..
 
     echo ""
     echo -e "${B}━━━ Stats ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     sqlite3 data/seoul/clean-data.db "
         SELECT
-            'Raw cafes:         ' || COUNT(*)                                         FROM cafes
+            'Raw scraped_cafes:         ' || COUNT(*)                                         FROM scraped_cafes
         UNION ALL SELECT
-            'Clean cafes:       ' || COUNT(*)                                         FROM clean_cafes
+            'Clean scraped_cafes:       ' || COUNT(*)                                         FROM clean_cafes
         UNION ALL SELECT
             'Multi-provider:    ' || COUNT(*) || ' (' || ROUND(100.0*COUNT(*)/(SELECT COUNT(*) FROM clean_cafes),1) || '%)'
                                                                                       FROM clean_cafes WHERE json_array_length(providers) > 1
@@ -512,7 +513,7 @@ merge-pipeline:
         UNION ALL SELECT
             'Images linked:     ' || COUNT(*)                                         FROM images WHERE belongs_to_cafe_id IS NOT NULL
         UNION ALL SELECT
-            'Unprocessed cafes: ' || COUNT(*)                                         FROM cafes WHERE belongs_to_cafe_id IS NULL
+            'Unprocessed scraped_cafes: ' || COUNT(*)                                         FROM scraped_cafes WHERE belongs_to_cafe_id IS NULL
     ;"
     echo ""
     echo -e "${B}━━━ Restart API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

@@ -200,7 +200,7 @@ def scrape_keyword(page, dbc, grid_x, grid_y, lat, lon, keyword):
                     'local_images': local_images, 'keyword': keyword}
 
             dbc.execute('''
-                INSERT OR REPLACE INTO cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
+                INSERT OR REPLACE INTO scraped_cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?,?,?,?,?,?,?,?,?)
             ''', (global_id, provider, place_id, name, p_lat, p_lon, '', place['url'],
                   json.dumps(meta, ensure_ascii=False)))

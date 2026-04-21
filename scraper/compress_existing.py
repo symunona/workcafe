@@ -4,7 +4,7 @@ compress_existing.py
 Re-encode existing scraped images to JPEG q75 / 1024px max.
 Skips files already below SIZE_THRESHOLD_BYTES (default 100KB).
 Updates local_path, width, height, file_size in the images table.
-Also updates the local_images list in cafes.metadata for any renamed files.
+Also updates the local_images list in scraped_cafes.metadata for any renamed files.
 
 Usage (from scraper/ dir):
     source ../venv/bin/activate
@@ -109,7 +109,7 @@ def compress_one(row: tuple, threshold_bytes: int, dry_run: bool) -> dict | None
 
 
 def update_db(conn, results: list[dict]):
-    """Apply all DB updates: images table + cafes metadata."""
+    """Apply all DB updates: images table + scraped_cafes metadata."""
     cur = conn.cursor()
 
     # Collect path renames per cafe for metadata update
@@ -131,10 +131,10 @@ def update_db(conn, results: list[dict]):
                 renames_by_cafe[cafe_id] = {}
             renames_by_cafe[cafe_id][r['old_local_path']] = r['new_local_path']
 
-    # Update cafes.metadata local_images lists for renamed files
+    # Update scraped_cafes.metadata local_images lists for renamed files
     for cafe_id, renames in renames_by_cafe.items():
         row = cur.execute(
-            'SELECT metadata FROM cafes WHERE id=?', (cafe_id,)
+            'SELECT metadata FROM scraped_cafes WHERE id=?', (cafe_id,)
         ).fetchone()
         if not row or not row[0]:
             continue
@@ -148,7 +148,7 @@ def update_db(conn, results: list[dict]):
         if updated != local_images:
             meta['local_images'] = updated
             cur.execute(
-                'UPDATE cafes SET metadata=? WHERE id=?',
+                'UPDATE scraped_cafes SET metadata=? WHERE id=?',
                 (json.dumps(meta, ensure_ascii=False), cafe_id)
             )
 

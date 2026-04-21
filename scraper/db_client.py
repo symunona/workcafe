@@ -6,9 +6,9 @@ Import and use DBClient in scraper scripts instead of sqlite3 directly.
 Usage:
     from db_client import DBClient
     dbc = DBClient()
-    dbc.execute("INSERT INTO cafes ...", (id, name, ...))
-    row  = dbc.fetchone("SELECT * FROM cafes WHERE id=?", (cafe_id,))
-    rows = dbc.fetchall("SELECT id FROM cafes WHERE provider=?", ("kakao",))
+    dbc.execute("INSERT INTO scraped_cafes ...", (id, name, ...))
+    row  = dbc.fetchone("SELECT * FROM scraped_cafes WHERE id=?", (cafe_id,))
+    rows = dbc.fetchall("SELECT id FROM scraped_cafes WHERE provider=?", ("kakao",))
     val  = dbc.fetchval("SELECT COUNT(*) FROM images WHERE cafe_id=?", (cafe_id,))
     dbc.executemany("INSERT INTO images ...", [(row1,), (row2,)])
 

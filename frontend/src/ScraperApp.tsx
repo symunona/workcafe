@@ -139,7 +139,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  const cafes = useMemo(() => [...cafeMap.values()], [cafeMap])
+  const scraped_cafes = useMemo(() => [...cafeMap.values()], [cafeMap])
 
   // Fetch global filter stats from DB once on mount
   useEffect(() => {
@@ -170,20 +170,20 @@ export default function App() {
 
     const cacheKey = filterCacheKey(activeFilters)
 
-    fetch(`/api/cafes?${p}`)
+    fetch(`/api/scraped_cafes?${p}`)
       .then(r => r.json())
-      .then((data: { cafes: Cafe[]; showing: number; total: number }) => {
+      .then((data: { scraped_cafes: Cafe[]; showing: number; total: number }) => {
         if (cacheKey !== filterCacheKey(filtersRef.current)) {
           // If the filter has changed since this fetch started, update the old cache in LS but don't pollute the current state
           const oldCache = loadCacheFromLS(cacheKey)
-          for (const c of data.cafes) oldCache.set(c.id, c)
+          for (const c of data.scraped_cafes) oldCache.set(c.id, c)
           saveCacheToLS(oldCache, cacheKey)
           return
         }
         setViewportTotal(data.total)
         setCafeMap(prev => {
           const next = new Map(prev)
-          for (const c of data.cafes) next.set(c.id, c)
+          for (const c of data.scraped_cafes) next.set(c.id, c)
           saveCacheToLS(next, cacheKey)
           return next
         })
@@ -238,7 +238,7 @@ export default function App() {
   }, [filterStats, cafeMap])
 
   // Client-side filter: search and all active filters
-  const filtered = cafes.filter(c => {
+  const filtered = scraped_cafes.filter(c => {
     if (search) {
       const q = search.toLowerCase()
       if (!c.name.toLowerCase().includes(q) && !c.address.toLowerCase().includes(q)) return false
@@ -257,7 +257,7 @@ export default function App() {
   // openNow still computed client-side (time-dependent, naver-only)
   const filteredOpenNow = useMemo(() => filtered.filter(isOpenNow), [filtered])
 
-  const availableProviders = filterStats?.providers?.map(p => p.name) ?? [...new Set(cafes.map(c => c.provider))]
+  const availableProviders = filterStats?.providers?.map(p => p.name) ?? [...new Set(scraped_cafes.map(c => c.provider))]
 
   function toggleProvider(p: string) {
     setFilters(f => {
@@ -349,7 +349,7 @@ export default function App() {
 
           <input
             type="search"
-            placeholder={loading ? 'Loading cafes…' : 'Search work cafes in Seoul…'}
+            placeholder={loading ? 'Loading scraped_cafes…' : 'Search work scraped_cafes in Seoul…'}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="search-input"
@@ -357,7 +357,7 @@ export default function App() {
 
           {!loading && (
             <span className="search-count">
-              {filtered.length.toLocaleString()}{viewportTotal !== null && viewportTotal > filtered.length ? ` / ${viewportTotal.toLocaleString()}` : ''} cafes
+              {filtered.length.toLocaleString()}{viewportTotal !== null && viewportTotal > filtered.length ? ` / ${viewportTotal.toLocaleString()}` : ''} scraped_cafes
               {imageCount(filtered) > 0 && <span className="search-count-img"> · 📷 {imageCount(filtered).toLocaleString()}</span>}
             </span>
           )}
@@ -443,7 +443,7 @@ export default function App() {
                     All
                     {filterStats && (
                       <span style={{ opacity: 0.8, marginLeft: '4px' }}>
-                        ({cafes.length.toLocaleString()} / {filterStats.total.toLocaleString()})
+                        ({scraped_cafes.length.toLocaleString()} / {filterStats.total.toLocaleString()})
                       </span>
                     )}
                   </button>
@@ -510,7 +510,7 @@ export default function App() {
       </div>
 
       {/* Load more button */}
-      {viewportTotal !== null && viewportTotal > cafes.length && (
+      {viewportTotal !== null && viewportTotal > scraped_cafes.length && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
           <button
             onClick={() => {
@@ -518,7 +518,7 @@ export default function App() {
             }}
             className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-md text-sm font-semibold text-gray-700 border border-gray-200"
           >
-            Showing {cafes.length.toLocaleString()} of {viewportTotal.toLocaleString()} — zoom in to see more
+            Showing {scraped_cafes.length.toLocaleString()} of {viewportTotal.toLocaleString()} — zoom in to see more
           </button>
         </div>
       )}
@@ -564,7 +564,7 @@ export default function App() {
       </div>
 
       {/* Stats Modal */}
-      {showStats && <StatsModal cafes={cafes} onClose={() => setShowStats(false)} />}
+      {showStats && <StatsModal scraped_cafes={scraped_cafes} onClose={() => setShowStats(false)} />}
 
       {/* Settings Modal */}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}

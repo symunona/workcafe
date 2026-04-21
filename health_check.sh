@@ -88,8 +88,8 @@ sqlite3 "$DB" "
   SELECT provider, COUNT(*) as total FROM images GROUP BY provider ORDER BY total DESC;
 " 2>/dev/null | while IFS='|' read -r prov total; do
   CAFES_DONE=$(sqlite3 "$DB" "SELECT COUNT(DISTINCT cafe_id) FROM images WHERE provider='$prov';" 2>/dev/null)
-  CAFES_TOTAL=$(sqlite3 "$DB" "SELECT COUNT(*) FROM cafes WHERE provider='$prov';" 2>/dev/null)
-  log "  $prov: $total images across $CAFES_DONE/$CAFES_TOTAL cafes"
+  CAFES_TOTAL=$(sqlite3 "$DB" "SELECT COUNT(*) FROM scraped_cafes WHERE provider='$prov';" 2>/dev/null)
+  log "  $prov: $total images across $CAFES_DONE/$CAFES_TOTAL scraped_cafes"
 done
 
 divider
@@ -202,9 +202,9 @@ log ""
 CLAUDE_PROMPT="You are doing a daily health check on a Seoul cafe image scraping system running on this machine.
 
 ## System overview
-- workcafe-kakao-images: downloads photos from Kakao Maps REST API (~9,225 cafes total)
-- workcafe-naver-images: downloads photos via Naver Maps Playwright (GraphQL, ~857 cafes)
-- workcafe-google-images: downloads photos from Google Maps via Playwright (intentionally slow: 60-90s sleep between cafes, ~1,164 cafes). Expected rate: ~10-20 images/hr max. A rate near zero is only a problem if the service is also inactive or the last journal line is >2h old.
+- workcafe-kakao-images: downloads photos from Kakao Maps REST API (~9,225 scraped_cafes total)
+- workcafe-naver-images: downloads photos via Naver Maps Playwright (GraphQL, ~857 scraped_cafes)
+- workcafe-google-images: downloads photos from Google Maps via Playwright (intentionally slow: 60-90s sleep between scraped_cafes, ~1,164 scraped_cafes). Expected rate: ~10-20 images/hr max. A rate near zero is only a problem if the service is also inactive or the last journal line is >2h old.
 - All services: Restart=always, RestartSec=300
 - DB: /home/symunona/dev/workcafe/data/seoul/cafedata.db (images table has scraped_at timestamps)
 - Service files: ~/.config/systemd/user/workcafe-*-images.service
@@ -214,8 +214,8 @@ CLAUDE_PROMPT="You are doing a daily health check on a Seoul cafe image scraping
 $(cat "$LOG_FILE")
 
 ## Kakao iterative cap logic (IMPORTANT)
-The Kakao scraper downloads images in batches of 150 per cafe per run. It orders cafes by
-image count ASC (fewest first), so it does one full pass over all cafes before starting a
+The Kakao scraper downloads images in batches of 150 per cafe per run. It orders scraped_cafes by
+image count ASC (fewest first), so it does one full pass over all scraped_cafes before starting a
 second batch. When a full pass completes, the scraper exits normally (code 0) and systemd
 restarts it after 300s — which automatically begins the next 150-image batch for each cafe.
 The 'Cap reached (150 new images this run)' log line confirms the cap is working.
@@ -228,16 +228,16 @@ A 'Skip: all N images downloaded' means that cafe is fully done.
    If < 5GB free, warn with estimated days to limit at current rate.
 4. **Kakao pass completion check**: Run this query to see progress:
    sqlite3 /home/symunona/dev/workcafe/data/seoul/cafedata.db \
-     \"SELECT COUNT(*) as cafes, MIN(cnt) as min_imgs, MAX(cnt) as max_imgs, ROUND(AVG(cnt),1) as avg_imgs
+     \"SELECT COUNT(*) as scraped_cafes, MIN(cnt) as min_imgs, MAX(cnt) as max_imgs, ROUND(AVG(cnt),1) as avg_imgs
       FROM (SELECT COUNT(*) as cnt FROM images WHERE provider='kakao' GROUP BY cafe_id);\"
-   If the Kakao scraper has been inactive for >6h AND min_imgs >= 150 (all cafes have at least one
+   If the Kakao scraper has been inactive for >6h AND min_imgs >= 150 (all scraped_cafes have at least one
    full batch), restart it to begin the next 150-image batch:
      systemctl --user restart workcafe-kakao-images
 5. Check if the Naver scraper logs 'already on disk' (old skip logic) — if so, restart it.
 6. Write a brief assessment to stdout:
    - Overall status: HEALTHY / WARNING / CRITICAL
    - What you found and what actions you took (1-2 lines each)
-   - Kakao pass status: which batch are we on (min_imgs / 150), how many cafes are fully done
+   - Kakao pass status: which batch are we on (min_imgs / 150), how many scraped_cafes are fully done
    - Any issue that needs human attention
 
 Be concise. Take actions directly — don't just describe what should be done."

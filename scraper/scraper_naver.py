@@ -71,7 +71,7 @@ def scrape_naver_grid(context, dbc, grid_x, grid_y, lat, lon):
             return False
 
         places = data['result']['place']['list']
-        print(f"Found {len(places)} cafes in this grid.")
+        print(f"Found {len(places)} scraped_cafes in this grid.")
 
         for place in places:
             provider_id = str(place.get('id', ''))
@@ -134,7 +134,7 @@ def scrape_naver_grid(context, dbc, grid_x, grid_y, lat, lon):
             place['local_images'] = local_images
 
             dbc.execute('''
-                INSERT OR REPLACE INTO cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
+                INSERT OR REPLACE INTO scraped_cafes (id, provider, provider_id, name, lat, lon, address, url, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (global_id, provider, provider_id, name, p_lat, p_lon, address.strip(), cafe_url, json.dumps(place)))
 

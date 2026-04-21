@@ -77,7 +77,7 @@ PHOTOS_API       = "https://place-api.map.kakao.com/places/tab/photos/{place_id}
 CTHUMB_BASE      = "https://img1.kakaocdn.net/cthumb/local/C800x800.q50/?fname="
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
 
-# UA pool — rotated on every session refresh (every SESSION_REFRESH_EVERY cafes).
+# UA pool — rotated on every session refresh (every SESSION_REFRESH_EVERY scraped_cafes).
 # pf/appversion headers are fixed Kakao app fingerprints and cannot be changed.
 MOBILE_UAS = [
     "Mozilla/5.0 (Linux; Android 10; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.162 Mobile Safari/537.36",
@@ -306,7 +306,7 @@ def image_row_exists(dbc, cafe_id: str, photo_id: str) -> bool:
 
 def insert_image_row(dbc, row: dict):
     belongs_to = dbc.fetchval(
-        'SELECT belongs_to_cafe_id FROM cafes WHERE id = ?', (row['cafe_id'],)
+        'SELECT belongs_to_cafe_id FROM scraped_cafes WHERE id = ?', (row['cafe_id'],)
     )
     dbc.execute('''
         INSERT OR REPLACE INTO images
@@ -331,7 +331,7 @@ def insert_image_row(dbc, row: dict):
 def init_scrape_state(dbc):
     """
     Create kakao_scrape_state if absent, insert rows for every Kakao cafe.
-    Returns count of pending cafes.
+    Returns count of pending scraped_cafes.
     """
     dbc.execute('''
         CREATE TABLE IF NOT EXISTS kakao_scrape_state (
@@ -340,12 +340,12 @@ def init_scrape_state(dbc):
             attempt_count INTEGER DEFAULT 0,
             status        TEXT    DEFAULT 'pending',
             last_attempted TIMESTAMP,
-            FOREIGN KEY (cafe_id) REFERENCES cafes(id)
+            FOREIGN KEY (cafe_id) REFERENCES scraped_cafes(id)
         )
     ''')
     dbc.execute('''
         INSERT OR IGNORE INTO kakao_scrape_state (cafe_id)
-        SELECT id FROM cafes WHERE provider = 'kakao'
+        SELECT id FROM scraped_cafes WHERE provider = 'kakao'
     ''')
 
     pending   = dbc.fetchval("SELECT COUNT(*) FROM kakao_scrape_state WHERE status='pending'")
@@ -359,16 +359,16 @@ def pick_random_pending_cafe(dbc):
     """
     Return (cafe_id, next_page, attempt_count, provider_id, metadata) for a
     randomly chosen cafe from the cohort with the lowest next_page among all
-    pending cafes. Returns None when nothing is pending.
+    pending scraped_cafes. Returns None when nothing is pending.
     """
     row = dbc.fetchone('''
         SELECT s.cafe_id, s.next_page, s.attempt_count, c.provider_id, c.metadata
         FROM   kakao_scrape_state s
-        JOIN   cafes c ON c.id = s.cafe_id
+        JOIN   scraped_cafes c ON c.id = s.cafe_id
         WHERE  s.status = 'pending'
           AND  s.next_page = (SELECT MIN(s2.next_page)
                               FROM   kakao_scrape_state s2
-                              JOIN   cafes c2 ON c2.id = s2.cafe_id
+                              JOIN   scraped_cafes c2 ON c2.id = s2.cafe_id
                               WHERE  s2.status = 'pending')
         ORDER BY RANDOM()
         LIMIT 1
@@ -476,7 +476,7 @@ def process_one_page(dbc, session, cafe_id, provider_id, metadata, page, ua=None
         metadata['all_photos'] = total
         metadata['photo_counts'] = counts
     metadata['scraped_photos'] = db_count + new_downloads
-    dbc.execute('UPDATE cafes SET metadata=? WHERE id=?',
+    dbc.execute('UPDATE scraped_cafes SET metadata=? WHERE id=?',
                 (json.dumps(metadata, ensure_ascii=False), cafe_id))
 
     log.info(f"  {cafe_id} p{page}: +{new_downloads} new, {failed} failed, has_next={has_next}")
@@ -494,7 +494,7 @@ def main():
     dbc = DBClient()
     pending = init_scrape_state(dbc)
     if pending == 0:
-        log.info("All cafes exhausted or flagged — nothing to do.")
+        log.info("All scraped_cafes exhausted or flagged — nothing to do.")
         dbc.close()
         return
 
@@ -509,14 +509,14 @@ def main():
             row = dbc.fetchone('''
                 SELECT s.cafe_id, s.next_page, s.attempt_count, c.provider_id, c.metadata
                 FROM   kakao_scrape_state s
-                JOIN   cafes c ON c.id = s.cafe_id
+                JOIN   scraped_cafes c ON c.id = s.cafe_id
                 WHERE  s.cafe_id = ? AND s.status = 'pending'
             ''', (args.cafe_id,))
         else:
             row = pick_random_pending_cafe(dbc)
 
         if row is None:
-            log.info("No pending cafes — done.")
+            log.info("No pending scraped_cafes — done.")
             break
 
         cafe_id, next_page, attempt_count, provider_id, meta_json = row
@@ -593,7 +593,7 @@ def main():
 
         if pages_fetched % 50 == 0:
             pending = dbc.fetchval("SELECT COUNT(*) FROM kakao_scrape_state WHERE status='pending'")
-            log.info(f"Progress: {pages_fetched} pages fetched, {pending} cafes still pending")
+            log.info(f"Progress: {pages_fetched} pages fetched, {pending} scraped_cafes still pending")
 
         time.sleep(random.uniform(*DELAY_BETWEEN_CAFES))
 

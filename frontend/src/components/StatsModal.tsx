@@ -8,15 +8,15 @@ import { getImages, PROVIDER_COLORS } from '../utils'
 import { CloseIcon } from './Icons'
 
 interface StatsModalProps {
-  cafes: Cafe[]
+  scraped_cafes: Cafe[]
   onClose: () => void
 }
 
-export function StatsModal({ cafes, onClose }: StatsModalProps) {
+export function StatsModal({ scraped_cafes, onClose }: StatsModalProps) {
   const stats = useMemo(() => {
     const providerStats: Record<string, { count: number; totalImages: number }> = {}
 
-    cafes.forEach(cafe => {
+    scraped_cafes.forEach(cafe => {
       const p = cafe.provider
       if (!providerStats[p]) {
         providerStats[p] = { count: 0, totalImages: 0 }
@@ -27,7 +27,7 @@ export function StatsModal({ cafes, onClose }: StatsModalProps) {
 
     const data = Object.keys(providerStats).map(p => ({
       provider: p,
-      cafes: providerStats[p].count,
+      scraped_cafes: providerStats[p].count,
       totalImages: providerStats[p].totalImages,
       avgImages: providerStats[p].count > 0 
         ? Number((providerStats[p].totalImages / providerStats[p].count).toFixed(2)) 
@@ -35,8 +35,8 @@ export function StatsModal({ cafes, onClose }: StatsModalProps) {
       fill: PROVIDER_COLORS[p] || '#6b7280'
     }))
 
-    return data.sort((a, b) => b.cafes - a.cafes)
-  }, [cafes])
+    return data.sort((a, b) => b.scraped_cafes - a.scraped_cafes)
+  }, [scraped_cafes])
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm animate-in fade-in">
@@ -60,7 +60,7 @@ export function StatsModal({ cafes, onClose }: StatsModalProps) {
                 <PieChart>
                   <Pie
                     data={stats}
-                    dataKey="cafes"
+                    dataKey="scraped_cafes"
                     nameKey="provider"
                     cx="50%"
                     cy="50%"

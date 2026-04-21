@@ -57,7 +57,7 @@ def get_db_conn(path=DB_PATH):
 def init_tables(conn):
     """Create all tables. Called by db_server on startup."""
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS cafes (
+        CREATE TABLE IF NOT EXISTS scraped_cafes (
             id TEXT PRIMARY KEY,
             provider TEXT,
             provider_id TEXT,

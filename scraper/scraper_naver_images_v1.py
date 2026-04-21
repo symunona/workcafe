@@ -28,7 +28,7 @@ WHAT WORKS:
     to inherit Naver cookies and the correct Origin/Referer headers.
     API calls are made via page.evaluate() (fetch inside the browser context).
   - x-wtm-graphql header must be base64({"arg": place_id, "type": business_type,
-    "source": "place"}). businessType defaults to "restaurant" for cafes.
+    "source": "place"}). businessType defaults to "restaurant" for scraped_cafes.
   - Images are downloaded with a plain requests session using a desktop UA and
     Referer: https://pcmap.place.naver.com/
 
@@ -39,7 +39,7 @@ WHAT DID NOT WORK / LIMITATIONS:
     download fine directly (unlike Kakao's Naver blog CDN issue).
   - clip cursor and visitorReview cursor never terminate (hasNext always True)
     even after all unique photos are exhausted — stale detection is essential.
-  - A single Playwright browser is shared across all cafes in a run to avoid
+  - A single Playwright browser is shared across all scraped_cafes in a run to avoid
     the overhead of launching a new browser per cafe.
   - businessType detection: the referer URL must use the correct type path
     (restaurant / place). We try "restaurant" first; if the page returns an
@@ -50,15 +50,15 @@ WHAT DID NOT WORK / LIMITATIONS:
     downloads. MOBILE_UA = iPhone iOS 16 Safari. With the mobile UA, rapid
     requests to different places work without banning.
     The DELAY_BETWEEN_CAFES of 2-4s adds extra safety.
-  - Even cafes with only ~30 reviews have 100-400 unique photos across all
+  - Even scraped_cafes with only ~30 reviews have 100-400 unique photos across all
     cursor types (biz + clips + visitor reviews + AI View + imgSas).
 
 PAGINATION / STATE:
   - naver_scrape_state table tracks per-cafe cursor state, pages_fetched,
     business_type, stale_count, attempt_count, and status.
   - Each run picks a random cafe from the cohort with MIN(pages_fetched)
-    among pending cafes, processes one GraphQL page, then moves on.
-  - This spreads scraping evenly: all cafes get page 1 before any gets page 2.
+    among pending scraped_cafes, processes one GraphQL page, then moves on.
+  - This spreads scraping evenly: all scraped_cafes get page 1 before any gets page 2.
   - Navigation (to establish Naver session cookies) happens once per cafe per
     session. Subsequent pages reuse the browser context's cookies.
   - Cafes returning 0 photos on page 1 are retried up to MAX_ATTEMPT_COUNT
@@ -170,7 +170,7 @@ def make_wtm_token(place_id: str, business_type: str) -> str:
 def init_scrape_state(dbc):
     """
     Create naver_scrape_state if absent, insert rows for every Naver cafe.
-    Returns count of pending cafes.
+    Returns count of pending scraped_cafes.
     """
     dbc.execute('''
         CREATE TABLE IF NOT EXISTS naver_scrape_state (
@@ -182,12 +182,12 @@ def init_scrape_state(dbc):
             attempt_count  INTEGER DEFAULT 0,
             status         TEXT    DEFAULT 'pending',
             last_attempted TIMESTAMP,
-            FOREIGN KEY (cafe_id) REFERENCES cafes(id)
+            FOREIGN KEY (cafe_id) REFERENCES scraped_cafes(id)
         )
     ''')
     dbc.execute('''
         INSERT OR IGNORE INTO naver_scrape_state (cafe_id)
-        SELECT id FROM cafes WHERE provider = 'naver'
+        SELECT id FROM scraped_cafes WHERE provider = 'naver'
     ''')
 
     pending   = dbc.fetchval("SELECT COUNT(*) FROM naver_scrape_state WHERE status='pending'")
@@ -207,11 +207,11 @@ def pick_random_pending_cafe(dbc):
                s.pages_fetched, s.stale_count, s.attempt_count,
                c.provider_id, c.metadata
         FROM   naver_scrape_state s
-        JOIN   cafes c ON c.id = s.cafe_id
+        JOIN   scraped_cafes c ON c.id = s.cafe_id
         WHERE  s.status = 'pending'
           AND  s.pages_fetched = (SELECT MIN(s2.pages_fetched)
                                   FROM   naver_scrape_state s2
-                                  JOIN   cafes c2 ON c2.id = s2.cafe_id
+                                  JOIN   scraped_cafes c2 ON c2.id = s2.cafe_id
                                   WHERE  s2.status = 'pending')
         ORDER BY RANDOM()
         LIMIT 1
@@ -433,7 +433,7 @@ async def process_one_page(dbc, browser_page, http_session,
         local_path = f"/images/naver/{safe_id}/images/{fname}"
 
         belongs_to = dbc.fetchval(
-            'SELECT belongs_to_cafe_id FROM cafes WHERE id = ?', (cafe_id,)
+            'SELECT belongs_to_cafe_id FROM scraped_cafes WHERE id = ?', (cafe_id,)
         )
 
         # File on disk but no DB row — backfill (always insert, even without photo_id)
@@ -490,7 +490,7 @@ async def process_one_page(dbc, browser_page, http_session,
     # Update cafe metadata
     metadata['local_images'] = all_local
     metadata['scraped_photos'] = db_count + new_downloads
-    dbc.execute('UPDATE cafes SET metadata=? WHERE id=?',
+    dbc.execute('UPDATE scraped_cafes SET metadata=? WHERE id=?',
                 (json.dumps(metadata, ensure_ascii=False), cafe_id))
 
     log.info(f"  {cafe_id} [{detected_type}]: +{new_downloads} new, {failed} failed, has_next={has_next}")
@@ -504,7 +504,7 @@ async def run(args):
     pending = init_scrape_state(dbc)
 
     if pending == 0:
-        log.info("All cafes exhausted or flagged — nothing to do.")
+        log.info("All scraped_cafes exhausted or flagged — nothing to do.")
         dbc.close()
         return
 
@@ -535,14 +535,14 @@ async def run(args):
                            s.pages_fetched, s.stale_count, s.attempt_count,
                            c.provider_id, c.metadata
                     FROM   naver_scrape_state s
-                    JOIN   cafes c ON c.id = s.cafe_id
+                    JOIN   scraped_cafes c ON c.id = s.cafe_id
                     WHERE  s.cafe_id = ? AND s.status = 'pending'
                 ''', (args.cafe_id,))
             else:
                 row = pick_random_pending_cafe(dbc)
 
             if row is None:
-                log.info("No pending cafes — done.")
+                log.info("No pending scraped_cafes — done.")
                 break
 
             (cafe_id, business_type, cursor_state_json,
@@ -626,7 +626,7 @@ async def run(args):
 
             if pages_fetched % 50 == 0:
                 p = dbc.fetchval("SELECT COUNT(*) FROM naver_scrape_state WHERE status='pending'")
-                log.info(f"Progress: {pages_fetched} pages fetched, {p} cafes still pending")
+                log.info(f"Progress: {pages_fetched} pages fetched, {p} scraped_cafes still pending")
 
             await asyncio.sleep(random.uniform(*DELAY_BETWEEN_CAFES))
 

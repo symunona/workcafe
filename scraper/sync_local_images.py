@@ -24,7 +24,7 @@ def sync_local_images():
     conn = get_db_conn()
     cursor = conn.cursor()
 
-    cursor.execute('SELECT id, provider, provider_id, metadata FROM cafes')
+    cursor.execute('SELECT id, provider, provider_id, metadata FROM scraped_cafes')
     rows = cursor.fetchall()
 
     updated = 0
@@ -59,7 +59,7 @@ def sync_local_images():
 
         metadata['local_images'] = local_paths
         db_execute(conn, 
-            'UPDATE cafes SET metadata = ? WHERE id = ?',
+            'UPDATE scraped_cafes SET metadata = ? WHERE id = ?',
             (json.dumps(metadata, ensure_ascii=False), cafe_id)
         )
         updated += 1

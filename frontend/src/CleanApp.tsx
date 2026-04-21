@@ -23,7 +23,7 @@ interface Filters {
 }
 
 interface MarkerLayerProps {
-  cafes: Map<string, CleanCafe>
+  scraped_cafes: Map<string, CleanCafe>
   onSelect: (id: string) => void
 }
 
@@ -58,7 +58,7 @@ function MapPanner({ target }: { target: [number, number] | null }) {
   return null
 }
 
-function MarkerLayer({ cafes, onSelect }: MarkerLayerProps) {
+function MarkerLayer({ scraped_cafes, onSelect }: MarkerLayerProps) {
   const map = useMap()
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const layerRef = useRef<L.LayerGroup | null>(null)
@@ -76,7 +76,7 @@ function MarkerLayer({ cafes, onSelect }: MarkerLayerProps) {
     const existing = markersRef.current
     const toRemove = new Set(existing.keys())
 
-    for (const cafe of cafes.values()) {
+    for (const cafe of scraped_cafes.values()) {
       toRemove.delete(cafe.id)
       if (existing.has(cafe.id)) continue
 
@@ -94,7 +94,7 @@ function MarkerLayer({ cafes, onSelect }: MarkerLayerProps) {
       existing.get(id)?.remove()
       existing.delete(id)
     }
-  }, [cafes, onSelect])
+  }, [scraped_cafes, onSelect])
 
   return null
 }
@@ -152,7 +152,7 @@ export default function CleanApp() {
       setTotal(data.total ?? 0)
       setCafeMap(prev => {
         const next = new Map(prev)
-        for (const c of (data.cafes ?? [])) next.set(c.id, c)
+        for (const c of (data.scraped_cafes ?? [])) next.set(c.id, c)
         return next
       })
     } catch (e) {
@@ -215,7 +215,7 @@ export default function CleanApp() {
         />
         <ViewportTracker onBoundsChange={handleBoundsChange} />
         <MapPanner target={mapTarget} />
-        <MarkerLayer cafes={cafeMap} onSelect={handleSelect} />
+        <MarkerLayer scraped_cafes={cafeMap} onSelect={handleSelect} />
       </MapContainer>
 
       {/* Top bar */}
