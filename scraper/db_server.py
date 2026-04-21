@@ -153,10 +153,11 @@ def main():
     parser = argparse.ArgumentParser(description='Workcafe DB server')
     parser.add_argument('--db',     default=DB_PATH,      help='SQLite DB path')
     parser.add_argument('--socket', default=DB_SOCKET_PATH, help='Unix socket path')
+    parser.add_argument('--pid-file', default=DB_PID_FILE, help='PID file path')
     parser.add_argument('--replace', action='store_true',  help='Kill existing server if running')
     args = parser.parse_args()
 
-    pid_file = DB_PID_FILE
+    pid_file = args.pid_file
 
     existing = _check_existing(pid_file)
     if existing:
