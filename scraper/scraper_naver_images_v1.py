@@ -209,9 +209,10 @@ def pick_random_pending_cafe(dbc):
         FROM   naver_scrape_state s
         JOIN   cafes c ON c.id = s.cafe_id
         WHERE  s.status = 'pending'
-          AND  s.pages_fetched = (SELECT MIN(pages_fetched)
-                                  FROM   naver_scrape_state
-                                  WHERE  status = 'pending')
+          AND  s.pages_fetched = (SELECT MIN(s2.pages_fetched)
+                                  FROM   naver_scrape_state s2
+                                  JOIN   cafes c2 ON c2.id = s2.cafe_id
+                                  WHERE  s2.status = 'pending')
         ORDER BY RANDOM()
         LIMIT 1
     ''')
@@ -269,7 +270,7 @@ async def _graphql_call(browser_page, cursor_state: list, place_id: str,
         }''', [GRAPHQL_URL, payload, token, referer])
     except Exception as e:
         err = str(e)
-        if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed')):
+        if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed', 'browser has been closed')):
             raise BrowserDead(err)
         log.warning(f"  evaluate() error: {e}")
         return None
@@ -315,7 +316,7 @@ async def navigate_for_cafe(browser_page, place_id: str, business_type: str,
             return True
         except Exception as e:
             err = str(e)
-            if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed')):
+            if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed', 'browser has been closed')):
                 raise BrowserDead(err)
             if attempt < 2:
                 log.warning(f"  Nav attempt {attempt+1} failed: {e!s:.100}")

@@ -27,7 +27,7 @@ flowchart TD
 
     %% Backend API
     subgraph Backend [Backend API]
-        GoAPI[Go HTTP Server<br>Port 8090]
+        GoAPI[Go HTTP Server<br>Port 13854]
         Endpoint[api-cafes]
     end
 
@@ -107,7 +107,7 @@ Data is saved in a dual-format to ensure durability and ease of processing:
 - **JSON Files**: The raw, unadulterated JSON payload from each provider is saved to the filesystem (`data/[city]/[provider]/[id]/cafe.json`). This allows for future re-processing without needing to re-scrape.
 
 ### 4. Backend API (`api/`)
-- **Go API**: A lightweight Go server (`main.go`) that connects to the SQLite database and exposes the `/api/cafes` endpoint on port `8090`. Serves the unified cafe data to the frontend.
+- **Go API**: A lightweight Go server (`main.go`) that connects to the SQLite database and exposes the `/api/cafes` endpoint on port `13854`. Serves the unified cafe data to the frontend.
 
 ### 5. Frontend Application (`frontend/`)
 - **React SPA**: A statically hosted application utilizing Vite, TailwindCSS, and React-Leaflet to visualize the cafes on an interactive map. Vite proxies `/api` calls to the Go backend while serving on port `5550`.

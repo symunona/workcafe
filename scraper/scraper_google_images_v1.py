@@ -228,7 +228,7 @@ class BrowserDead(Exception):
 
 
 def _classify_nav_error(err: str):
-    if any(s in err for s in ('Connection closed', 'Browser closed', 'pipe closed')):
+    if any(s in err for s in ('Connection closed', 'Browser closed', 'pipe closed', 'browser has been closed')):
         raise BrowserDead(err)
     if any(s in err for s in ('Page crashed', 'Target closed')):
         raise PageDead(err)

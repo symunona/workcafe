@@ -4,6 +4,8 @@ Do not sign the code in commits.
 
 Always read all the AGENT.md -s of the current folder before doing anything.
 
+When starting stopping services, always use `just [servicename]`
+
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
 ## Quick Reference

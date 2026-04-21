@@ -1,0 +1,7 @@
+[group('Init / Setup')]
+foo:
+    echo foo
+
+[group('Services')]
+bar:
+    echo bar

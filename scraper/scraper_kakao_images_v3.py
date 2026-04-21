@@ -366,9 +366,10 @@ def pick_random_pending_cafe(dbc):
         FROM   kakao_scrape_state s
         JOIN   cafes c ON c.id = s.cafe_id
         WHERE  s.status = 'pending'
-          AND  s.next_page = (SELECT MIN(next_page)
-                              FROM   kakao_scrape_state
-                              WHERE  status = 'pending')
+          AND  s.next_page = (SELECT MIN(s2.next_page)
+                              FROM   kakao_scrape_state s2
+                              JOIN   cafes c2 ON c2.id = s2.cafe_id
+                              WHERE  s2.status = 'pending')
         ORDER BY RANDOM()
         LIMIT 1
     ''')

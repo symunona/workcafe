@@ -1,8 +1,9 @@
 default: start
 
-# ── Health check ─────────────────────────────────────────────────────────────
+# ── Init / Setup ─────────────────────────────────────────────────────────────
 
 # Install all missing dependencies (safe to re-run)
+[group('Init / Setup')]
 install:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -29,6 +30,7 @@ install:
     echo "── Done. Run: just check ────────────────────────────"
 
 # Check all dependencies and services are correctly installed
+[group('Init / Setup')]
 check:
     #!/usr/bin/env bash
     WDIR="$(pwd)"
@@ -126,18 +128,8 @@ check:
 
     echo ""
 
-# ── Web services ─────────────────────────────────────────────────────────────
-
-start:
-    #!/usr/bin/env bash
-    cd api && go build -o workcafe-api . && ./workcafe-api &
-    API_PID=$!
-    trap "kill $API_PID 2>/dev/null" EXIT
-    cd frontend && pnpm dev
-
-# ── Managed services (systemd user) ─────────────────────────────────────────
-
 # Install all systemd user services and enable them
+[group('Init / Setup')]
 install-services:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -291,7 +283,21 @@ install-services:
     echo ""
     echo "Done. Run: just service all start"
 
+
+# ── Services ─────────────────────────────────────────────────────────────────
+
+# Start web services (API and frontend) for local development
+[group('Services')]
+start:
+    #!/usr/bin/env bash
+    cd api && go build -o workcafe-api . && ./workcafe-api &
+    API_PID=$!
+    trap "kill $API_PID 2>/dev/null" EXIT
+    cd frontend && pnpm dev
+
+
 # Show one-line status for all workcafe services
+[group('Services')]
 status:
     #!/usr/bin/env bash
     G='\033[0;32m'; R='\033[0;31m'; GBG='\033[42;97m'; NC='\033[0m'
@@ -324,10 +330,12 @@ status:
     chk google-images workcafe-google-images
 
 # Kill all managed services
+[group('Services')]
 kill:
     @just service all stop
 
 # Restart all managed services
+[group('Services')]
 restart:
     @just service all restart
 
@@ -337,6 +345,7 @@ restart:
 #   scraper       — kakao + google + osm + naver (location scrapers)
 #   image-scraper — kakao-images + naver-images + google-images (photo scrapers)
 #   db-server | api | frontend | kakao | google | osm | naver | kakao-images | naver-images | google-images
+[group('Services')]
 service target action="status":
     #!/usr/bin/env bash
     ALL="workcafe-db-server workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images"
@@ -363,20 +372,24 @@ service target action="status":
     esac
     systemctl --user {{action}} "$svc"
 
-# ── Manual scrape commands ────────────────────────────────────────────────────
+
+# ── Scrapers ─────────────────────────────────────────────────────────────────
 
 # Run all v2 scrapers in parallel (foreground)
+[group('Scrapers')]
 scrape:
     @echo "Starting all v2 scrapers in parallel..."
     bash -c "source venv/bin/activate && python scraper/scrape_v2.py"
 
 # Run a specific scraper. Usage: just scrape-one [provider] [max_steps]
 # Note: google uses v3 (slow/clearnet). Pass provider=google_v3 to be explicit.
+[group('Scrapers')]
 scrape-one provider="kakao" max_steps="100":
     @echo "Running {{provider}} scraper for {{max_steps}} steps..."
     bash -c "source venv/bin/activate && python scraper/scraper_{{provider}}.py --max-steps {{max_steps}}"
 
 # Download images (v3, with full metadata). Usage: just images [cafe_id]
+[group('Scrapers')]
 images cafe_id="":
     #!/usr/bin/env bash
     source venv/bin/activate
@@ -386,15 +399,18 @@ images cafe_id="":
         python scraper/scraper_kakao_images_v3.py
     fi
 
-# ── Normalization pipeline ────────────────────────────────────────────────────
+
+# ── Data Pipeline ────────────────────────────────────────────────────────────
 
 # Pull ollama models required for normalization (nomic-embed-text, qwen2.5:1.5b)
+[group('Data Pipeline')]
 pull-models:
     #!/usr/bin/env bash
     source venv/bin/activate
     python scraper/normalize/02_pull_models.py
 
 # Run DB migration to add clean_cafes, cafe_chains tables and new columns
+[group('Data Pipeline')]
 db-migrate:
     #!/usr/bin/env bash
     source venv/bin/activate
@@ -402,6 +418,7 @@ db-migrate:
 
 # Normalize cafes into clean_cafes (safe to restart, skips already-processed)
 # Options: --embed (add embeddings, slower), --provider kakao/google/naver/osm
+[group('Data Pipeline')]
 normalize limit="0":
     #!/usr/bin/env bash
     source venv/bin/activate
@@ -413,6 +430,7 @@ normalize limit="0":
     fi
 
 # Generate English names for clean_cafes (runs after normalize)
+[group('Data Pipeline')]
 english-names:
     #!/usr/bin/env bash
     source venv/bin/activate
@@ -420,6 +438,7 @@ english-names:
     python normalize/05_english_names.py
 
 # Bulk-update images.belongs_to_cafe_id from cafes table (run after normalize)
+[group('Data Pipeline')]
 link-images:
     #!/usr/bin/env bash
     source venv/bin/activate
@@ -427,6 +446,7 @@ link-images:
     python normalize/06_update_image_links.py
 
 # Full normalization pass: migrate → normalize → link images → english names
+[group('Data Pipeline')]
 normalize-all:
     #!/usr/bin/env bash
     source venv/bin/activate
@@ -437,12 +457,14 @@ normalize-all:
     python normalize/05_english_names.py --chains-only
 
 # Clean up orphaned/incomplete normalization data (resets belongs_to_cafe_id for re-run)
+[group('Data Pipeline')]
 db-clean:
     #!/usr/bin/env bash
     source venv/bin/activate
     python3 scraper/normalize/db_clean.py
 
 # Full merge pipeline: dedup raw → reset clean data → merge → link images → stats
+[group('Data Pipeline')]
 merge-pipeline:
     #!/usr/bin/env bash
     set -euo pipefail

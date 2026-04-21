@@ -110,6 +110,7 @@ export default function CleanApp() {
   const [showSettings, setShowSettings] = useState(false)
   const [chains, setChains] = useState<Chain[]>([])
   const [total, setTotal] = useState(0)
+  const [isLocating, setIsLocating] = useState(false)
 
   const selectedId = id || null
   const [mapTarget, setMapTarget] = useState<[number, number] | null>(null)
@@ -178,6 +179,26 @@ export default function CleanApp() {
 
   const cafesInView = useMemo(() => cafeMap.size, [cafeMap])
 
+  const handleGPSClick = useCallback(() => {
+    if ('geolocation' in navigator) {
+      setIsLocating(true)
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setIsLocating(false)
+          setMapTarget([position.coords.latitude, position.coords.longitude])
+        },
+        (error) => {
+          setIsLocating(false)
+          console.error('Error getting location:', error)
+          alert('Unable to retrieve your location')
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      )
+    } else {
+      alert('Geolocation is not supported by your browser')
+    }
+  }, [])
+
   return (
     <div className="relative w-screen h-screen">
       <MapContainer
@@ -231,6 +252,19 @@ export default function CleanApp() {
         ))}
         <div className="mt-1 pt-1 border-t text-gray-400">black ring = has images</div>
       </div>
+
+      {/* GPS Button */}
+      <button
+        onClick={handleGPSClick}
+        disabled={isLocating}
+        className={`absolute bottom-6 right-6 z-[500] bg-white rounded-full shadow-lg p-3 transition-colors flex items-center justify-center ${isLocating ? 'text-blue-500 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+        title="Go to my location"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-6 h-6 ${isLocating ? 'animate-pulse' : ''}`}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25v2.25m0 15v2.25M2.25 12h2.25m15 0h2.25M5.25 12a6.75 6.75 0 1 1 13.5 0 6.75 6.75 0 0 1-13.5 0Z" />
+        </svg>
+      </button>
 
       {/* Filter panel */}
       {showFilters && (
