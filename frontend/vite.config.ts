@@ -30,8 +30,13 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     port: 5550,
+    cors: true,
     proxy: {
       '/api': 'http://127.0.0.1:13854',
+    },
+    hmr: {
+      protocol: 'wss',
+      clientPort: 443,
     },
   },
 })
