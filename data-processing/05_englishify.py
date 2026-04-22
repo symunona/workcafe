@@ -88,11 +88,13 @@ def _clean_en(en: str) -> str:
     return en
 
 def _valid(kr: str, en: str) -> bool:
-    """Reject if empty, same as input, or contains Korean characters."""
-    if not en or en == kr:
+    """Reject if empty, Korean chars in output, or untranslated Korean (en==kr and kr has Korean)."""
+    if not en:
         return False
     if _KOREAN.search(en):
         return False
+    if en == kr and _KOREAN.search(kr):
+        return False  # Korean name returned unchanged
     return True
 
 def _parse_numbered(text: str, batch: list) -> dict:
