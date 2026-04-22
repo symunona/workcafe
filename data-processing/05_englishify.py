@@ -76,27 +76,54 @@ def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
     return count
 
 
-_SEP = re.compile(r'\s*(?:;|→|->|:)\s*')
+_KOREAN = re.compile(r'[가-힣]')
+_PARENS = re.compile(r'\s*\((?![\w\s]*\)$)[^)]{10,}\)\s*$')  # strip long trailing parentheticals
+
+def _clean_en(en: str) -> str:
+    """Strip model commentary, leading 'N. ' leaks, trailing semicolons."""
+    en = en.strip()
+    en = re.sub(r'^[Nn]\.\s+', '', en)          # "N. Starbucks" → "Starbucks"
+    en = en.split(';')[0].strip()               # truncate at semicolon commentary
+    en = _PARENS.sub('', en).strip()            # strip long parenthetical notes
+    return en
+
+def _valid(kr: str, en: str) -> bool:
+    """Reject if empty, same as input, or contains Korean characters."""
+    if not en or en == kr:
+        return False
+    if _KOREAN.search(en):
+        return False
+    return True
 
 def _parse_numbered(text: str, batch: list) -> dict:
-    """Parse 'N. EnglishName' lines → {korean: english} matched by index."""
-    result = {}
+    """Parse 'N. EnglishName' lines → {korean: english}.
+    Returns empty dict if count != batch size (index drift detected)."""
+    lines = []
     for line in text.splitlines():
         m = re.match(r'^(\d+)[.)]\s*(.+)', line.strip())
         if m:
-            idx = int(m.group(1)) - 1
-            if 0 <= idx < len(batch):
-                result[batch[idx]] = m.group(2).strip()
+            lines.append((int(m.group(1)) - 1, m.group(2).strip()))
+
+    if len(lines) != len(batch):
+        return {}  # count mismatch → caller retries one-by-one
+
+    result = {}
+    for idx, en in lines:
+        if 0 <= idx < len(batch):
+            cleaned = _clean_en(en)
+            if _valid(batch[idx], cleaned):
+                result[batch[idx]] = cleaned
     return result
 
 
 def _translate_one(kr: str, model: str) -> str:
-    return llm_generate(
+    raw = llm_generate(
         f"Translate this Korean cafe name to English. "
         f"Use transliteration for brand names. "
         f"Return only the English name, nothing else: {kr}",
         max_tokens=30, model=model,
-    ).strip()
+    )
+    return _clean_en(raw)
 
 
 def _progress(already: int, done: int, total: int, elapsed: float, bar_len: int = 30) -> str:
