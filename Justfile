@@ -171,6 +171,7 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/scraper
+    Environment="PYTHONPATH=$WDIR/scraper/lib"
     ExecStart=$VENV db_server.py
     Restart=on-failure
     RestartSec=3
@@ -210,10 +211,10 @@ install-services:
 
     for provider in kakao google osm naver; do
         case $provider in
-            kakao)  script="scraper_kakao_v2.py" ;;
-            google) script="scraper_google_v2.py" ;;
-            osm)    script="scraper_osm.py" ;;
-            naver)  script="scraper_naver.py" ;;
+            kakao)  script="places/scraper_kakao_v2.py" ;;
+            google) script="places/scraper_google_v2.py" ;;
+            osm)    script="places/scraper_osm.py" ;;
+            naver)  script="places/scraper_naver.py" ;;
         esac
         write_unit "workcafe-scraper-$provider" "[Unit]
     Description=Workcafe scraper: $provider
@@ -222,6 +223,7 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/scraper
+    Environment="PYTHONPATH=$WDIR/scraper/lib"
     ExecStart=$VENV ralph_loop.py $script
     Restart=on-failure
     RestartSec=10
@@ -238,7 +240,8 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/scraper
-    ExecStart=$VENV scraper_kakao_images_v3.py
+    Environment="PYTHONPATH=$WDIR/scraper/lib"
+    ExecStart=$VENV images/scraper_kakao_images_v3.py
     Restart=on-failure
     RestartSec=30
 
@@ -253,7 +256,8 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/scraper
-    ExecStart=$VENV scraper_naver_images_v1.py
+    Environment="PYTHONPATH=$WDIR/scraper/lib"
+    ExecStart=$VENV images/scraper_naver_images_v1.py
     Restart=on-failure
     RestartSec=30
 
@@ -268,7 +272,8 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/scraper
-    ExecStart=$VENV scraper_google_images_v1.py
+    Environment="PYTHONPATH=$WDIR/scraper/lib"
+    ExecStart=$VENV images/scraper_google_images_v1.py
     Restart=on-failure
     RestartSec=30
 
@@ -283,7 +288,8 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/scraper
-    ExecStart=$VENV scraper_kakao_metadata_v1.py
+    Environment="PYTHONPATH=$WDIR/scraper/lib"
+    ExecStart=$VENV places/scraper_kakao_metadata_v1.py
     Restart=on-failure
     RestartSec=60
 
@@ -298,7 +304,8 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/scraper
-    ExecStart=$VENV scraper_naver_metadata_v1.py
+    Environment="PYTHONPATH=$WDIR/scraper/lib"
+    ExecStart=$VENV places/scraper_naver_metadata_v1.py
     Restart=on-failure
     RestartSec=60
 
@@ -441,18 +448,19 @@ watchdog-reset name:
 
 # ── Scrapers ─────────────────────────────────────────────────────────────────
 
-# Run all v2 scrapers in parallel (foreground)
-[group('Scrapers')]
-scrape:
-    @echo "Starting all v2 scrapers in parallel..."
-    bash -c "source venv/bin/activate && python scraper/scrape_v2.py"
-
 # Run a specific scraper. Usage: just scrape-one [provider] [max_steps]
-# Note: google uses v3 (slow/clearnet). Pass provider=google_v3 to be explicit.
 [group('Scrapers')]
 scrape-one provider="kakao" max_steps="100":
-    @echo "Running {{provider}} scraper for {{max_steps}} steps..."
-    bash -c "source venv/bin/activate && python scraper/scraper_{{provider}}.py --max-steps {{max_steps}}"
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    case "{{provider}}" in
+        kakao)  script=scraper/places/scraper_kakao_v2.py ;;
+        google) script=scraper/places/scraper_google_v2.py ;;
+        naver)  script=scraper/places/scraper_naver.py ;;
+        osm)    script=scraper/places/scraper_osm.py ;;
+        *) echo "Unknown provider: {{provider}}. Use: kakao, google, naver, osm"; exit 1 ;;
+    esac
+    PYTHONPATH=scraper/lib python "$script" --max-steps {{max_steps}}
 
 # Download images (v3, with full metadata). Usage: just images [cafe_id]
 [group('Scrapers')]
@@ -460,9 +468,9 @@ images cafe_id="":
     #!/usr/bin/env bash
     source venv/bin/activate
     if [ -n "{{cafe_id}}" ]; then
-        python scraper/scraper_kakao_images_v3.py --cafe-id {{cafe_id}}
+        PYTHONPATH=scraper/lib python scraper/images/scraper_kakao_images_v3.py --cafe-id {{cafe_id}}
     else
-        python scraper/scraper_kakao_images_v3.py
+        PYTHONPATH=scraper/lib python scraper/images/scraper_kakao_images_v3.py
     fi
 
 
@@ -504,7 +512,7 @@ detect-chains:
     PLAY_SOCK=/tmp/workcafe_play_db.sock
     if [ ! -S "$PLAY_SOCK" ]; then
         echo "Play DB not running — starting..."
-        bash start_play_db.sh
+        bash scripts/start_play_db.sh
     fi
     python3 data-processing/cleaner/03_detect_chains.py \
         --socket "$PLAY_SOCK" \
@@ -600,7 +608,7 @@ merge-pipeline:
 
     echo ""
     echo -e "${B}━━━ Step 1/6  Start play DB server ━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    T=$(_t); bash start_play_db.sh
+    T=$(_t); bash scripts/start_play_db.sh
     STEPS="${STEPS},server:$(_elapsed $T)"
 
     echo ""

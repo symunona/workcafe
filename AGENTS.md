@@ -4,6 +4,7 @@
 
 | Date | Version | What changed |
 |------|---------|--------------|
+| 2026-04-22 09:00 | v0.5.1 | Scraper dir split: images/, places/, lib/ subdirs. scripts/ for root shell scripts. PYTHONPATH=$WDIR/scraper/lib in all service units. scrape-one recipe fixed (was broken). |
 | 2026-04-22 08:00 | v0.5.0 | Watchdog system (watchdog.py + systemd timer). Kakao/Naver metadata scrapers v1. Fixed image scraper silent hangs (AbortController wrapping body read; CAFE_TIMEOUT_SECS ref). Major Justfile expansion. Scraper dir reorganized: archive/, tools/, tests/ subdirs. File placement rules added to AGENTS.md. |
 | 2026-04-22 04:00 | v0.4.x | Watchdog prototype, register_watchdog.sh, Settings UI watchdog panel, /api/watchdog-status endpoint. |
 | 2026-04-21 12:00 | v0.4.0 | Data cleaner pipeline (data-processing/cleaner/). Two-DB architecture: cafedata.db (raw) + clean-data.db (normalized). merge-pipeline just recipe. API split: rawDb for /api/status, db for everything else. |
@@ -28,6 +29,8 @@ Always read all the AGENT.md -s of the current folder before doing anything.
 When starting stopping services, always use `just [servicename]`
 
 When you make modifications to a service, check it's previously set state, and restart if affected. (e.g. restart api on frontend/api changes!)
+
+python: always use uv for venvs.
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
@@ -138,21 +141,36 @@ bd dolt push          # Push beads data to remote
 
 ### Project root
 
-Only these file types belong in the project root: `CLAUDE.md`, `AGENTS.md`, `Justfile`, `*.md` docs, and named setup/deploy scripts (`setup_nginx.sh`, `start_play_db.sh`, `health_check.sh`, `run_test_pipeline.sh`).
+Only these file types belong in the project root: `CLAUDE.md`, `AGENTS.md`, `Justfile`, and `*.md` docs.
 
-**No** `.py`, `.js`, `.sh` one-offs, screenshots, or `.db` files in the root.
+Shell scripts belong in `scripts/`. **No** `.py`, `.js`, `.sh` one-offs, screenshots, or `.db` files in the root.
+
+### scripts/ directory
+
+All operational shell scripts live here: `setup_nginx.sh`, `start_play_db.sh`, `health_check.sh`, `run_test_pipeline.sh`, `create_play_db.sh`.
 
 ### Scraper directory layout
 
 ```
 scraper/
-├── [active scripts + shared libs]   ← scrapers referenced by Justfile, db_server/client, utils
-├── archive/                          ← superseded versions (old vN files)
-├── tools/                            ← one-time ran scripts (backfill, migrate, compress, verify)
-│   └── each file must have header:  # Run once: YYYY-MM-DD. Purpose: ... Safe to delete after DATE.
-├── tests/                            ← ad-hoc manual test scripts (test_*.py, investigate_*.py)
-└── log/                              ← runtime logs (gitignored)
+├── db_server.py     ← service: SQLite socket proxy (root — needs no PYTHONPATH)
+├── ralph_loop.py    ← process runner for place scrapers
+├── watchdog.py      ← service: image scraper watchdog
+├── check_tor.py     ← Tor connectivity check (called by Justfile)
+├── register_watchdog.sh
+├── images/          ← image scrapers (Playwright/browser heavy)
+│   └── scraper_{kakao_images_v3,naver_images_v1,google_images_v1}.py
+├── places/          ← place + enrichment scrapers
+│   └── scraper_{kakao_v2,google_v2,naver,osm,*_metadata_v1}.py
+├── lib/             ← shared imports: db_client, utils, download_utils, image_utils, disk_check
+├── archive/         ← superseded versions (old vN files)
+├── tools/           ← one-time ran scripts (backfill, migrate, compress, verify)
+│   └── each file must have header: # Run once: YYYY-MM-DD. Purpose: ...
+├── tests/           ← ad-hoc manual test scripts
+└── log/             ← runtime logs (gitignored)
 ```
+
+**PYTHONPATH:** all scraper systemd units set `PYTHONPATH=$WDIR/scraper/lib` so scripts in `images/` and `places/` can `import db_client`, `import utils` etc. without path hacks.
 
 **When superseding a scraper:** move the old file to `archive/` and update the service table in AGENTS.md.
 
