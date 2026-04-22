@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import { MapContainer, TileLayer, useMapEvents, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, useMapEvents, useMap, ScaleControl } from 'react-leaflet'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -48,6 +48,32 @@ function ViewportTracker({ onBoundsChange }: { onBoundsChange: (b: ViewportBound
     const b = map.getBounds()
     onBoundsChange({ minLat: b.getSouth(), maxLat: b.getNorth(), minLon: b.getWest(), maxLon: b.getEast() })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
+}
+
+const MAP_POS_KEY = 'workcafe_map_pos'
+const DEFAULT_CENTER: [number, number] = [37.4919824, 126.9907758]
+const DEFAULT_ZOOM = 15
+
+function loadMapPos(): { center: [number, number]; zoom: number } {
+  try {
+    const raw = localStorage.getItem(MAP_POS_KEY)
+    if (raw) {
+      const { lat, lng, zoom } = JSON.parse(raw)
+      if (lat && lng && zoom) return { center: [lat, lng], zoom }
+    }
+  } catch {}
+  return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM }
+}
+
+function MapPositionSaver() {
+  useMapEvents({
+    moveend: (e) => {
+      const c = e.target.getCenter()
+      const zoom = e.target.getZoom()
+      localStorage.setItem(MAP_POS_KEY, JSON.stringify({ lat: c.lat, lng: c.lng, zoom }))
+    },
+  })
   return null
 }
 
@@ -202,11 +228,13 @@ export default function CleanApp() {
     }
   }, [])
 
+  const { center: initialCenter, zoom: initialZoom } = loadMapPos()
+
   return (
     <div className="relative w-screen h-screen">
       <MapContainer
-        center={[37.5665, 126.978]}
-        zoom={14}
+        center={initialCenter}
+        zoom={initialZoom}
         className="w-full h-full"
         zoomControl={false}
       >
@@ -217,8 +245,10 @@ export default function CleanApp() {
           maxZoom={20}
         />
         <ViewportTracker onBoundsChange={handleBoundsChange} />
+        <MapPositionSaver />
         <MapPanner target={mapTarget} />
         <MarkerLayer scraped_cafes={cafeMap} onSelect={handleSelect} />
+        <ScaleControl position="bottomright" metric imperial={false} />
       </MapContainer>
 
       {/* Top bar */}

@@ -10,3 +10,8 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+.leaflet-bottom.leaflet-right .leaflet-control-scale {
+  margin-right: 200px;
+  margin-bottom: 24px;
+}

@@ -14,7 +14,6 @@ export function useSnapshot() {
     setSnapshotState(name)
   }
 
-  // append ?snapshot= to any API URL if a snapshot is selected
   const apiUrl = (url: string) => {
     if (!snapshot) return url
     const sep = url.includes('?') ? '&' : '?'
@@ -22,6 +21,18 @@ export function useSnapshot() {
   }
 
   return { snapshot, setSnapshot, apiUrl }
+}
+
+function renderMd(md: string): string {
+  return md
+    .replace(/^#+ .+$/gm, '')                  // drop all headings
+    .replace(/<!--[\s\S]*?-->/g, '')            // drop comments
+    .replace(/```([\s\S]*?)```/g, (_, inner) =>
+      `<pre class="bg-gray-100 rounded p-2 text-xs font-mono overflow-x-auto my-2 whitespace-pre">${inner.trim()}</pre>`)
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-gray-700">$1</strong>')
+    .replace(/\n{2,}/g, '<br/>')
+    .replace(/\n/g, ' ')
+    .trim()
 }
 
 interface Props {
@@ -32,7 +43,8 @@ interface Props {
 export function SnapshotSelector({ snapshot, setSnapshot }: Props) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  const isHistorical = !!snapshot
 
   useEffect(() => {
     fetch('/api/snapshots')
@@ -42,67 +54,111 @@ export function SnapshotSelector({ snapshot, setSnapshot }: Props) {
   }, [])
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+    if (!open) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [open])
 
-  if (snapshots.length === 0) return null
+  const handleBackdrop = (e: React.MouseEvent) => {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node)) setOpen(false)
+  }
 
-  const current = snapshots.find(s => s.name === snapshot)
-  const label = snapshot ? (current?.name ?? snapshot) : 'Live'
-  const isHistorical = !!snapshot
+  const use = (name: string) => { setSnapshot(name); setOpen(false) }
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen(true)}
         className={`flex items-center gap-1.5 rounded-lg shadow px-3 py-1.5 text-sm transition-colors ${
           isHistorical
             ? 'bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100'
             : 'bg-white text-gray-700 hover:bg-gray-50'
         }`}
-        title={isHistorical ? 'Viewing historical snapshot' : 'Live data'}
+        title="DB History"
       >
         {isHistorical && <span className="text-amber-500">⚠</span>}
-        <span className="font-mono text-xs">{label}</span>
-        <span className="text-gray-400">▾</span>
+        <span className="font-mono text-xs">{snapshot || 'Live'}</span>
+        <span className="text-gray-400">🕐</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-[700] bg-white rounded-xl shadow-2xl border border-gray-100 w-72 max-h-[60vh] overflow-y-auto">
-          <div className="p-2">
-            <button
-              onClick={() => { setSnapshot(''); setOpen(false) }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                !snapshot ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-50 text-gray-700'
-              }`}
-            >
-              <div className="font-medium">Live</div>
-              <div className="text-xs text-gray-400">Current clean.db</div>
-            </button>
+        <div
+          className="fixed inset-0 z-[800] flex items-center justify-center bg-black/40"
+          onMouseDown={handleBackdrop}
+        >
+          <div
+            ref={modalRef}
+            className="bg-white rounded-2xl shadow-2xl w-[680px] max-w-[95vw] max-h-[80vh] flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-gray-900">DB History</h2>
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+            </div>
 
-            {snapshots.length > 0 && (
-              <div className="my-2 border-t border-gray-100" />
-            )}
+            {/* List */}
+            <div className="overflow-y-auto flex-1 p-4 flex flex-col gap-3">
+              {/* Live row */}
+              <div className={`rounded-xl border p-4 ${!snapshot ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-sm text-gray-900">Live</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Current clean.db — live data</div>
+                  </div>
+                  {snapshot ? (
+                    <button
+                      onClick={() => use('')}
+                      className="shrink-0 px-3 py-1 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium"
+                    >
+                      Use
+                    </button>
+                  ) : (
+                    <span className="shrink-0 px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 font-medium">Active</span>
+                  )}
+                </div>
+              </div>
 
-            {snapshots.map(s => (
-              <button
-                key={s.name}
-                onClick={() => { setSnapshot(s.name); setOpen(false) }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  snapshot === s.name ? 'bg-amber-50 text-amber-800 font-medium' : 'hover:bg-gray-50 text-gray-700'
-                }`}
-              >
-                <div className="font-mono text-xs font-medium">{s.name}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{s.cafe_count.toLocaleString()} cafes</div>
-              </button>
-            ))}
+              {snapshots.length === 0 && (
+                <div className="text-sm text-gray-400 text-center py-8">No snapshots yet</div>
+              )}
+
+              {snapshots.map(s => {
+                const isActive = snapshot === s.name
+                return (
+                  <div
+                    key={s.name}
+                    className={`rounded-xl border p-4 ${isActive ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <div className="font-mono text-sm font-semibold text-gray-900">{s.name}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{s.cafe_count.toLocaleString()} cafes · {s.date}</div>
+                      </div>
+                      {isActive ? (
+                        <span className="shrink-0 px-3 py-1 text-xs rounded-lg bg-amber-100 text-amber-700 font-medium">Active</span>
+                      ) : (
+                        <button
+                          onClick={() => use(s.name)}
+                          className="shrink-0 px-3 py-1 text-xs rounded-lg bg-gray-800 text-white hover:bg-gray-700 font-medium"
+                        >
+                          Use
+                        </button>
+                      )}
+                    </div>
+                    {s.notes && (
+                      <div
+                        className="text-xs text-gray-600 border-t border-gray-100 pt-2 mt-1"
+                        dangerouslySetInnerHTML={{ __html: renderMd(s.notes) }}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
