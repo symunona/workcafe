@@ -25,7 +25,7 @@ from cafe_norm_utils import llm_generate
 from db_client import DBClient
 
 ENGLISHIFY_DB = os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'englishify.db'))
-BATCH_SIZE = 30
+BATCH_SIZE = 10
 
 
 def open_englishify(path: str) -> sqlite3.Connection:
@@ -76,17 +76,17 @@ def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
     return count
 
 
-def _parse_pairs(text: str, batch: list) -> dict:
-    """Parse 'korean; english' lines → {korean: english}. Case-insensitive source match."""
+_SEP = re.compile(r'\s*(?:;|→|->|:)\s*')
+
+def _parse_numbered(text: str, batch: list) -> dict:
+    """Parse 'N. EnglishName' lines → {korean: english} matched by index."""
     result = {}
     for line in text.splitlines():
-        line = line.strip().lstrip('-').strip()
-        if ';' not in line:
-            continue
-        kr, _, en = line.partition(';')
-        kr, en = kr.strip(), en.strip()
-        if kr and en:
-            result[kr] = en
+        m = re.match(r'^(\d+)[.)]\s*(.+)', line.strip())
+        if m:
+            idx = int(m.group(1)) - 1
+            if 0 <= idx < len(batch):
+                result[batch[idx]] = m.group(2).strip()
     return result
 
 
@@ -94,7 +94,8 @@ def _translate_one(kr: str, model: str) -> str:
     return llm_generate(
         f"Translate this Korean cafe name to English. "
         f"Use transliteration for brand names. "
-        f"Return only the English name, nothing else: {kr}"
+        f"Return only the English name, nothing else: {kr}",
+        max_tokens=30, model=model,
     ).strip()
 
 
@@ -131,30 +132,30 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
 
     for i in range(0, total, BATCH_SIZE):
         batch = pending[i:i + BATCH_SIZE]
-        names_block = "\n".join(batch)
+        numbered = "\n".join(f"{j+1}. {name}" for j, name in enumerate(batch))
         prompt = (
-            "Translate each Korean cafe/coffee shop name to English.\n"
-            "Use transliteration for brand names (e.g. 스타벅스 → Starbucks).\n"
-            "Return ONLY lines in this format, one per name, no extra text:\n"
-            "korean; english\n\n"
-            + names_block
+            "Translate Korean cafe names to English. "
+            "One per line as \"N. EnglishName\":\n\n"
+            + numbered
         )
         pairs = {}
         try:
-            pairs = _parse_pairs(llm_generate(prompt), batch)
+            result = llm_generate(prompt, max_tokens=len(batch) * 30, model=model)
+            pairs = _parse_numbered(result, batch)
         except Exception:
             pass
 
-        # retry any names the model missed
-        missed = [kr for kr in batch if kr not in pairs]
+        # retry missed names one-by-one
+        missed = [kr for kr in batch if not pairs.get(kr)]
         if missed:
-            print(f"\n  retrying {len(missed)} missed", end="", flush=True)
-        for kr in missed:
-            try:
-                pairs[kr] = _translate_one(kr, model)
-            except Exception:
-                pass
+            print(f"\n  retrying {len(missed)}", end="", flush=True)
+            for kr in missed:
+                try:
+                    pairs[kr] = _translate_one(kr, model)
+                except Exception:
+                    pass
 
+        still_missing = sum(1 for kr in batch if not pairs.get(kr))
         for kr in batch:
             en = pairs.get(kr, "")
             if not en:
@@ -167,7 +168,8 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
             translated += 1
 
         eng.commit()
-        print(_progress(already, translated, total, time.time() - t0), end="", flush=True)
+        suffix = f"  skipped:{still_missing}" if still_missing else ""
+        print(_progress(already, translated, total, time.time() - t0) + suffix, end="", flush=True)
 
     print()
 
@@ -182,7 +184,7 @@ if __name__ == "__main__":
                         help="Path to englishify.db")
     parser.add_argument("--sync-only",     action="store_true",
                         help="Only sync names + chain pre-pass, skip ollama")
-    parser.add_argument("--model",         default="qwen2.5:1.5b")
+    parser.add_argument("--model",         default="qwen2.5:3b")
     args = parser.parse_args()
 
     t0 = time.time()

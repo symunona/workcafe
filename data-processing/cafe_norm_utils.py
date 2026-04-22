@@ -146,17 +146,17 @@ def strip_branch(name: str) -> str:
 
 # ─── LLM helpers (qwen2.5:1.5b) ──────────────────────────────────────────────
 
-def llm_generate(prompt: str, max_tokens: int = 100) -> str:
+def llm_generate(prompt: str, max_tokens: int = 100, model: str = LLM_MODEL) -> str:
     try:
         resp = httpx.post(
             f"{OLLAMA_BASE}/api/generate",
             json={
-                "model": LLM_MODEL,
+                "model": model,
                 "prompt": prompt,
                 "stream": False,
                 "options": {"num_predict": max_tokens, "temperature": 0.1},
             },
-            timeout=60,
+            timeout=120,
         )
         resp.raise_for_status()
         return resp.json()["response"].strip()
