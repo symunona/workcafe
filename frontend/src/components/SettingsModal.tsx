@@ -639,6 +639,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                         <tr className="bg-gray-50 text-left">
                           <th className="px-3 py-2 font-semibold text-gray-500 text-xs uppercase">Provider</th>
                           <th className="px-3 py-2 font-semibold text-gray-500 text-xs uppercase text-right">Total</th>
+                          <th className="px-3 py-2 font-semibold text-gray-500 text-xs uppercase text-right" title="Has website URL in metadata">Website</th>
                           <th className="px-3 py-2 font-semibold text-gray-500 text-xs uppercase text-right">Cafes/hr</th>
                           <th className="px-3 py-2 font-semibold text-gray-500 text-xs uppercase text-right">Cafes/24h</th>
                           <th className="px-3 py-2 font-semibold text-gray-500 text-xs uppercase text-right" title="Images saved to disk (file_size > 0)">DL/hr</th>
@@ -650,6 +651,14 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                           <tr key={p.provider} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                             <td className="px-3 py-2 font-medium text-gray-800 capitalize">{p.provider}</td>
                             <td className="px-3 py-2 text-right text-gray-700">{p.total.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right">
+                              {p.has_website > 0 ? (
+                                <>
+                                  <span className="text-emerald-600 font-medium">{p.has_website.toLocaleString()}</span>
+                                  <span className="text-gray-400 text-xs ml-1">({p.total > 0 ? Math.round(p.has_website / p.total * 100) : 0}%)</span>
+                                </>
+                              ) : <span className="text-gray-300">—</span>}
+                            </td>
                             <td className="px-3 py-2 text-right">
                               <span className={p.cafes_last_hour > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}>{p.cafes_last_hour}</span>
                             </td>

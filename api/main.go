@@ -49,6 +49,7 @@ type ProviderMetrics struct {
 	DownloadedLastHour  int     `json:"downloaded_last_hour"`
 	Downloaded24h       int     `json:"downloaded_24h"`
 	Total               int     `json:"total"`
+	HasWebsite          int     `json:"has_website"`
 	// Image coverage distribution
 	CafesWithImages int     `json:"cafes_with_images"`
 	Cafes2Plus      int     `json:"cafes_2plus"`
@@ -599,7 +600,8 @@ func main() {
 				provider,
 				COUNT(*) as total,
 				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_hour,
-				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h
+				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h,
+				SUM(CASE WHEN json_extract(metadata, '$.website') IS NOT NULL AND json_extract(metadata, '$.website') != '' THEN 1 ELSE 0 END) as has_website
 			FROM scraped_cafes GROUP BY provider ORDER BY total DESC
 		`, h1ago, h24ago)
 		if err == nil {
@@ -607,7 +609,7 @@ func main() {
 			pmMap := map[string]*ProviderMetrics{}
 			for providerRows.Next() {
 				pm := &ProviderMetrics{}
-				providerRows.Scan(&pm.Provider, &pm.Total, &pm.CafesLastHour, &pm.Cafes24h)
+				providerRows.Scan(&pm.Provider, &pm.Total, &pm.CafesLastHour, &pm.Cafes24h, &pm.HasWebsite)
 				pmMap[pm.Provider] = pm
 				resp.PerProvider = append(resp.PerProvider, *pm)
 			}

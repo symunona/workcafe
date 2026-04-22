@@ -27,12 +27,21 @@ Do not sign the code in commits.
 
 Always read all the AGENT.md -s of the current folder before doing anything.
 
-When starting stopping services, always use `just [servicename]`
+Starting stopping services, always use `just [servicename]`
 
-When you make modifications to a service, check it's previously set state, and restart if affected. (e.g. restart api on frontend/api changes!)
+On modifications to a service, check it's previously set state, and restart if affected. Restart api on frontend/api changes or scrapers.
+
+
+### scripts
 
 python: always use uv for venvs.
 
+design scripts so can be ran and tested on a subset of the data (take a limit param) 
+benchmark/see if they created the right results
+especially if making scripts with LLM calls.
+Point is: always check if your script creates the necessary results
+
+## beads
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
 ## Database Architecture

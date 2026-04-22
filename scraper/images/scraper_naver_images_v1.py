@@ -268,7 +268,7 @@ async def _graphql_call(browser_page, cursor_state: list, place_id: str,
                 clearTimeout(tid);
                 return {status: -1, error: String(e)};
             }
-        }''', [GRAPHQL_URL, payload, token, referer], timeout=45000)
+        }''', [GRAPHQL_URL, payload, token, referer])
     except Exception as e:
         err = str(e)
         if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed', 'browser has been closed')):
