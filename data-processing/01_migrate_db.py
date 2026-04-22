@@ -11,7 +11,7 @@ import sqlite3
 import argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_HERE, '..', 'scraper'))
+sys.path.insert(0, os.path.join(_HERE, '..', 'scraper', 'lib'))
 from utils import DB_PATH
 
 DB_PATH_ABS = os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'scraped.db'))

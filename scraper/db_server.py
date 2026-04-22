@@ -35,7 +35,7 @@ import argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 os.chdir(_HERE)
-sys.path.insert(0, _HERE)
+sys.path.insert(0, os.path.join(_HERE, 'lib'))
 
 from utils import DB_PATH, DB_SOCKET_PATH, DB_PID_FILE, init_tables
 

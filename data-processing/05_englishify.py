@@ -19,7 +19,7 @@ import argparse
 import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_HERE, '..', 'scraper'))
+sys.path.insert(0, os.path.join(_HERE, '..', 'scraper', 'lib'))
 sys.path.insert(0, _HERE)
 
 from cafe_norm_utils import llm_generate

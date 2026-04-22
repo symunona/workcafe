@@ -17,7 +17,7 @@ Safe to re-run: clears and rebuilds cafe_chains.
 import os, sys, uuid, argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_HERE, '..', 'scraper'))
+sys.path.insert(0, os.path.join(_HERE, '..', 'scraper', 'lib'))
 
 from cafe_norm_utils import normalized_lev, strip_branch, llm_generate
 from db_client import DBClient

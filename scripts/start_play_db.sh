@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/scraper"
+WDIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$WDIR/scraper"
 
-DB_PATH="../data/seoul/clean.db"
+DB_PATH="$WDIR/data/seoul/clean.db"
 SOCKET_PATH="/tmp/workcafe_play_db.sock"
 PID_FILE="/tmp/workcafe_play_db.pid"
 
-source ../venv/bin/activate
+source "$WDIR/venv/bin/activate"
 
 # Start play db server (--replace kills any existing server using the PID file)
 nohup python3 db_server.py --db "$DB_PATH" --socket "$SOCKET_PATH" --pid-file "$PID_FILE" --replace > log/play_db_server.log 2>&1 &

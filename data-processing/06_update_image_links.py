@@ -10,7 +10,7 @@ import sys
 import argparse
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(_HERE, '..', 'scraper'))
+sys.path.insert(0, os.path.join(_HERE, '..', 'scraper', 'lib'))
 
 from db_client import DBClient
 
