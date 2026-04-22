@@ -77,18 +77,38 @@ def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
     return count
 
 
+def _progress(already: int, done: int, total: int, elapsed: float, bar_len: int = 30) -> str:
+    """Progress bar anchored at `already` (pre-existing), counting `done` new translations."""
+    grand_total = already + total
+    grand_done  = already + done
+    pct = grand_done / grand_total if grand_total > 0 else 0
+    filled = int(bar_len * pct)
+    bar = "█" * filled + "░" * (bar_len - filled)
+    eta = ""
+    if done > 0 and elapsed > 0:
+        rate = done / elapsed
+        remaining = (total - done) / rate
+        m, s = divmod(int(remaining), 60)
+        eta = f"  ETA {m}m{s:02d}s  {rate:.1f}/s"
+    return f"\r[{bar}] {grand_done}/{grand_total} ({pct*100:.1f}%){eta}  "
+
+
 def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
     cur = eng.cursor()
     cur.execute("SELECT korean_name FROM name_translations WHERE english_name IS NULL")
     pending = [r[0] for r in cur.fetchall()]
+    already = eng.execute("SELECT COUNT(*) FROM name_translations WHERE english_name IS NOT NULL").fetchone()[0]
+
     if not pending:
-        print("  ollama: nothing to translate")
+        print(f"  ollama: nothing to translate ({already} already done)")
         return 0
 
-    print(f"  ollama: translating {len(pending)} names in batches of {BATCH_SIZE}...")
+    total = len(pending)
+    print(f"  ollama: {already} already translated, {total} remaining — batches of {BATCH_SIZE}")
     translated = 0
+    t0 = time.time()
 
-    for i in range(0, len(pending), BATCH_SIZE):
+    for i in range(0, total, BATCH_SIZE):
         batch = pending[i:i + BATCH_SIZE]
         prompt = (
             "Translate these Korean cafe/coffee shop names to English. "
@@ -111,7 +131,7 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
             else:
                 raise ValueError(f"No JSON array in response: {result[:200]}")
         except Exception as e:
-            print(f"  batch {i // BATCH_SIZE} failed ({e}), retrying one-by-one...")
+            print(f"\n  batch {i // BATCH_SIZE} failed ({e}), retrying one-by-one...")
             for kr in batch:
                 try:
                     en = llm_generate(
@@ -126,8 +146,9 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
                 except Exception as e2:
                     print(f"    failed: {kr!r}: {e2}")
         eng.commit()
-        done = min(i + BATCH_SIZE, len(pending))
-        print(f"  [{done}/{len(pending)}] translated so far: {translated}")
+        print(_progress(already, translated, total, time.time() - t0), end="", flush=True)
+
+    print()  # newline after progress bar
 
     return translated
 
