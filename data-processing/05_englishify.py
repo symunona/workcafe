@@ -77,6 +77,27 @@ def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
     return count
 
 
+def _parse_json_array(text: str, expected_len: int) -> list:
+    """Strip markdown fences, try direct parse, fall back to regex extraction."""
+    # Strip ```json ... ``` or ``` ... ```
+    clean = re.sub(r'^```(?:json)?\s*', '', text.strip(), flags=re.IGNORECASE)
+    clean = re.sub(r'\s*```$', '', clean.strip())
+    # Try direct parse
+    try:
+        result = json.loads(clean)
+        if isinstance(result, list):
+            return result
+    except json.JSONDecodeError:
+        pass
+    # Fall back: find first JSON array in text (greedy: take outermost [...])
+    m = re.search(r'\[.*\]', clean, re.DOTALL)
+    if m:
+        result = json.loads(m.group())
+        if isinstance(result, list):
+            return result
+    raise ValueError(f"No JSON array found (expected {expected_len}): {text[:200]!r}")
+
+
 def _progress(already: int, done: int, total: int, elapsed: float, bar_len: int = 30) -> str:
     """Progress bar anchored at `already` (pre-existing), counting `done` new translations."""
     grand_total = already + total
@@ -118,18 +139,14 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
         )
         try:
             result = llm_generate(prompt)
-            m = re.search(r'\[.*?\]', result, re.DOTALL)
-            if m:
-                translations = json.loads(m.group())
-                for kr, en in zip(batch, translations):
-                    cur.execute("""
-                        UPDATE name_translations
-                           SET english_name = ?, model = ?, translated_at = datetime('now')
-                         WHERE korean_name = ?
-                    """, (en.strip(), model, kr))
-                    translated += 1
-            else:
-                raise ValueError(f"No JSON array in response: {result[:200]}")
+            translations = _parse_json_array(result, len(batch))
+            for kr, en in zip(batch, translations):
+                cur.execute("""
+                    UPDATE name_translations
+                       SET english_name = ?, model = ?, translated_at = datetime('now')
+                     WHERE korean_name = ?
+                """, (en.strip(), model, kr))
+                translated += 1
         except Exception as e:
             print(f"\n  batch {i // BATCH_SIZE} failed ({e}), retrying one-by-one...")
             for kr in batch:
