@@ -1,5 +1,26 @@
 # Agent Instructions
 
+## Changelog
+
+| Date | Version | What changed |
+|------|---------|--------------|
+| 2026-04-22 08:00 | v0.5.0 | Watchdog system (watchdog.py + systemd timer). Kakao/Naver metadata scrapers v1. Fixed image scraper silent hangs (AbortController wrapping body read; CAFE_TIMEOUT_SECS ref). Major Justfile expansion. Scraper dir reorganized: archive/, tools/, tests/ subdirs. File placement rules added to AGENTS.md. |
+| 2026-04-22 04:00 | v0.4.x | Watchdog prototype, register_watchdog.sh, Settings UI watchdog panel, /api/watchdog-status endpoint. |
+| 2026-04-21 12:00 | v0.4.0 | Data cleaner pipeline (data-processing/cleaner/). Two-DB architecture: cafedata.db (raw) + clean-data.db (normalized). merge-pipeline just recipe. API split: rawDb for /api/status, db for everything else. |
+| 2026-04-20 04:00 | v0.3.x | Google image scraper consent fix, photos tab clicking. POI icon scraper-color ring. URL navigation pan. Chain colors. Dedup script (same provider+location, keep latest). |
+| 2026-04-19 08:00 | v0.3.0 | Cafe normalization pipeline + clean_cafes API + CleanApp frontend. belongs_to_cafe_id populated at insert time. Normalization Justfile recipes. |
+| 2026-04-19 03:00 | v0.2.x | Settings improvements, Google scraper backfill, image verification. Tor check. Google scraper v3. |
+| 2026-04-18 09:00 | v0.2.0 | Systemd service install via Justfile. Service management with just start/stop/restart/status. |
+| 2026-04-16 00:00 | v0.1.x | Component updates across frontend, API, scrapers. Various bug fixes. |
+| 2026-04-14 04:00 | v0.1.0 | Image compression (JPEG q75/1024px) at scrape time. Grid paging. db_server socket singleton (fixes orphan images). |
+| 2026-04-12 05:00 | v0.0.x | health_check.sh: stop scrapers when disk < 2GB. Verbose grid-skip log silence. |
+| 2026-03-30 11:00 | v0.0.3 | Separate Naver image scraper. Naver timeout/JSON fix. UI improvements. |
+| 2026-03-30 08:00 | v0.0.2 | Scraper settings modal: hourly line chart, provider selector, queue stats. Service kill/restart just recipes. |
+| 2026-03-30 05:00 | v0.0.1 | Mobile layout, full-screen viewer, stats modal, search bar fixes. |
+| 2026-03-30 03:00 | v0.0.0 | Initial commit. Kakao/Google/Naver/OSM scrapers + Go API + Vite+React frontend. |
+
+---
+
 Do not sign the code in commits.
 
 Always read all the AGENT.md -s of the current folder before doing anything.
@@ -47,6 +68,8 @@ just logs <name>      # tail logs
 | `kakao-images` | `workcafe-kakao-images` | Kakao photo downloader (`scraper_kakao_images_v3.py`) |
 | `naver-images` | `workcafe-naver-images` | Naver photo downloader (`scraper_naver_images_v1.py`) |
 | `google-images` | `workcafe-google-images` | Google Maps photo downloader (`scraper_google_images_v1.py`) |
+| `kakao-metadata` | `workcafe-kakao-metadata` | Kakao website/phone/hours enricher (`scraper_kakao_metadata_v1.py`) |
+| `naver-metadata` | `workcafe-naver-metadata` | Naver website/phone/hours enricher (`scraper_naver_metadata_v1.py`) |
 
 ### Diagnosing stuck image scrapers
 
@@ -103,7 +126,39 @@ bd close <id>         # Complete work
 bd dolt push          # Push beads data to remote
 ```
 
-## Temporary Files
+## File Placement Rules
+
+### Databases
+
+**Only two canonical DBs:** `data/seoul/cafedata.db` (raw) and `data/seoul/clean-data.db` (normalized).
+
+- **Never** create `.db` files in `scraper/`, project root, or any other location.
+- Dev/play fixture: `api/play.db` only — it is gitignored.
+- If you find a `.db` anywhere else, it is stale — move it to `tmp/` or delete it.
+
+### Project root
+
+Only these file types belong in the project root: `CLAUDE.md`, `AGENTS.md`, `Justfile`, `*.md` docs, and named setup/deploy scripts (`setup_nginx.sh`, `start_play_db.sh`, `health_check.sh`, `run_test_pipeline.sh`).
+
+**No** `.py`, `.js`, `.sh` one-offs, screenshots, or `.db` files in the root.
+
+### Scraper directory layout
+
+```
+scraper/
+├── [active scripts + shared libs]   ← scrapers referenced by Justfile, db_server/client, utils
+├── archive/                          ← superseded versions (old vN files)
+├── tools/                            ← one-time ran scripts (backfill, migrate, compress, verify)
+│   └── each file must have header:  # Run once: YYYY-MM-DD. Purpose: ... Safe to delete after DATE.
+├── tests/                            ← ad-hoc manual test scripts (test_*.py, investigate_*.py)
+└── log/                              ← runtime logs (gitignored)
+```
+
+**When superseding a scraper:** move the old file to `archive/` and update the service table in AGENTS.md.
+
+**Investigation scripts** go in `tmp/` (one-off, delete when done) or `scraper/tests/` (if worth keeping).
+
+### Temporary Files
 
 **ALWAYS** create and use a `tmp/` folder in the workspace root (`workspace_folder/tmp`) for any temporary scripts, screenshots, or intermediate files. Do not clutter the main directory with test scripts or temporary outputs.
 
