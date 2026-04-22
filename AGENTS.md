@@ -6,7 +6,92 @@ Always read all the AGENT.md -s of the current folder before doing anything.
 
 When starting stopping services, always use `just [servicename]`
 
+When you make modifications to a service, check it's previously set state, and restart if affected. (e.g. restart api on frontend/api changes!)
+
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+
+## Database Architecture
+
+Two SQLite databases, each with a distinct role:
+
+| File | Written by | Read by | Contains |
+|------|-----------|---------|----------|
+| `data/seoul/cafedata.db` | Scrapers (via `db_server` socket) | API `/api/status` metrics only | Raw scraped cafes + images, always live |
+| `data/seoul/clean-data.db` | Normalization pipeline (`just merge-pipeline`) | API for all cafe/map queries | Deduplicated clean cafes, cafe chains, merged images |
+
+**Rule:** never query `clean-data.db` for scraper activity metrics — it lags behind by however long since the last pipeline run. Always query `cafedata.db` for rates, counts, and timestamps. The API (`api/main.go`) opens both: `rawDb` for `/api/status`, `db` for everything else.
+
+## Services & Processes
+
+**All service management goes through `just`.** Never start/stop scrapers or servers by hand.
+
+```bash
+just status           # show status of all services
+just start <name>     # start a service
+just stop <name>      # stop a service
+just restart <name>   # restart a service
+just logs <name>      # tail logs
+```
+
+### Service names
+
+| Service | systemd unit | What it does |
+|---------|-------------|-------------|
+| `db-server` | `workcafe-db-server` | Unix socket DB proxy at `/tmp/workcafe_db.sock` → `data/seoul/cafedata.db` |
+| `api` | `workcafe-api` | Go REST API on `:8090` |
+| `frontend` | `workcafe-frontend` | Vite+React dev server on `:5550` |
+| `kakao` | `workcafe-scraper-kakao` | Kakao place metadata scraper |
+| `google` | `workcafe-scraper-google` | Google Maps metadata scraper |
+| `naver` | `workcafe-scraper-naver` | Naver place metadata scraper |
+| `osm` | `workcafe-scraper-osm` | OpenStreetMap scraper |
+| `kakao-images` | `workcafe-kakao-images` | Kakao photo downloader (`scraper_kakao_images_v3.py`) |
+| `naver-images` | `workcafe-naver-images` | Naver photo downloader (`scraper_naver_images_v1.py`) |
+| `google-images` | `workcafe-google-images` | Google Maps photo downloader (`scraper_google_images_v1.py`) |
+
+### Diagnosing stuck image scrapers
+
+Image scrapers can hang silently. **Log files lie** — they buffer writes, so the file timestamp may be 5–10 min behind reality. Always check the **systemd journal**:
+
+```bash
+journalctl --user -u workcafe-kakao-images --since "1 hour ago" --no-pager | tail -30
+journalctl --user -u workcafe-naver-images --since "1 hour ago" --no-pager | tail -30
+journalctl --user -u workcafe-google-images --since "1 hour ago" --no-pager | tail -30
+```
+
+If a scraper is alive but silent, check what syscall it's blocked on:
+
+```bash
+cat /proc/<PID>/wchan          # do_poll / do_select = waiting for network I/O
+ss -tp | grep <PID>            # look for CLOSE-WAIT sockets = remote closed, client hung
+```
+
+**Known bugs that break self-recovery — fixed 2026-04-22:**
+
+1. **`scraper_naver_images_v1.py:245`** — AbortController was cleared after `fetch()` resolved but before `resp.text()`. Body reads could hang forever. Fixed: AbortController now wraps both `fetch()` and `resp.text()`; added `timeout=45000` to outer `evaluate()` call.
+
+2. **`scraper_kakao_images_v3.py:127`** — `_alarm_handler` referenced undefined `CAFE_TIMEOUT_SECS`. SIGALRM raised `NameError` → swallowed by `except Exception` inside `download_bytes` → watchdog silently broken. Fixed: use `PAGE_TIMEOUT_SECS`.
+
+### Watchdog
+
+`scraper/watchdog.py` runs every 30 min via systemd timer. Checks log recency for all 3 image scrapers. Restarts any that have been silent > 30 min. Writes `data/watchdog-status.json` (served at `/api/watchdog-status`, shown in Settings UI).
+
+```bash
+just register-watchdog    # install + enable systemd timer
+just deregister-watchdog  # disable + remove timer
+just watchdog-run         # run once immediately
+just watchdog-reset <name>  # reset auto_restarts counter (e.g. after manual fix)
+```
+
+Auto-restart counters reset automatically when the watchdog detects a PID change it didn't cause (manual restart or systemd on-failure recovery).
+
+### Playwright browsers
+
+Naver and Google image scrapers each spawn a Playwright node driver + Chromium. If a renderer is burning CPU for hours with no log output, the browser is stuck (not the Python process). Restart the scraper service — systemd will kill the whole cgroup including child browser processes.
+
+```bash
+just restart naver-images
+just restart google-images
+```
 
 ## Quick Reference
 

@@ -275,11 +275,42 @@ install-services:
     [Install]
     WantedBy=default.target"
 
+    write_unit workcafe-kakao-metadata "[Unit]
+    Description=Workcafe metadata scraper: kakao
+    After=workcafe-db-server.service
+    Requires=workcafe-db-server.service
+
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/scraper
+    ExecStart=$VENV scraper_kakao_metadata_v1.py
+    Restart=on-failure
+    RestartSec=60
+
+    [Install]
+    WantedBy=default.target"
+
+    write_unit workcafe-naver-metadata "[Unit]
+    Description=Workcafe metadata scraper: naver
+    After=workcafe-db-server.service
+    Requires=workcafe-db-server.service
+
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR/scraper
+    ExecStart=$VENV scraper_naver_metadata_v1.py
+    Restart=on-failure
+    RestartSec=60
+
+    [Install]
+    WantedBy=default.target"
+
     systemctl --user daemon-reload
     systemctl --user enable \
         workcafe-db-server workcafe-api workcafe-frontend \
         workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver \
-        workcafe-kakao-images workcafe-naver-images workcafe-google-images
+        workcafe-kakao-images workcafe-naver-images workcafe-google-images \
+        workcafe-kakao-metadata workcafe-naver-metadata
     echo ""
     echo "Done. Run: just service all start"
 
@@ -328,6 +359,9 @@ status:
     chk kakao-images  workcafe-kakao-images
     chk naver-images  workcafe-naver-images
     chk google-images workcafe-google-images
+    echo "── metadata-scraper (website/phone/hours) ───────────"
+    chk kakao-metadata workcafe-kakao-metadata
+    chk naver-metadata workcafe-naver-metadata
 
 # Kill all managed services
 [group('Services')]
@@ -341,36 +375,68 @@ restart:
 
 # Manage services. Usage: just service <target> [start|stop|status|restart]
 # Targets:
-#   all           — every service
-#   scraper       — kakao + google + osm + naver (location scrapers)
-#   image-scraper — kakao-images + naver-images + google-images (photo scrapers)
-#   db-server | api | frontend | kakao | google | osm | naver | kakao-images | naver-images | google-images
+#   all              — every service
+#   scraper          — kakao + google + osm + naver (location scrapers)
+#   image-scraper    — kakao-images + naver-images + google-images (photo scrapers)
+#   metadata-scraper — kakao-metadata + naver-metadata (metadata scrapers)
+#   db-server | api | frontend | kakao | google | osm | naver | kakao-images | naver-images | google-images | kakao-metadata | naver-metadata
 [group('Services')]
 service target action="status":
     #!/usr/bin/env bash
-    ALL="workcafe-db-server workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images"
+    ALL="workcafe-db-server workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
     SCRAPERS="workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver"
     IMAGES="workcafe-kakao-images workcafe-naver-images workcafe-google-images"
+    META="workcafe-kakao-metadata workcafe-naver-metadata"
     case "{{target}}" in
-      all)           systemctl --user {{action}} $ALL; exit 0 ;;
-      scraper)       systemctl --user {{action}} $SCRAPERS; exit 0 ;;
-      image-scraper) systemctl --user {{action}} $IMAGES; exit 0 ;;
-      db-server)     svc="workcafe-db-server" ;;
-      api)           svc="workcafe-api" ;;
-      frontend)      svc="workcafe-frontend" ;;
-      kakao)         svc="workcafe-scraper-kakao" ;;
-      google)        svc="workcafe-scraper-google" ;;
-      osm)           svc="workcafe-scraper-osm" ;;
-      naver)         svc="workcafe-scraper-naver" ;;
-      kakao-images)  svc="workcafe-kakao-images" ;;
-      naver-images)  svc="workcafe-naver-images" ;;
-      google-images) svc="workcafe-google-images" ;;
+      all)              systemctl --user {{action}} $ALL; exit 0 ;;
+      scraper)          systemctl --user {{action}} $SCRAPERS; exit 0 ;;
+      image-scraper)    systemctl --user {{action}} $IMAGES; exit 0 ;;
+      metadata-scraper) systemctl --user {{action}} $META; exit 0 ;;
+      db-server)        svc="workcafe-db-server" ;;
+      api)              svc="workcafe-api" ;;
+      frontend)         svc="workcafe-frontend" ;;
+      kakao)            svc="workcafe-scraper-kakao" ;;
+      google)           svc="workcafe-scraper-google" ;;
+      osm)              svc="workcafe-scraper-osm" ;;
+      naver)            svc="workcafe-scraper-naver" ;;
+      kakao-images)     svc="workcafe-kakao-images" ;;
+      naver-images)     svc="workcafe-naver-images" ;;
+      google-images)    svc="workcafe-google-images" ;;
+      kakao-metadata)   svc="workcafe-kakao-metadata" ;;
+      naver-metadata)   svc="workcafe-naver-metadata" ;;
       *)
         echo "Unknown target: {{target}}"
-        echo "Use: all | scraper | image-scraper | db-server | api | frontend | kakao | google | osm | naver | kakao-images | naver-images | google-images"
+        echo "Use: all | scraper | image-scraper | metadata-scraper | db-server | api | frontend | kakao | google | osm | naver | kakao-images | naver-images | google-images | kakao-metadata | naver-metadata"
         exit 1 ;;
     esac
     systemctl --user {{action}} "$svc"
+
+
+# Register systemd timer that runs watchdog every 30 min
+[group('Services')]
+register-watchdog:
+    bash "{{ justfile_directory() }}/scraper/register_watchdog.sh" "{{ justfile_directory() }}"
+
+# Disable and remove the watchdog timer
+[group('Services')]
+deregister-watchdog:
+    #!/usr/bin/env bash
+    systemctl --user disable --now workcafe-watchdog.timer 2>/dev/null || true
+    rm -f "$HOME/.config/systemd/user/workcafe-watchdog.service"
+    rm -f "$HOME/.config/systemd/user/workcafe-watchdog.timer"
+    systemctl --user daemon-reload
+    echo "Watchdog deregistered."
+
+# Run watchdog immediately (one-shot, outside timer)
+[group('Services')]
+watchdog-run:
+    @cd scraper && ../venv/bin/python watchdog.py
+
+# Reset watchdog restart counter for an image scraper (after manual intervention)
+# Usage: just watchdog-reset kakao-images
+[group('Services')]
+watchdog-reset name:
+    @cd scraper && ../venv/bin/python watchdog.py --reset {{name}}
 
 
 # ── Scrapers ─────────────────────────────────────────────────────────────────
@@ -429,38 +495,87 @@ normalize limit="0":
         python data-processing/cleaner/04_normalize_pipeline.py --limit {{limit}}
     fi
 
+# Detect chains from scraped_cafes name frequency; writes to cafe_chains on play DB.
+# Uses play DB if socket exists, otherwise starts it first.
+[group('Data Pipeline')]
+detect-chains:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    PLAY_SOCK=/tmp/workcafe_play_db.sock
+    if [ ! -S "$PLAY_SOCK" ]; then
+        echo "Play DB not running — starting..."
+        bash start_play_db.sh
+    fi
+    python3 data-processing/cleaner/03_detect_chains.py \
+        --socket "$PLAY_SOCK" \
+        --verbose
+
+# Translate Korean cafe names to English. Chain cafes filled from cafe_chains (no model call).
+# Independent cafes: ollama batch-30 (~2.7/s). Benchmark showed opus-mt-ko-en is faster
+# (~10/s inference) but hallucinates on Korean brand transliterations ("I'm sorry, I'm sorry"
+# for 카페드리옹) — ollama understands the "cafe brand name" context and wins on quality.
+[group('Data Pipeline')]
+englishify:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 data-processing/cleaner/05_english_names_bulk.py --backend ollama --batch-size 30
+
+# Benchmark ollama vs opus-mt on 50 random names. Run this if considering switching backends.
+[group('Data Pipeline')]
+englishify-benchmark:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    echo "=== ollama batch-30 (current) ==="
+    python3 data-processing/cleaner/05_english_names_bulk.py --benchmark --backend ollama --benchmark-size 50
+    echo ""
+    echo "=== opus-mt-ko-en (faster but hallucinates brand names) ==="
+    python3 data-processing/cleaner/05_english_names_bulk.py --benchmark --backend opus --benchmark-size 50
+
 # Generate English names for clean_cafes (runs after normalize)
 [group('Data Pipeline')]
 english-names:
     #!/usr/bin/env bash
     source venv/bin/activate
-    cd scraper
-    python data-processing/cleaner/05_english_names.py
+    python3 data-processing/cleaner/05_english_names.py
 
 # Bulk-update images.belongs_to_cafe_id from scraped_cafes table (run after normalize)
 [group('Data Pipeline')]
 link-images:
     #!/usr/bin/env bash
     source venv/bin/activate
-    cd scraper
-    python data-processing/cleaner/06_update_image_links.py
+    cd scraper && python3 ../data-processing/cleaner/06_update_image_links.py
 
 # Full normalization pass: migrate → normalize → link images → english names
 [group('Data Pipeline')]
 normalize-all:
     #!/usr/bin/env bash
     source venv/bin/activate
-    cd scraper
-    python data-processing/cleaner/01_migrate_db.py
-    python data-processing/cleaner/04_normalize_pipeline.py
-    python data-processing/cleaner/06_update_image_links.py
-    python data-processing/cleaner/05_english_names.py --chains-only
+    python3 data-processing/cleaner/01_migrate_db.py
+    cd scraper && python3 ../data-processing/cleaner/04_normalize_pipeline.py
+    cd scraper && python3 ../data-processing/cleaner/06_update_image_links.py
+    python3 data-processing/cleaner/05_english_names.py --chains-only
 
 # Clean up orphaned/incomplete normalization data (resets belongs_to_cafe_id for re-run)
 [group('Data Pipeline')]
 db-clean:
     #!/usr/bin/env bash
+    PLAY_PID=/tmp/workcafe_play_db.pid
+    PLAY_SOCK=/tmp/workcafe_play_db.sock
+    if [ -f "$PLAY_PID" ]; then
+        OLD_PID=$(cat "$PLAY_PID" 2>/dev/null || true)
+        if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+            echo "Stopping play db server (PID $OLD_PID) before replacing DB..."
+            kill "$OLD_PID"
+            for i in $(seq 1 20); do
+                kill -0 "$OLD_PID" 2>/dev/null || break
+                sleep 0.5
+            done
+            kill -0 "$OLD_PID" 2>/dev/null && kill -9 "$OLD_PID" || true
+        fi
+        rm -f "$PLAY_PID" "$PLAY_SOCK"
+    fi
     cp -f data/seoul/cafedata.db data/seoul/clean-data.db
+    rm -f data/seoul/clean-data.db-wal data/seoul/clean-data.db-shm
     source venv/bin/activate
     printf 'y\n' | python3 data-processing/cleaner/db_clean.py
 
@@ -469,52 +584,62 @@ db-clean:
 merge-pipeline:
     #!/usr/bin/env bash
     set -euo pipefail
-    PY=/usr/bin/python3
+    PY="$(pwd)/venv/bin/python3"
     B='\033[1m'; G='\033[0;32m'; Y='\033[0;33m'; NC='\033[0m'
+    TELEMETRY_PY="$(pwd)/data-processing/cleaner/pipeline_telemetry.py"
+    STEPS=""
+    _t() { echo $(($(date +%s%3N) / 1000)); }   # current unix seconds (integer)
+    _elapsed() { echo $(( $(_t) - $1 )); }
+
+    PIPELINE_START=$(_t)
 
     echo ""
     echo -e "${B}━━━ Step 0/5  Copy scraper DB to clean DB ━━━━━━━━━━━━━━━━━${NC}"
-    just db-clean
+    T=$(_t); just db-clean
+    STEPS="${STEPS}db-clean:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 1/5  Start play DB server ━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    bash start_play_db.sh
+    echo -e "${B}━━━ Step 1/6  Start play DB server ━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t); bash start_play_db.sh
+    STEPS="${STEPS},server:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 2/5  Dedup raw scraped_cafes (same provider + location) ━━━${NC}"
-    $PY data-processing/cleaner/00_dedup_raw_cafes.py --db data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
+    echo -e "${B}━━━ Step 2/6  Dedup raw scraped_cafes (same provider + location) ━━━${NC}"
+    T=$(_t); $PY data-processing/cleaner/00_dedup_raw_cafes.py --db data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
+    STEPS="${STEPS},dedup:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 3/5  Reset clean_cafes + cafe_chains ━━━━━━━━━━━━━${NC}"
-    printf 'y\n' | $PY data-processing/cleaner/db_clean.py --socket /tmp/workcafe_play_db.sock
+    echo -e "${B}━━━ Step 3/6  Reset clean_cafes + cafe_chains ━━━━━━━━━━━━━${NC}"
+    T=$(_t); printf 'y\n' | $PY data-processing/cleaner/db_clean.py --socket /tmp/workcafe_play_db.sock
+    STEPS="${STEPS},reset:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 4/5  Merge scraped_cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 3.5/6  Detect chains from name frequency ━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t); $PY data-processing/cleaner/03_detect_chains.py --socket /tmp/workcafe_play_db.sock
+    STEPS="${STEPS},detect-chains:$(_elapsed $T)"
+
+    echo ""
+    echo -e "${B}━━━ Step 4/6  Merge scraped_cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t)
     cd scraper && $PY ../data-processing/cleaner/04_normalize_pipeline.py --db ../data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
     cd ..
+    STEPS="${STEPS},normalize:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 5/5  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 5/6  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t)
     cd scraper && $PY ../data-processing/cleaner/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
     cd ..
+    STEPS="${STEPS},link-images:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Stats ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    sqlite3 data/seoul/clean-data.db "
-        SELECT
-            'Raw scraped_cafes:         ' || COUNT(*)                                         FROM scraped_cafes
-        UNION ALL SELECT
-            'Clean scraped_cafes:       ' || COUNT(*)                                         FROM clean_cafes
-        UNION ALL SELECT
-            'Multi-provider:    ' || COUNT(*) || ' (' || ROUND(100.0*COUNT(*)/(SELECT COUNT(*) FROM clean_cafes),1) || '%)'
-                                                                                      FROM clean_cafes WHERE json_array_length(providers) > 1
-        UNION ALL SELECT
-            'Chains detected:   ' || COUNT(*)                                         FROM cafe_chains
-        UNION ALL SELECT
-            'Images linked:     ' || COUNT(*)                                         FROM images WHERE belongs_to_cafe_id IS NOT NULL
-        UNION ALL SELECT
-            'Unprocessed scraped_cafes: ' || COUNT(*)                                         FROM scraped_cafes WHERE belongs_to_cafe_id IS NULL
-    ;"
+    echo -e "${B}━━━ Telemetry ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    $PY "$TELEMETRY_PY" \
+        --log telemetry.log \
+        --start "$PIPELINE_START" \
+        --steps "$STEPS" \
+        --db data/seoul/clean-data.db || true
+
     echo ""
     echo -e "${B}━━━ Restart API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     just service api restart || true

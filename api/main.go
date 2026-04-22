@@ -41,12 +41,14 @@ type ServiceStatus struct {
 }
 
 type ProviderMetrics struct {
-	Provider       string  `json:"provider"`
-	CafesLastHour  int     `json:"cafes_last_hour"`
-	Cafes24h       int     `json:"cafes_24h"`
-	ImagesLastHour int     `json:"images_last_hour"`
-	Images24h      int     `json:"images_24h"`
-	Total          int     `json:"total"`
+	Provider            string  `json:"provider"`
+	CafesLastHour       int     `json:"cafes_last_hour"`
+	Cafes24h            int     `json:"cafes_24h"`
+	ImagesLastHour      int     `json:"images_last_hour"`
+	Images24h           int     `json:"images_24h"`
+	DownloadedLastHour  int     `json:"downloaded_last_hour"`
+	Downloaded24h       int     `json:"downloaded_24h"`
+	Total               int     `json:"total"`
 	// Image coverage distribution
 	CafesWithImages int     `json:"cafes_with_images"`
 	Cafes2Plus      int     `json:"cafes_2plus"`
@@ -80,18 +82,20 @@ type StatusResponse struct {
 	Services          []ServiceStatus        `json:"services"`
 	PerProvider       []ProviderMetrics      `json:"per_provider"`
 	FinishedProviders []string               `json:"finished_providers"`
-	TotalCafes        int                    `json:"total_cafes"`
-	TotalImages    int                    `json:"total_images"`
-	CafesLastHour  int                    `json:"cafes_last_hour"`
-	Cafes24h       int                    `json:"cafes_24h"`
-	ImagesLastHour int                    `json:"images_last_hour"`
-	Images24h      int                    `json:"images_24h"`
-	LastCafeAt     string                 `json:"last_cafe_at"`
-	LastImageAt    string                 `json:"last_image_at"`
-	MBPerDay       float64                `json:"mb_per_day"`
-	Disk           DiskStats              `json:"disk"`
-	DbQueue        map[string]QueueEntry  `json:"db_queue"`
-	HourlyStats    []HourlyStat           `json:"hourly_stats"`
+	TotalCafes             int                    `json:"total_cafes"`
+	TotalImages            int                    `json:"total_images"`
+	CafesLastHour          int                    `json:"cafes_last_hour"`
+	Cafes24h               int                    `json:"cafes_24h"`
+	ImagesLastHour         int                    `json:"images_last_hour"`
+	Images24h              int                    `json:"images_24h"`
+	DownloadedLastHour     int                    `json:"downloaded_last_hour"`
+	Downloaded24h          int                    `json:"downloaded_24h"`
+	LastCafeAt             string                 `json:"last_cafe_at"`
+	LastImageAt            string                 `json:"last_image_at"`
+	MBPerDay               float64                `json:"mb_per_day"`
+	Disk                   DiskStats              `json:"disk"`
+	DbQueue                map[string]QueueEntry  `json:"db_queue"`
+	HourlyStats            []HourlyStat           `json:"hourly_stats"`
 }
 
 // patchLocalImages injects confirmed local_paths from the images table into metadata.
@@ -113,12 +117,38 @@ var serviceMap = map[string]string{
 	"google":        "workcafe-scraper-google",
 	"osm":           "workcafe-scraper-osm",
 	"naver":         "workcafe-scraper-naver",
-	"kakao-images":  "workcafe-kakao-images",
-	"naver-images":  "workcafe-naver-images",
-	"google-images": "workcafe-google-images",
+	"kakao-images":    "workcafe-kakao-images",
+	"naver-images":    "workcafe-naver-images",
+	"google-images":   "workcafe-google-images",
+	"kakao-metadata":  "workcafe-kakao-metadata",
+	"naver-metadata":  "workcafe-naver-metadata",
 }
 
-var serviceOrder = []string{"db-server", "api", "frontend", "kakao", "google", "osm", "naver", "kakao-images", "naver-images", "google-images"}
+var serviceOrder = []string{"db-server", "api", "frontend", "kakao", "google", "osm", "naver", "kakao-images", "naver-images", "google-images", "kakao-metadata", "naver-metadata"}
+
+var imageScraperNames = map[string]bool{
+	"kakao-images":  true,
+	"naver-images":  true,
+	"google-images": true,
+}
+
+// syncWatchdog enables the watchdog timer if any image scraper is active, disables otherwise.
+func syncWatchdog() {
+	anyActive := false
+	for name := range imageScraperNames {
+		unit := serviceMap[name]
+		_, active := getServiceState(unit)
+		if active {
+			anyActive = true
+			break
+		}
+	}
+	action := "disable"
+	if anyActive {
+		action = "enable"
+	}
+	exec.Command("systemctl", "--user", action, "--now", "workcafe-watchdog.timer").Run()
+}
 
 func getServiceState(unit string) (string, bool) {
 	out, err := exec.Command("systemctl", "--user", "is-active", unit).Output()
@@ -319,16 +349,28 @@ func main() {
 	if dbPath == "" {
 		dbPath = "../data/seoul/clean-data.db"
 	}
+	rawDbPath := os.Getenv("RAW_DB_PATH")
+	if rawDbPath == "" {
+		rawDbPath = "../data/seoul/cafedata.db"
+	}
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {
 		dataDir = "../data/seoul"
 	}
 
+	// clean-data.db — normalized cafe + image data, served to frontend
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	// cafedata.db — live scraper output; used only for real-time metrics in /api/status
+	rawDb, err := sql.Open("sqlite", rawDbPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rawDb.Close()
 
 	mux := http.NewServeMux()
 
@@ -527,21 +569,23 @@ func main() {
 		h1ago := now.Add(-1 * time.Hour).Format("2006-01-02 15:04:05")
 		h24ago := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
 
-		// Total counts
-		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&resp.TotalCafes)
-		db.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&resp.TotalImages)
+		// Total counts — from live scraper DB
+		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&resp.TotalCafes)
+		rawDb.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&resp.TotalImages)
 
-		// Global time-window metrics
-		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h1ago).Scan(&resp.CafesLastHour)
-		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h24ago).Scan(&resp.Cafes24h)
-		db.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h1ago).Scan(&resp.ImagesLastHour)
-		db.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h24ago).Scan(&resp.Images24h)
-		db.QueryRow(`SELECT ROUND(COALESCE(SUM(file_size),0)/1024.0/1024.0, 1) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.MBPerDay)
+		// Global time-window metrics — from live scraper DB
+		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h1ago).Scan(&resp.CafesLastHour)
+		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h24ago).Scan(&resp.Cafes24h)
+		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h1ago).Scan(&resp.ImagesLastHour)
+		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h24ago).Scan(&resp.Images24h)
+		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h1ago).Scan(&resp.DownloadedLastHour)
+		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.Downloaded24h)
+		rawDb.QueryRow(`SELECT ROUND(COALESCE(SUM(file_size),0)/1024.0/1024.0, 1) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.MBPerDay)
 
-		// Last activity timestamps
+		// Last activity timestamps — from live scraper DB
 		var lastCafe, lastImage sql.NullString
-		db.QueryRow(`SELECT MAX(scraped_at) FROM scraped_cafes`).Scan(&lastCafe)
-		db.QueryRow(`SELECT MAX(scraped_at) FROM images`).Scan(&lastImage)
+		rawDb.QueryRow(`SELECT MAX(scraped_at) FROM scraped_cafes`).Scan(&lastCafe)
+		rawDb.QueryRow(`SELECT MAX(scraped_at) FROM images`).Scan(&lastImage)
 		if lastCafe.Valid {
 			resp.LastCafeAt = lastCafe.String
 		}
@@ -549,8 +593,8 @@ func main() {
 			resp.LastImageAt = lastImage.String
 		}
 
-		// Per-provider metrics
-		providerRows, err := db.Query(`
+		// Per-provider metrics — from live scraper DB
+		providerRows, err := rawDb.Query(`
 			SELECT
 				provider,
 				COUNT(*) as total,
@@ -569,31 +613,35 @@ func main() {
 			}
 		}
 
-		// Per-provider image metrics
-		imgRows, err := db.Query(`
+		// Per-provider image metrics — from live scraper DB
+		imgRows, err := rawDb.Query(`
 			SELECT
 				provider,
 				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_hour,
-				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h
+				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h,
+				SUM(CASE WHEN scraped_at >= ? AND file_size > 0 THEN 1 ELSE 0 END) as dl_last_hour,
+				SUM(CASE WHEN scraped_at >= ? AND file_size > 0 THEN 1 ELSE 0 END) as dl_24h
 			FROM images GROUP BY provider
-		`, h1ago, h24ago)
+		`, h1ago, h24ago, h1ago, h24ago)
 		if err == nil {
 			defer imgRows.Close()
 			for imgRows.Next() {
 				var prov string
-				var lh, l24 int
-				imgRows.Scan(&prov, &lh, &l24)
+				var lh, l24, dlh, dl24 int
+				imgRows.Scan(&prov, &lh, &l24, &dlh, &dl24)
 				for i := range resp.PerProvider {
 					if resp.PerProvider[i].Provider == prov {
 						resp.PerProvider[i].ImagesLastHour = lh
 						resp.PerProvider[i].Images24h = l24
+						resp.PerProvider[i].DownloadedLastHour = dlh
+						resp.PerProvider[i].Downloaded24h = dl24
 					}
 				}
 			}
 		}
 
-		// Per-provider image distribution
-		distRows, err := db.Query(`
+		// Per-provider image distribution — from live scraper DB
+		distRows, err := rawDb.Query(`
 			SELECT
 				provider,
 				COUNT(DISTINCT cafe_id) as cafes_with_images,
@@ -635,8 +683,8 @@ func main() {
 			hourlyMap[h] = &HourlyStat{Hour: h, Provider: "all"}
 		}
 
-		cafeHourlyRows, err := db.Query(`
-			SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
+		cafeHourlyRows, err := rawDb.Query(`
+			SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
 			FROM scraped_cafes WHERE scraped_at >= ? GROUP BY hour
 		`, h24ago)
 		if err == nil {
@@ -651,8 +699,8 @@ func main() {
 			}
 		}
 
-		imageHourlyRows, err := db.Query(`
-			SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
+		imageHourlyRows, err := rawDb.Query(`
+			SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
 			FROM images WHERE scraped_at >= ? GROUP BY hour
 		`, h24ago)
 		if err == nil {
@@ -687,8 +735,8 @@ func main() {
 			providerHourlyMap[pm.Provider] = provMap
 		}
 
-		provCafeHourlyRows, err := db.Query(`
-			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
+		provCafeHourlyRows, err := rawDb.Query(`
+			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
 			FROM scraped_cafes WHERE scraped_at >= ? GROUP BY provider, hour
 		`, h24ago)
 		if err == nil {
@@ -705,8 +753,8 @@ func main() {
 			}
 		}
 
-		provImageHourlyRows, err := db.Query(`
-			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*) 
+		provImageHourlyRows, err := rawDb.Query(`
+			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
 			FROM images WHERE scraped_at >= ? GROUP BY provider, hour
 		`, h24ago)
 		if err == nil {
@@ -749,20 +797,74 @@ func main() {
 		w.Write(body)
 	})
 
-	// ── POST /api/services/{name}/{action} ────────────────────────────────────
+	scraperDir := os.Getenv("SCRAPER_DIR")
+	if scraperDir == "" {
+		scraperDir = "../scraper"
+	}
+
+	// ── /api/services/{name}/{action|log} ────────────────────────────────────
+	serviceLogFiles := map[string]string{
+		"db-server":      "log/db_server.log",
+		"kakao":          "log/scraper_kakao_v2.log",
+		"google":         "log/scraper_google_v2.log",
+		"naver":          "log/scraper_naver.log",
+		"osm":            "log/scraper_osm.log",
+		"kakao-images":   "log/scraper_kakao_images_v3.log",
+		"naver-images":   "log/scraper_naver_images_v1.log",
+		"google-images":  "log/scraper_google_images_v1.log",
+		"kakao-metadata": "log/scraper_kakao_metadata_v1.log",
+		"naver-metadata": "log/scraper_naver_metadata_v1.log",
+	}
 	mux.HandleFunc("/api/services/", func(w http.ResponseWriter, r *http.Request) {
 		corsJSON(w)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(204)
 			return
 		}
+
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/services/"), "/")
+
+		// GET /api/services/{name}/log
+		if r.Method == http.MethodGet && len(parts) == 2 && parts[1] == "log" {
+			name := parts[0]
+			logFile, ok := serviceLogFiles[name]
+			if !ok {
+				http.Error(w, "unknown service: "+name, 404)
+				return
+			}
+			nLines := 30
+			if n, err := strconv.Atoi(r.URL.Query().Get("lines")); err == nil && n > 0 && n <= 2000 {
+				nLines = n
+			}
+			logPath := filepath.Join(scraperDir, logFile)
+			data, err := os.ReadFile(logPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					json.NewEncoder(w).Encode(map[string]interface{}{"lines": []string{}, "path": logPath})
+					return
+				}
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			all := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+			start := 0
+			if len(all) > nLines {
+				start = len(all) - nLines
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"lines": all[start:],
+				"total": len(all),
+				"path":  logPath,
+			})
+			return
+		}
+
 		if r.Method != "POST" {
 			http.Error(w, "method not allowed", 405)
 			return
 		}
 
 		// Parse /api/services/{name}/{action}
-		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/services/"), "/")
 		if len(parts) != 2 {
 			http.Error(w, "usage: /api/services/{name}/{start|stop|restart}", 400)
 			return
@@ -791,18 +893,28 @@ func main() {
 			result["error"] = err.Error()
 		}
 
+		// Persist intent across reboots
+		if err == nil {
+			if action == "start" {
+				exec.Command("systemctl", "--user", "enable", unit).Run()
+			} else if action == "stop" {
+				exec.Command("systemctl", "--user", "disable", unit).Run()
+			}
+		}
+
 		// Return fresh state
 		state, active := getServiceState(unit)
 		result["state"] = state
 		result["active"] = active
 
+		// Keep watchdog timer in sync with image scraper lifecycle
+		if imageScraperNames[name] {
+			go syncWatchdog()
+		}
+
 		json.NewEncoder(w).Encode(result)
 	})
 
-	scraperDir := os.Getenv("SCRAPER_DIR")
-	if scraperDir == "" {
-		scraperDir = "../scraper"
-	}
 
 	// ── GET /api/gscraper/stats ───────────────────────────────────────────────
 	mux.HandleFunc("/api/gscraper/stats", func(w http.ResponseWriter, r *http.Request) {
@@ -849,6 +961,22 @@ func main() {
 		})
 	})
 
+	// ── GET /api/watchdog-status ─────────────────────────────────────────────
+	mux.HandleFunc("/api/watchdog-status", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statusPath := filepath.Join(filepath.Dir(dataDir), "watchdog-status.json")
+		data, err := os.ReadFile(statusPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				w.Write([]byte(`{"services":{},"updated_at":null}`))
+				return
+			}
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		w.Write(data)
+	})
+
 	// ── GET /api/chains ────────────────────────────────────────────────────────
 	mux.HandleFunc("/api/chains", func(w http.ResponseWriter, r *http.Request) {
 		corsJSON(w)
@@ -873,7 +1001,7 @@ func main() {
 			Count       int    `json:"count"`
 		}
 
-		var chains []Chain
+		chains := make([]Chain, 0)
 		for rows.Next() {
 			var c Chain
 			var ne *string
@@ -1056,7 +1184,7 @@ func main() {
 			Images    json.RawMessage `json:"images"`
 		}
 
-		var sources []SourceCafe
+		sources := make([]SourceCafe, 0)
 		var sourceIDs []string
 		for sourceRows.Next() {
 			var s SourceCafe
@@ -1098,7 +1226,7 @@ func main() {
 					ScrapedAt string `json:"scraped_at"`
 				}
 				imagesByCafe := map[string][]ImageInfo{}
-				var allImages []ImageInfo
+				allImages := make([]ImageInfo, 0)
 				for imgRows.Next() {
 					var img ImageInfo
 					imgRows.Scan(&img.CafeID, &img.Provider, &img.LocalPath,

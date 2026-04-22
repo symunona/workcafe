@@ -124,7 +124,7 @@ class PersistentRateLimit(Exception):
 
 
 def _alarm_handler(signum, frame):
-    raise CafeTimeout(f"Per-cafe watchdog fired after {CAFE_TIMEOUT_SECS // 60} min")
+    raise CafeTimeout(f"Per-cafe watchdog fired after {PAGE_TIMEOUT_SECS // 60} min")
 
 
 signal.signal(signal.SIGALRM, _alarm_handler)

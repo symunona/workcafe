@@ -403,6 +403,7 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
             downloaded += 1
             local_path = f"/images/google/{safe_id}/images/{fname}"
             photo_id = f"{cafe_id}_{idx}"
+            file_size = os.path.getsize(save_path)
             row_exists = dbc.fetchone(
                 'SELECT 1 FROM images WHERE cafe_id=? AND photo_id=?',
                 (cafe_id, photo_id)
@@ -413,9 +414,9 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
                 )
                 dbc.execute('''
                     INSERT OR REPLACE INTO images
-                      (cafe_id, provider, local_path, image_url, photo_id, belongs_to_cafe_id)
-                    VALUES (?,?,?,?,?,?)
-                ''', (cafe_id, 'google', local_path, img_url, photo_id, belongs_to))
+                      (cafe_id, provider, local_path, image_url, photo_id, belongs_to_cafe_id, file_size)
+                    VALUES (?,?,?,?,?,?,?)
+                ''', (cafe_id, 'google', local_path, img_url, photo_id, belongs_to, file_size))
 
     log.info(f"  {cafe_id}: {downloaded}/{len(imgs)} downloaded")
     if downloaded > 0:

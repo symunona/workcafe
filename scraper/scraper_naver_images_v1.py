@@ -244,30 +244,31 @@ async def _graphql_call(browser_page, cursor_state: list, place_id: str,
     try:
         result = await browser_page.evaluate('''async (args) => {
             const [url, payload, token, referer] = args;
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 30000);
             try {
-                const ctrl = new AbortController();
-                const tid = setTimeout(() => ctrl.abort(), 30000);
-                let resp;
-                try {
-                    resp = await fetch(url, {
-                        method: 'POST',
-                        signal: ctrl.signal,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-wtm-graphql': token,
-                            'Referer': referer,
-                            'Origin': 'https://pcmap.place.naver.com',
-                        },
-                        body: JSON.stringify(payload),
-                    });
-                } finally { clearTimeout(tid); }
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    signal: ctrl.signal,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-wtm-graphql': token,
+                        'Referer': referer,
+                        'Origin': 'https://pcmap.place.naver.com',
+                    },
+                    body: JSON.stringify(payload),
+                });
                 const text = await resp.text();
+                clearTimeout(tid);
                 let data;
                 try { data = JSON.parse(text); }
                 catch(e) { return {status: resp.status, error: 'JSON parse error', text: text.substring(0, 200)}; }
                 return {status: resp.status, data};
-            } catch(e) { return {status: -1, error: String(e)}; }
-        }''', [GRAPHQL_URL, payload, token, referer])
+            } catch(e) {
+                clearTimeout(tid);
+                return {status: -1, error: String(e)};
+            }
+        }''', [GRAPHQL_URL, payload, token, referer], timeout=45000)
     except Exception as e:
         err = str(e)
         if any(s in err for s in ('Connection closed', 'Browser closed', 'Target closed', 'pipe closed', 'browser has been closed')):
