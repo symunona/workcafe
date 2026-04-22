@@ -10,6 +10,7 @@ import { CleanCafeDetailsPane } from './components/CleanCafeDetailsPane'
 import { CafeDetailsPage } from './components/CafeDetailsPage'
 import { SettingsModal } from './components/SettingsModal'
 import { Checkbox } from './components/Checkbox'
+import { SnapshotSelector, useSnapshot } from './components/SnapshotSelector'
 
 interface ViewportBounds {
   minLat: number; maxLat: number; minLon: number; maxLon: number
@@ -103,6 +104,7 @@ export default function CleanApp() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const location = useLocation()
+  const { snapshot, setSnapshot, apiUrl } = useSnapshot()
   const [cafeMap, setCafeMap] = useState<Map<string, CleanCafe>>(new Map())
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<Filters>({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set() })
@@ -116,17 +118,17 @@ export default function CleanApp() {
   const [mapTarget, setMapTarget] = useState<[number, number] | null>(null)
 
   useEffect(() => {
-    fetch('/api/chains').then(r => r.json()).then(data => setChains(data.slice(0, 30))).catch(console.error)
-  }, [])
+    fetch(apiUrl('/api/chains')).then(r => r.ok ? r.json() : []).then(data => setChains((data ?? []).slice(0, 30))).catch(console.error)
+  }, [snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pan map to cafe when navigating directly to a /cafe/:id URL
   useEffect(() => {
     if (!selectedId) return
-    fetch(`/api/clean_cafe?id=${encodeURIComponent(selectedId)}`)
+    fetch(apiUrl(`/api/clean_cafe?id=${encodeURIComponent(selectedId)}`))
       .then(r => r.json())
       .then(data => { if (data?.lat && data?.lon) setMapTarget([data.lat, data.lon]) })
       .catch(() => {})
-  }, [selectedId])
+  }, [selectedId, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
   const abortRef = useRef<AbortController | null>(null)
   const boundsRef = useRef<ViewportBounds | null>(null)
 
@@ -147,7 +149,8 @@ export default function CleanApp() {
 
     setLoading(true)
     try {
-      const res = await fetch(`/api/clean_cafes?${params}`, { signal: abortRef.current.signal })
+      const res = await fetch(apiUrl(`/api/clean_cafes?${params}`), { signal: abortRef.current.signal })
+      if (!res.ok) return
       const data = await res.json()
       setTotal(data.total ?? 0)
       setCafeMap(prev => {
@@ -167,13 +170,13 @@ export default function CleanApp() {
     fetchCafes(b, filters)
   }, [fetchCafes, filters])
 
-  // Re-fetch when filters change
+  // Re-fetch when filters or snapshot change
   useEffect(() => {
     if (boundsRef.current) {
       setCafeMap(new Map())
       fetchCafes(boundsRef.current, filters)
     }
-  }, [filters]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = useCallback((cid: string) => navigate(`/cafe/${cid}`), [navigate])
 
@@ -219,26 +222,31 @@ export default function CleanApp() {
       </MapContainer>
 
       {/* Top bar */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2">
-        <div className="bg-white rounded-lg shadow px-3 py-1.5 text-sm font-medium flex items-center gap-2">
-          <span className="text-gray-700">☕ Workcafe</span>
-          <span className="text-gray-400">|</span>
-          <span className="text-gray-500 text-xs">
-            {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
-          </span>
+      <div className="absolute top-2 left-0 right-0 z-[500] flex items-center justify-between px-3 pointer-events-none">
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="bg-white rounded-lg shadow px-3 py-1.5 text-sm font-medium flex items-center gap-2">
+            <span className="text-gray-700">☕ Workcafe</span>
+            <span className="text-gray-400">|</span>
+            <span className="text-gray-500 text-xs">
+              {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
+            </span>
+          </div>
+          <button
+            className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 ${filters.withImages || filters.multipleImages || filters.providers.size > 0 ? 'ring-2 ring-blue-400' : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            Filter {filters.withImages || filters.multipleImages || filters.providers.size > 0 ? '●' : ''}
+          </button>
+          <button
+            className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
+            onClick={() => setShowSettings(true)}
+          >
+            Scraper Status
+          </button>
         </div>
-        <button
-          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 ${filters.withImages || filters.multipleImages || filters.providers.size > 0 ? 'ring-2 ring-blue-400' : ''}`}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          Filter {filters.withImages || filters.multipleImages || filters.providers.size > 0 ? '●' : ''}
-        </button>
-        <button
-          className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
-          onClick={() => setShowSettings(true)}
-        >
-          Scraper Status
-        </button>
+        <div className="pointer-events-auto">
+          <SnapshotSelector snapshot={snapshot} setSnapshot={setSnapshot} />
+        </div>
       </div>
 
       {/* Legend */}

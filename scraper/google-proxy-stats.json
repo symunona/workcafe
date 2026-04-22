@@ -2,10 +2,10 @@
   "summary": {
     "direct": {
       "captcha": 0,
-      "success": 1575,
-      "nav_error": 274,
-      "no_images": 145,
-      "images_total": 16943
+      "success": 2252,
+      "nav_error": 279,
+      "no_images": 374,
+      "images_total": 24122
     }
   },
   "events": [
@@ -13547,6 +13547,6149 @@
       "cafe_id": "google_0x357b61ebda21c849:0x6a8c900693517f10",
       "outcome": "success",
       "images": 16
+    },
+    {
+      "ts": "2026-04-21T12:04:17",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca10006461b81:0xb333e02ad35f6356!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:05:32",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca1003fb95b47:0xc67c7a980028056f!8m2!3d37.5052113!4d127.0042957!16s%2Fg%2F11yn6jx0x3!19sChIJR1u5PwChfDURbwUoAJh6fMY?authuser=0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:06:55",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca16d247226bd:0x527e52b303b63e5e!8m2!3d37.4909695!4d127.0100686!16s%2Fg%2F11g8pbhnj9!19sChIJvSZyJG2hfDURXj62A7NSflI?authuser=0",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T12:08:08",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca17302697d83:0xf7785080de9ab0bf!8m2!3d37.4938847!4d127.0050668!16s%2Fg%2F11k3n731jr!19sChIJg31pAnOhfDURv7Ca3oBQePc?authuser=0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:09:19",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca174094b0375:0x10531fd9eb21b7d8!8m2!3d37.4820931!4d126.9965208!16s%2Fg%2F11s7dv4_42!19sChIJdQNLCXShfDUR2Lch69kfUxA?authuser=0",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T12:10:26",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca3004060ae63:0x3a81bb8600341a94!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:11:41",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca30078c71d9b:0x22a8d95daeb9d054!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:13:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b570078b010e5:0x31b3de028a505bb6",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:14:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b583ada9e7793:0x83fbecf07d8dd56d",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:16:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b586069ffe201:0xbb341d6915d3a42f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:17:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b588aa21ccbed:0x25269882c5ac5695",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:18:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b59003bf7c6c9:0xb2fef29e946ad497",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:19:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b592639154fe9:0x4a3d0b8de37c147c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:21:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e20c204c1b9:0x61a63af5cc1605e4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:22:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e25365a9f99:0x968fb751590bc5f1",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:24:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e47c44da16d:0x1e117a68182dee05",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:25:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e48127003fd:0x826ea5cee2370d2c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:26:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5ee3f70003bb:0x32c58640cd50ec5e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:28:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5efc83e1ddf5:0xea5c382891610927",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:29:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a120407:0xda5c8ed55b7f101a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:31:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a42dfff:0xba49f7ba5070d236",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:32:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000edda7d1:0x8ec28d7e91fe18ca",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:33:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00102008d5:0x1eb7952d69eb3710",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:34:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0023ca7eb7:0xd049860b4c48e3db",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:35:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0026d7176b:0x35e8202cd81cb642",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:37:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f002b44ee51:0x67ccaa85b1b03cda",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:38:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00316a96e3:0x367d496d383e832c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:40:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f004744a153:0x903a0219afe4e382",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:41:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f005ee30f4f:0xf353d7f3c75a1f08",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:42:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006188edef:0xb07cc5af83a56f3e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:43:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006352b905:0x3c59adcf903c785b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:45:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0078b568e9:0x461af32c11d4d61e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:46:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007c70db1f:0x7aaf3b97ba25d208",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:47:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6886dca181:0x547d425a966cd4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:49:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fd6a375106d:0x2e10d2bfd50efc3a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:50:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b602eb8d9a013:0x3bce033c60f9d5d5",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:51:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b603537eab165:0xb082b5d91616298f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:52:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b604af845c675:0xf561b9aad09d2ad0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:54:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60b8266f4cd9:0x44f9381e9a798b75",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:55:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60baad7afdc9:0x32828f732760c006",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:57:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60cc694167c1:0x52fe2e5c780622d8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:58:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60cd113201c7:0x8b1016ec81e47e3e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T12:59:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60ce298080f9:0x80e051c9754ac55c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:01:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60cfdc42b079:0x3d3bf8e062b2a58b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:02:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d046876fb7:0xe98e45a2fb1ba76d",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:03:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d285b1834d:0x22f5adf942abc56e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:05:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d2f94a884f:0x448898d03a18e7dd",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:06:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d665881955:0xa72d69563831e82c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:07:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610003c823f7:0xff5d453d53e34eea",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:09:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61000865eee1:0x8d2126450b49a187",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:10:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610008fc4fcf:0x5e695f8ed22d530c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:11:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61000c294179:0xec0f687ebcdbb40a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:13:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61000e63d5df:0xbae71459532944c4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:14:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61001b14162d:0xe82dd64cc2d0deca",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:16:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61001ef351dd:0x94e1aacf39ab4b32",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:17:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61002dce7b65:0xb14343dbf99d97ac",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:18:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610031fc0107:0xe8a148743e9a1dac",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:20:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6100371654f5:0x75fb5b71d6a1e904",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:22:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6100378c226d:0xe1dff31ed47ac9a7",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:23:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610038dd78eb:0x2cff6955154c3700",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:24:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61003c6c8fab:0x979d9a5b16494aac",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T13:25:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61003e7a2d25:0x9eb432dbd6e7fbec",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T13:27:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61004042c43d:0xfc16f0b624f97192",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:28:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610053db0b43:0xa355e25155712ab8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:29:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610067425add:0x8a0c0f8f1f8cc3e4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:30:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610073e128f7:0x557dde79779d478e",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T13:32:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6101536b8015:0xccecbf710e6d2762",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:33:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6105b0722a3d:0xa69aacdbb8b6dd58",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:34:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6106e4bad417:0xf1c142a9b1a1c0ba",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:35:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61124edde5bb:0x9a35247032d22871",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:37:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61205926c0b7:0x22b21571680a9e25",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:38:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b612905c23ae3:0xb03e2f9cb8c09ecb",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:40:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6131a48ea107:0x37d22d8e2b1399f6",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:41:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61323b0f6201:0x619ddd995d73ed",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:42:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6134dbdb70d5:0x428cfaa7675d30f9",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:44:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6136b247076b:0xa69b1fe9bc8985cd",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-21T13:44:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6136b247076b:0xa69b1fe9bc8985cd",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:46:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6147d227170f:0x2cbfef0f201d4beb",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:47:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b614b742ba4e7:0xc9676ceb46117e4a",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T13:48:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61618ce1656b:0x81015ffa2ab30590",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:50:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61654d4eafbb:0xc5c9687775ce065d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T13:51:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61657b6ca00f:0xe11a0a657b5fd7a9",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T13:52:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b616d968d8517:0x457bb82b121cdcaa",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T13:53:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b616e57c98caf:0x675ce2880dc2dcd9",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T13:55:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6171d9d69cf3:0xa4b15f80e4527bfd",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T13:56:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61722ec94baf:0xa1bf98439bc846a9",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T13:57:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b617313f9cbdb:0x97daba21a1ff4032",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T13:59:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61777ab792f1:0xc6db9c691eb5ccdc",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T14:00:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b617a81c26d07:0x2176a5edfa954616",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:02:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b617aba19e037:0x92d352ffa5ed6009",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:03:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61912218ff9d:0x819b1aab146e0e9e",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T14:04:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619a36ec3b93:0x2506899d845925ce",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T14:06:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c11065311:0xa9b2eaaf1571631e",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T14:07:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c611be987:0x3f97f2531e8434a0",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T14:08:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c612e55d1:0x8755926543136882",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:09:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c612e55d1:0xf806b2f1d5c98771",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:11:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619eb5e633f9:0xb3753306545f5a8",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:12:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61a3f8fa133f:0xbacf57583e0c1402",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T14:14:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61a8e324ed81:0xdaf14e88d43f405a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:15:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61af6c8b3039:0x9ede2bc6ab08f740",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T14:16:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61affe90a84b:0x7a912c93454c757d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T14:17:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b06c552631:0x5af198ee586766a1",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T14:19:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b0a93bb9ed:0xcd17f5a0d693497e",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:20:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b439ee6c31:0x54a9e2209e5d9dc9",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T14:21:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b515944795:0x821d28f785255075",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:23:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b526f7106d:0x4eb2a6fb71157b7",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T14:24:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b526f7106d:0x5ade8f493ad9f221",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T14:25:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b637aea00f:0x65f66dd233e217e2",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:26:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b659780aab:0x614987a9009e5cbf",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:28:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b7037ab277:0xb209c2a064cc8577",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:29:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b70f7de3f7:0xdff4617ca0dfec28",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:31:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b75a2f6817:0x5d58865a0f05d916",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:32:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b798fd0705:0x69e1b4da3023916c",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T14:33:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b7ed36aea1:0x4aad9af7a62aa5c7",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T14:34:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b82414d725:0xc3db0c02230bea28",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T14:36:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61bd7ef23e8b:0x306a0d0596d77ce3",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:37:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61c7db7332fd:0x3080337ceb47edba",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:39:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ca6e7f847f:0xdb964ed58d6a50ff",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T14:40:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61caa18ae737:0x7f2b32ac12f1d552",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:42:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61d06c254ff7:0xde6c7d6d77db886e",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T14:43:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61d322eaf8bb:0x859062bbbac8dd1f",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T14:44:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61d859e2f7db:0xe31780a6ce4b984f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:46:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61dec1502285:0x5d73bfb98dc56f4b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:47:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61dfeaeca5ed:0xad76f5e2f3806a44",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:49:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61e277cc6c41:0xbb6ddb5ae94a4a66",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:50:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61e40cb3a48b:0xe204deb04518fe84",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:51:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61e6a33fcb59:0xc0b59f8cf1af56bb",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T14:53:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ebe4001b05:0xcd4302700fda400a",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T14:54:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ed313ae313:0x3e22dd0a396da77e",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T14:55:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ed5c779a5f:0x1f9a05d46bca5cc0",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T14:57:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ee6f1f09a7:0x6f0b928a6c63290c",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T14:58:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ef20689485:0x70473635440dad6e",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T14:59:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ef56f77a51:0x877f67cf18912e8d",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T15:01:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f064f240e7:0x30b5e7a81dab280b",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T15:02:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f08a347a25:0x5f0521e806fcc677",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T15:03:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f124e00679:0xcab8d7464f7490e4",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T15:04:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f170251d5f:0x7b60700df9a9fd16",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T15:06:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f329366203:0x360dd5dc3b7f5b66",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T15:07:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f359248af3:0xe84d88530d6e516b",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T15:08:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f37d710dab:0x50a7d6c6cc637e7d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T15:10:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f3fba2aae1:0xc33ab4bf760f5920",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T15:11:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f495ab3f07:0xd41ada55fbd47d44",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T15:12:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f4d0c5506f:0xe70b0482e15aa48e",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T15:13:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f50265413b:0x9d39f67d90b9a4eb",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T15:15:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f52b240481:0xc1749507916af42f",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T15:16:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f52c5dde17:0xd09d76c0367f84f4",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T15:18:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f59822c5cb:0xe1eca2d91ab66f7c",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T15:19:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f66fe59851:0x679d5584ec4f0286",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T15:21:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f6f82ea9df:0xbf96718e4b1040d9",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T15:22:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f81a9519cf:0x945107039ed6b179",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T15:24:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f81aec9e9f:0x62f07923cf9a7255",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T15:25:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f824e425d9:0xfd9287c703239510",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T15:27:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f9b7f2e305:0xcc0ec5934084384a",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T15:28:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61fa415fab3f:0x83acef828c9891a4",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T15:29:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61fa4debbead:0x5781e68fce3872e5",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T15:31:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61fbf2ffb7ef:0x285e7ba90e1aad4e",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T15:32:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61fd5c5596a7:0xf60b066d64fd8e94",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-21T15:34:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ff4c0709bd:0xb6864b5b4b2a2794",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T15:35:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b62001400a2c9:0x517f02e542ea555e",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T15:36:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b62053594d72d:0xd5e0087395bb51f3",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T15:38:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b62103a1a03c3:0xe2ab25d4e56ac2c6",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T15:39:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b62161a90f0a7:0x55dd30694ec5e86",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T15:41:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b621ca697fa1f:0x15e77d28d565908a",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T15:42:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b621d7b93c13d:0x8e7f3dc20c3fedcf",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T15:43:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b622b5b47b845:0xb1ac2d97159aacb2",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T15:45:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b622cb194de8b:0x32198592b3f46319",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T15:46:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b62693328ba67:0xe879fb90350af750",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T15:48:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b62fe7ff67521:0xe2c74b619f20757b",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-21T15:49:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b630001219089:0x87df2486b2a821d0",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T15:50:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b630028ac8663:0x4f6eef4f83b4bafe",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T15:52:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63005e96b4d7:0x81e394ea65a13769",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T15:53:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b630079270561:0x2acc2ba02a5ff45",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T15:54:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63007b5363d5:0xa3b347b5092787fe",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T15:56:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63007f8166ed:0x1dfb528197378404",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T15:57:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6302fb2c8ce1:0xa436132539425814",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T15:59:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6305b1c9e435:0x4b1688199d0faea8",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T16:00:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63182e8975f1:0xe41a278aab05a98e",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T16:02:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6321a16a66c9:0x41c88e11f7d3c896",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T16:03:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b632ae1543ca7:0x5a502ddc37a1b97",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T16:05:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b632bc41a060b:0x98c26881319bd996",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T16:06:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6336a35134ef:0xcb19de4cbd142ab4",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T16:07:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b633966403e51:0x12201e7ee6417786",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T16:09:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b633c33f3181b:0x6cead3efeaa74d6f",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T16:10:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b633e544eb6fd:0xaa40dd8c999b8a72",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-21T16:12:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b636925d3f897:0x9ba95ff4d2abf8d0",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T16:13:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6369fa8a2241:0x2b5c1696d45b63f9",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-21T16:14:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6373bb0a76d5:0x9792476c8a6633d",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T16:15:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6395ac455815:0x323116863a696320",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T16:17:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63a10756e009:0x792f6f041dba476",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T16:18:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63a4b2a0c8f1:0x370a1f36afac6de",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T16:19:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63af491e6ff1:0x7e08e957a6b3571d",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T16:21:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63c960419efd:0x7b6e81314f6975ca",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T16:22:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63ca5484ba17:0xd77b9b6d39735598",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T16:24:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63cfcb6b2359:0xfc92282fb0554c6c",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T16:25:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63dae416a243:0xa38d0fa4ebe4e3da",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T16:26:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63e008f61319:0xe7e152c838833715",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T16:28:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63e4390cf0a5:0xaf1fa7e0d8ecbaf3",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T16:29:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63f048e5e615:0x4927f717513dd02f",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T16:31:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63f1d75af5eb:0x5cd4a78b8c37fe17",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-21T16:32:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63f83c494239:0xeb819884624e725b",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T16:33:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b64293ecd9065:0xe120e6b08341a626",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T16:35:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6516b57e3297:0x7daa7bb0bd5e277",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T16:36:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b651cb19c3e03:0x4ab672cd96709ca1",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T16:37:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6567b5a8f51f:0xf07303480f44f885",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T16:39:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b65688453c0c7:0x2b09ee903e9cbc85",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T16:40:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b657f9fa60c1f:0xd6e2e9b570d3ae47",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T16:41:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b65ee45a906f9:0x17ebdee60ec91a80",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T16:43:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6670c36723ef:0x7692f33203ad11d4",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T16:44:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b667ab0c99bb1:0xde7c02f31c0a8e6d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T16:45:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66af0a1b7cfd:0x6f4c4baf4886ae82",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T16:46:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66b4b96bee5b:0x39f06513099192c5",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T16:48:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d2be8f8589:0x501fbc1269e17a87",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T16:49:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d5dc36b967:0x7f406defdb762ce9",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T16:50:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d5e807b5cb:0x4ed622878071794a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T16:51:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d645c56b7b:0x3f9dab8b427217f",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T16:52:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d65f9cf535:0xfd2e7a2e466edc10",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T16:54:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d669ea9077:0x88fa0ef47e668615",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T16:55:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d6809c62ab:0xbc53f2e3d7a83a89",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T16:57:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d95d1ec351:0x73e4e2e524932fc9",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T16:58:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d968cf764f:0xac7decb287c8c282",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T16:59:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d96e2e4f9b:0x736cc447035d6d84",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T17:01:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66ddfe0b2a63:0xa6a7e423578d6e7c",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T17:02:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66e2be272f51:0xd50f11511b75cdee",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T17:03:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66e739c9083d:0x29fe3971963fd85f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:05:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b670006166dc7:0x2cc96e0fc13a3cb9",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T17:06:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67000a9507a9:0xd9f2bb3db59f0e20",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T17:08:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67000d1d7cb7:0x43b702a42d7ee6ae",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T17:10:27",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca10006461b81:0xb333e02ad35f6356!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:11:46",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca1003fb95b47:0xc67c7a980028056f!8m2!3d37.5052113!4d127.0042957!16s%2Fg%2F11yn6jx0x3!19sChIJR1u5PwChfDURbwUoAJh6fMY?authuser=0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:13:10",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca16d247226bd:0x527e52b303b63e5e!8m2!3d37.4909695!4d127.0100686!16s%2Fg%2F11g8pbhnj9!19sChIJvSZyJG2hfDURXj62A7NSflI?authuser=0",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T17:14:23",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca17302697d83:0xf7785080de9ab0bf!8m2!3d37.4938847!4d127.0050668!16s%2Fg%2F11k3n731jr!19sChIJg31pAnOhfDURv7Ca3oBQePc?authuser=0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:15:57",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca174094b0375:0x10531fd9eb21b7d8!8m2!3d37.4820931!4d126.9965208!16s%2Fg%2F11s7dv4_42!19sChIJdQNLCXShfDUR2Lch69kfUxA?authuser=0",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T17:17:16",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca3004060ae63:0x3a81bb8600341a94!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:18:50",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca30078c71d9b:0x22a8d95daeb9d054!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:20:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b570078b010e5:0x31b3de028a505bb6",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:21:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b583ada9e7793:0x83fbecf07d8dd56d",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:23:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b586069ffe201:0xbb341d6915d3a42f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:24:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b588aa21ccbed:0x25269882c5ac5695",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:25:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b59003bf7c6c9:0xb2fef29e946ad497",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:26:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b592639154fe9:0x4a3d0b8de37c147c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:28:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e20c204c1b9:0x61a63af5cc1605e4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:29:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e25365a9f99:0x968fb751590bc5f1",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:30:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e47c44da16d:0x1e117a68182dee05",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:32:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e48127003fd:0x826ea5cee2370d2c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:33:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5ee3f70003bb:0x32c58640cd50ec5e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:34:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5efc83e1ddf5:0xea5c382891610927",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:36:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a120407:0xda5c8ed55b7f101a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:37:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a42dfff:0xba49f7ba5070d236",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:39:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000edda7d1:0x8ec28d7e91fe18ca",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:40:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00102008d5:0x1eb7952d69eb3710",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:41:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0023ca7eb7:0xd049860b4c48e3db",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:42:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0026d7176b:0x35e8202cd81cb642",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:44:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f002b44ee51:0x67ccaa85b1b03cda",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:45:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00316a96e3:0x367d496d383e832c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:47:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f004744a153:0x903a0219afe4e382",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:48:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f005ee30f4f:0xf353d7f3c75a1f08",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:49:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006188edef:0xb07cc5af83a56f3e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:51:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f006352b905:0x3c59adcf903c785b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:52:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0078b568e9:0x461af32c11d4d61e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:54:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f007c70db1f:0x7aaf3b97ba25d208",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:55:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f6886dca181:0x547d425a966cd4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:56:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5fd6a375106d:0x2e10d2bfd50efc3a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:58:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b602eb8d9a013:0x3bce033c60f9d5d5",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T17:59:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b603537eab165:0xb082b5d91616298f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:01:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b604af845c675:0xf561b9aad09d2ad0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:02:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60b8266f4cd9:0x44f9381e9a798b75",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:03:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60baad7afdc9:0x32828f732760c006",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:05:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60cc694167c1:0x52fe2e5c780622d8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:06:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60cd113201c7:0x8b1016ec81e47e3e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:07:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60ce298080f9:0x80e051c9754ac55c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:09:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60cfdc42b079:0x3d3bf8e062b2a58b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:10:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d046876fb7:0xe98e45a2fb1ba76d",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:11:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d285b1834d:0x22f5adf942abc56e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:13:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d2f94a884f:0x448898d03a18e7dd",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:14:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b60d665881955:0xa72d69563831e82c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:15:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610003c823f7:0xff5d453d53e34eea",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:16:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61000865eee1:0x8d2126450b49a187",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:18:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610008fc4fcf:0x5e695f8ed22d530c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:19:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61000c294179:0xec0f687ebcdbb40a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:20:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61000e63d5df:0xbae71459532944c4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:22:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61001b14162d:0xe82dd64cc2d0deca",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:23:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61001ef351dd:0x94e1aacf39ab4b32",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:24:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61002dce7b65:0xb14343dbf99d97ac",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:26:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610031fc0107:0xe8a148743e9a1dac",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:27:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6100371654f5:0x75fb5b71d6a1e904",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:28:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6100378c226d:0xe1dff31ed47ac9a7",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:30:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610038dd78eb:0x2cff6955154c3700",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:31:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61003c6c8fab:0x979d9a5b16494aac",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T18:32:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61003e7a2d25:0x9eb432dbd6e7fbec",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T18:34:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61004042c43d:0xfc16f0b624f97192",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:35:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610053db0b43:0xa355e25155712ab8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:36:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610067425add:0x8a0c0f8f1f8cc3e4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:38:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b610073e128f7:0x557dde79779d478e",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T18:39:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6101536b8015:0xccecbf710e6d2762",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:41:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6105b0722a3d:0xa69aacdbb8b6dd58",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:42:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6106e4bad417:0xf1c142a9b1a1c0ba",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:43:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61124edde5bb:0x9a35247032d22871",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:45:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61205926c0b7:0x22b21571680a9e25",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:46:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b612905c23ae3:0xb03e2f9cb8c09ecb",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:48:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6131a48ea107:0x37d22d8e2b1399f6",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:49:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61323b0f6201:0x619ddd995d73ed",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:51:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6134dbdb70d5:0x428cfaa7675d30f9",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:52:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6136b247076b:0xa69b1fe9bc8985cd",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:54:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6147d227170f:0x2cbfef0f201d4beb",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:55:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b614b742ba4e7:0xc9676ceb46117e4a",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T18:56:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61618ce1656b:0x81015ffa2ab30590",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T18:58:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61654d4eafbb:0xc5c9687775ce065d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T18:59:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61657b6ca00f:0xe11a0a657b5fd7a9",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:01:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b616d968d8517:0x457bb82b121cdcaa",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T19:02:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b616e57c98caf:0x675ce2880dc2dcd9",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:03:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6171d9d69cf3:0xa4b15f80e4527bfd",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T19:05:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61722ec94baf:0xa1bf98439bc846a9",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T19:06:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b617313f9cbdb:0x97daba21a1ff4032",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T19:07:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61777ab792f1:0xc6db9c691eb5ccdc",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T19:09:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b617a81c26d07:0x2176a5edfa954616",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:10:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b617aba19e037:0x92d352ffa5ed6009",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:11:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61912218ff9d:0x819b1aab146e0e9e",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T19:12:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619a36ec3b93:0x2506899d845925ce",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T19:14:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c11065311:0xa9b2eaaf1571631e",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T19:15:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c611be987:0x3f97f2531e8434a0",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T19:16:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c612e55d1:0x8755926543136882",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:18:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619c612e55d1:0xf806b2f1d5c98771",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:19:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b619eb5e633f9:0xb3753306545f5a8",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:20:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61a3f8fa133f:0xbacf57583e0c1402",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T19:22:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61a8e324ed81:0xdaf14e88d43f405a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:23:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61af6c8b3039:0x9ede2bc6ab08f740",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T19:25:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61affe90a84b:0x7a912c93454c757d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T19:26:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b06c552631:0x5af198ee586766a1",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T19:28:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b0a93bb9ed:0xcd17f5a0d693497e",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:29:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b439ee6c31:0x54a9e2209e5d9dc9",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T19:30:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b515944795:0x821d28f785255075",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:32:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b526f7106d:0x4eb2a6fb71157b7",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T19:33:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b526f7106d:0x5ade8f493ad9f221",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T19:34:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b637aea00f:0x65f66dd233e217e2",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:36:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b659780aab:0x614987a9009e5cbf",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:37:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b7037ab277:0xb209c2a064cc8577",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:38:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b70f7de3f7:0xdff4617ca0dfec28",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:40:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b75a2f6817:0x5d58865a0f05d916",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:42:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b798fd0705:0x69e1b4da3023916c",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T19:43:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b7ed36aea1:0x4aad9af7a62aa5c7",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T19:44:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61b82414d725:0xc3db0c02230bea28",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T19:45:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61bd7ef23e8b:0x306a0d0596d77ce3",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:47:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61c7db7332fd:0x3080337ceb47edba",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:48:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ca6e7f847f:0xdb964ed58d6a50ff",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T19:49:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61caa18ae737:0x7f2b32ac12f1d552",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:51:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61d06c254ff7:0xde6c7d6d77db886e",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T19:52:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61d322eaf8bb:0x859062bbbac8dd1f",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T19:53:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61d859e2f7db:0xe31780a6ce4b984f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:54:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61dec1502285:0x5d73bfb98dc56f4b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:56:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61dfeaeca5ed:0xad76f5e2f3806a44",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:57:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61e277cc6c41:0xbb6ddb5ae94a4a66",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T19:58:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61e40cb3a48b:0xe204deb04518fe84",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:00:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61e6a33fcb59:0xc0b59f8cf1af56bb",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:01:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ebe4001b05:0xcd4302700fda400a",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T20:03:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61ed313ae313:0x3e22dd0a396da77e",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T20:04:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f359248af3:0xe84d88530d6e516b",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T20:06:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b61f50265413b:0x9d39f67d90b9a4eb",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T20:07:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b630079270561:0x2acc2ba02a5ff45",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T20:09:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63c960419efd:0x7b6e81314f6975ca",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T20:10:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b63cfcb6b2359:0xfc92282fb0554c6c",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T20:11:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b65ee45a906f9:0x17ebdee60ec91a80",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T20:13:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b667ab0c99bb1:0xde7c02f31c0a8e6d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T20:14:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d2be8f8589:0x501fbc1269e17a87",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:15:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d5e807b5cb:0x4ed622878071794a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:17:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66d6809c62ab:0xbc53f2e3d7a83a89",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:18:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b66e739c9083d:0x29fe3971963fd85f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:19:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67000ef1db0d:0xcf6163606a4d7748",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T20:21:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67000f714f8f:0x355be61634abb9ab",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T20:22:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6700427b8b77:0x7fe11387ead4006d",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T20:23:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67004eaafab7:0xf18f146d5c53433",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T20:25:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67005bea6807:0x9477ddc3abb73182",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:26:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67005e074cf3:0xe213827743b9085f",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T20:28:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b670065a16d01:0x44bd22a8fd3f7899",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T20:29:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67007aa9694f:0xf685b4b74a9c38bf",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T20:30:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67007db0f10d:0xae4d2ecee6103664",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T20:32:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b670b1a7756ed:0x41eddac2765efd1e",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T20:33:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b670cdc74c511:0xfd99d13f6dbc35cf",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T20:34:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b670ce9ba3753:0xa0ec09190563e793",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T20:36:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b670e24561b89:0xc208e6cab3860ff6",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-21T20:36:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b670e24561b89:0xc208e6cab3860ff6",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T20:37:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67131b2b4a25:0x256c9eb3083cb81a",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T20:39:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67187b48c6e3:0x2077f94a17ce2832",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T20:40:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b671c88541967:0x5cfb9110a919759b",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T20:41:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b672108dbacfd:0x8e17a51a8f53e93b",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T20:42:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b672ac474f365:0xd5e75e7cda98d6bf",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T20:44:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b672b0199efd9:0xe54585eff3b5880",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:45:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b672b120a4aad:0xf40e6fa3e8b7623f",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T20:47:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b672b58e24e81:0x6e1eb0f2d972f9b4",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T20:48:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b672b6d2203e7:0x3ea9ec3547ac4532",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T20:50:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b673325d9a98b:0x248d06c1111c3e81",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T20:51:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b673503f34aa3:0x9b86d895b6ae805",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T20:52:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6735a7f378a5:0x52c4e6b7059b4c0c",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T20:53:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b673771dca31b:0x9ea91a11e0342392",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T20:55:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6737b5298d69:0x72110628ef960b15",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T20:56:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b673ba7dbe5f3:0x19f8fb12f6ab253e",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T20:58:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6748da8ec245:0xdc235c3a186e19a4",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T20:59:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b674a1452f691:0xf079449f82610f9e",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T21:01:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b674a22e04bdd:0x4fb7c66880494b05",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T21:02:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b674a396ed161:0xe56f6f27cb085747",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T21:03:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b674a631da783:0x99b8a494c0b4b0f",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T21:04:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b674a88a377e7:0xb49140548be19e1e",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T21:06:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b674b19c48123:0xed907a28f12ad75e",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T21:08:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6754a62d931b:0x98ee3d4901f86600",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T21:09:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b675c3d47318d:0x1d17cf9d47e63ba4",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T21:11:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b676ac492259f:0x35dfec68a61ad9d2",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-21T21:12:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b676ca0d8f643:0xa1f007d52b726765",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T21:13:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b677b229a6017:0x669519560e6ce522",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T21:15:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6789e97d9a33:0x37ee4c39239af44e",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T21:16:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b678f3d2d5763:0xb901b8a1503e492",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T21:17:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6792c47ab357:0xe76d616838de7228",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T21:19:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b679a4c94d617:0xebb8de1ee1a3aa1d",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T21:20:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b679f7fa5436d:0x1e961ba4da397fb5",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T21:22:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67a7cf9bce03:0xc1ade3348d34b5de",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T21:23:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67ae74d223c3:0xd405a2f93606c93e",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T21:24:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67b06d572ef9:0x55649b124d4fab66",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T21:26:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67b2068cf535:0x6f7f1c7365b2abb6",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T21:27:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67b8fcade147:0xa25a410bf8c429ec",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T21:28:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67b957718f33:0xe74d0f3e491729e4",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T21:30:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67bbb3f4e043:0x8480150e6bb43e03",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T21:31:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67d1f50f30bf:0x43f1f57df0d48816",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T21:33:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67da5bd4c8f7:0xb0a88dc36e35388b",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T21:34:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67eb31817b53:0xd395b7f8966c5237",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T21:35:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67f64561c999:0x6d34bbdc82b26f6",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T21:37:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b67fb197b76f7:0x99fe45cb866d0381",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T21:38:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b69120422c787:0x15c7c89288c2a296",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-21T21:39:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6f3055d83c1b:0xfae77a2e72abd1b6",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T21:41:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6f457348585b:0x38eee3878c2831bf",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T21:42:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b6f9938c8777d:0x639f6c281014cca3",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T21:44:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b7cb0be8c5557:0x22db8fcf5615231b",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T21:45:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b7cd7fc9d953b:0x3352ab87dfd42750",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T21:47:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b7d10c6d2a557:0x9715091a963cf990",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T21:48:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b7d3f22ad6d21:0x535d043f5ed1e694",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T21:50:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b7da7f6493873:0xcb28e781babffe97",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T21:51:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c964adadb3325:0x5346db38fdc5888a",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T21:53:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9742e809c325:0xe27f7a916ad77135",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-21T21:54:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9747ffa41783:0x492aa6bdf23bc900",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T21:56:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c97625554795d:0x789425928a3bdba4",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T21:58:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9762ffbc6785:0x92bac2af770d7128",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-21T21:59:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c97645e0b9f5b:0x3a854dd5747ae11c",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T22:00:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9780cc8c38f5:0xe493cc2acc02d6cc",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T22:01:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c978233e69451:0xeb8b9fd78c82bd15",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T22:02:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c978a79e1558f:0x502e6883adcfdaaf",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T22:04:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c97e015217013:0xf5dcf98f4b81e4d0",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T22:05:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c97f34c95e8c1:0x7d5f51cf843255bd",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T22:07:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c97f4d814f35b:0xfc542e95ba51d559",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T22:08:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c97f5d15b8499:0x3ecadebfcfda125a",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T22:09:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9803bc9b3f45:0x6289edb86707f1c9",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T22:10:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c980593671159:0x37b82479a03bcf9e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:12:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9805ec9db5bb:0x74e565831d2650d0",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T22:13:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98060ab3bf8d:0x37b8cbaf13426dd4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:14:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9806a419c917:0x2fac77c6aba3b20b",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:15:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c980d54544951:0xd3cc9bd1d100ed8d",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T22:17:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c980e13f8d923:0x650eff420cf284ab",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:18:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c980e538ef27d:0x9a742916afd52c48",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T22:19:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c980e92d102cb:0xd85063a358b794b1",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T22:21:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c980f34018533:0x98fe8097ce97a61e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:22:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c980f519f92fb:0x7173cdd1ae11024d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T22:23:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98120dee7909:0x379c7d42e5910ba2",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T22:24:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9812ab415f0d:0x6cd3eb46311bdcf9",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-21T22:26:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9812bbd707ff:0x5d0bdea58cad8a6c",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T22:27:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c981832064b55:0xb624c66a10992dd8",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T22:28:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c981850351415:0x89ba1cc9efa87c88",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:30:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9819ab72045b:0xd6b04289957e44cc",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T22:31:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98206745aedb:0x85bc8b5b4956937a",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T22:32:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9820e233b201:0xf8fb0d9758495915",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:34:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c982126a97af5:0xe83be434f43d9a32",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T22:35:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9825804cb41d:0xc7a7c23cc33571b9",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T22:37:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c982c5e564c4b:0xf987f5f4eb4a2319",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T22:38:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c982ed04ea5c9:0x9efdbc7550e5da0a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-21T22:39:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98300b8c2475:0xb7d7f714365c0251",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T22:41:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9830a0fd1bef:0xd24677b5d54b3f3b",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T22:42:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9830b448b99f:0xf3fbd67f36b65f34",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T22:43:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98312594a88f:0x8c963d9889d112ed",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T22:45:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98312594a88f:0x8ce20536e21e0d90",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T22:47:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98324af3a02f:0x4e87bb60529bf54d",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T22:48:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98324fc99c8d:0x85c1bc603bcbac3f",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T22:49:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9832657ce915:0xe4848dfbe3cf5bc4",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T22:51:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9833bd5f28d7:0x8fab64cde02acaec",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T22:52:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98340183fe3f:0x1f647a68e14fce65",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T22:53:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98344b19a721:0x156ad214667f7276",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-21T22:55:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98346898441d:0x9e27377c6fff0ba6",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T22:56:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9835cab8eb21:0x4d4f51d9ba29790a",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T22:58:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9835f454a2dd:0xdd456b30a8b37778",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T22:59:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98371393976b:0x6c6dc6bd9cb89952",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T23:00:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c983745389f1d:0x5bfe0e137d253904",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T23:02:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9837c5c3e5b3:0x63a06cf3e45d34aa",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-21T23:03:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9837eac624fb:0xb0ef21030adcadde",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T23:04:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98396ede3673:0x142a8d0e80a8d366",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-21T23:05:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c983b8200a83b:0x7113364d1adc3cff",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-21T23:07:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c983c95f21b73:0xf296245eeab74a10",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T23:08:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c983cc51bdb73:0x53505d67e5b289be",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T23:10:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c983cc675aaaf:0xd443df226cde77e8",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T23:11:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98491c7218b1:0xdeaac289cbb18375",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T23:13:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9849bf4c0563:0x142e10483e2d34c4",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T23:14:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984a86bd0941:0xafa72fa352b27f01",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T23:15:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984bdfb78bd9:0x168f1e1c9f22a849",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-21T23:17:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984c2cb6349f:0x4f48afb44572d47f",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T23:18:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984c4120b267:0x387a2629e37b247a",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-21T23:20:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984d06b28ad5:0xbba97493e8567f64",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T23:21:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984d0f257891:0x6f0d319b9c8d568e",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T23:22:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984dbaedea37:0x924681eecb374dac",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T23:24:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c984dcbcfd581:0x3f64b1945f7059d6",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-21T23:25:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98503d2cd109:0x1a827dc75d2c5d2",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T23:26:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98518d3a9649:0x44ae673ae7f9a6",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-21T23:28:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9854d4bdcbe3:0x3b2c8bd2d7bcc279",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-21T23:29:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9855930df899:0x790779bfcb5ce7ad",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-21T23:30:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98580eb662b7:0x2b0efda61dbc175d",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T23:32:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9858f81275a1:0x8a5d546088df3c27",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T23:33:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9859005f8841:0xb064f939ee19497d",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T23:35:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98596227d003:0xf6e9c110f00f6051",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-21T23:36:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9859b92c6aa9:0x649578810f16b36f",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T23:37:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985a67b7b2af:0xabf5d0b9c2fbc06",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T23:39:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985ab074fce5:0xe9154844c6cc9d26",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T23:40:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985ac2bed121:0x71fc4115d44bd7fe",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-21T23:41:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985ba75b2559:0x5f84f35ad5518ca6",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T23:43:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985bc6b78e63:0xdd79ec0585dfaee8",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-21T23:44:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985bd8be065f:0xfea822c89614befa",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T23:46:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985d9877f385:0x27beb8d1d799d133",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T23:47:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985e990e3077:0x490012a74560b4c5",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-21T23:48:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c985ea77c20ef:0x48e14fdf6fac4e73",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-21T23:50:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9861a53484fd:0x7c95fe42e79559ed",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-21T23:51:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9861be4fc5f1:0x6cf45cd65793e415",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-21T23:52:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9861e5fafaa3:0x6d8f41fd024a9b74",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-21T23:54:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98671b550c2f:0xa9a09b4966208483",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-21T23:55:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c986747414eb9:0x96a6be4066da9c2c",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T23:57:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9868db100491:0x4d4e818807cf2361",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-21T23:58:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9869199c55ad:0x7cc3ccd3778fe332",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-21T23:59:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c986b11522f65:0x725c1a1ddf98ab05",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T00:00:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9879621e981f:0x1adf556632ae9ec9",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-22T00:01:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9879621e981f:0x1adf556632ae9ec9",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T00:02:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c987dffe6e3d3:0x32aabb9d0b21b33d",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T00:04:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c988041a23c2b:0x2b3e58fc728de022",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T00:05:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9885e1c135cb:0x1743ac2bea14b075",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T00:07:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9886fe3b8a35:0xa3a06b421c744ac3",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T00:08:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98870e218179:0x7e08dadd891df2f7",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T00:10:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c988b162bcc6f:0xf0c859e2df0a3107",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T00:11:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c988b1e7ef093:0xb06301e0d18dce71",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T00:12:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c988b4ba3655b:0xd86006a4d6dfeb89",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T00:14:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9890b09bafb5:0x333293f7ed3997b4",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T00:15:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9890f7d80587:0x15b84b019daeba57",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T00:16:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98914d1255ab:0x94eee85264a177cd",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T00:18:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9893e5682f5b:0x97113f2ab0c0382e",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T00:19:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989402052627:0x36214a10f2c74097",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T00:21:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98940b3d896b:0xce59113abaa63e9c",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T00:22:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98940d29200d:0x6d61119b625d0ff3",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T00:24:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9894170a8157:0xd59956f6c673570a",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T00:26:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989419f566c9:0xa53ea99198ec4ea5",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T00:27:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98942e32d21d:0x127446345ee1d4f9",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T00:29:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9894331873f5:0xd091a55ed9770f9b",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T00:30:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98947b4ebc17:0x1a9805e8214f29d8",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T00:32:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98951071340d:0xe50fe6c9017c9da7",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T00:33:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989543636ed7:0x866c9019fd6b7a1e",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T00:35:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9895b46424a1:0xc99a292c30ae3f53",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T00:36:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9895dfe1d3cd:0x99e6796e8073efa",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T00:38:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98960d36d767:0x1ab360ef9104e41",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T00:39:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989683404ed7:0x75c6a34fd7e82dd4",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T00:41:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9896aae3c9c1:0xb89d2bc1e28d37ff",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T00:42:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98997e10b0c9:0x8e1e1f909fefe0f6",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T00:43:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989a485d4a67:0x851c2475e1e4cd75",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T00:45:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989a55555555:0x53ad17761374ede4",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T00:46:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989a85543d63:0xcebaf57a29bd5b4b",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T00:47:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989a91c0198d:0xeda94d338b25e7fc",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T00:49:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989a979f9abd:0x56da07d4e409193d",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T00:50:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989a9a55fb6f:0x68bfa476d8d8b28d",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T00:52:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989ae002668f:0x3a501649e3a52eff",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T00:53:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989ae762b7c9:0xfb875bd49c1afd8",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T00:55:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989b1ccf5e83:0xddf61b3da045d77",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T00:56:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989bc89e0919:0x2412ddae4f5991ef",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T00:58:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989bccac477f:0xcf285167c4e0867",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T00:59:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989cd8a32d29:0x72c78cc289a33f86",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T01:01:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989e228b20dd:0x9280888ab8ab769e",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T01:02:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c989fba1a1d0b:0x7f10021cd421fc2a",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T01:03:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a0a846a39f:0x7fadf3764a4e2dda",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T01:05:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a1289e5861:0x7819b5153bc4f3cd",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T01:06:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a2f4635dc9:0xe3a8a442a26efd55",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T01:08:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a404224ea7:0xcb1c06b4ad3b130d",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:09:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a449b27fa1:0x4679c94dd71074ce",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:10:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a78af3562f:0x4107c353418db258",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T01:12:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a7ce55e963:0x68e28425d7be6c0e",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T01:13:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98a8ab79d8a9:0x1dcff52304470941",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T01:14:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98abc130cfc5:0xa1a3adae73d674e0",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-22T01:16:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98adeea9be0d:0xc80470c24b1189cb",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T01:17:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98adf2576b2b:0x34ea6678c92c84aa",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-22T01:19:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ae0f83c995:0x268bab022e590e6a",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T01:20:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98af1f322abd:0xbc600c5b93d17fde",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:21:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98af3aa76ced:0xda812287df98f31d",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T01:22:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98b792e711b5:0x1df8609204027ab3",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T01:24:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98bbf4fc18ef:0x45c4669113a2c86b",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:26:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98bdc7953b71:0xdc490274bb41b7f7",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T01:27:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c020df91c9:0xea309c858cbde76d",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T01:29:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c165ba8289:0x32dd58e8f0edcb6f",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T01:30:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c189c82d13:0x14566430ff247d8c",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:32:08",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c18a80c8a7:0xa6fa55a09ae587e9",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:33:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c1ae9be5a1:0x26f87f55d0deeed6",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:35:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c1b1b609fb:0x54bb65f45af25dbe",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T01:36:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c1ba154e67:0x2a62766c4a433388",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:37:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c1c7c5072d:0xd21b907482b4abae",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T01:39:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c225dca48d:0x85fc7a78cc6b0a2e",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T01:40:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c22bdf02bd:0xf3eef4704e1204a3",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T01:42:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c242e8c78d:0xf2b8fd3ff6072d2c",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T01:43:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c24b181a71:0xc7e898869cf4117b",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T01:44:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c26656fd05:0xf093b78dbc42dbda",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T01:46:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c2c6aa9ae1:0xd755c6034a20988e",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T01:47:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c2cd50185f:0xae3c5652883c6d63",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:48:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c2d7bcdae1:0x1b2908e4119932f2",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T01:49:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c2ead1a795:0x8149157789c56429",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T01:51:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c315d2fb5f:0x6cc1aec271dfd89a",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T01:52:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c31608e431:0xdb9bee30a97cc7e6",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T01:53:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c38c78680d:0x5b1167d12cd8f9df",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T01:55:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c3a9ef2519:0x41fe446d45791412",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T01:57:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c3d38986a3:0xab2d4203d981267b",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T01:58:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c3f5532e05:0x6b3b8d4abfa720dd",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T01:59:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c4088de62f:0x4eb69c5d5bf5b244",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T02:01:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c49b3b0dad:0x5056fc880d534e8b",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T02:02:28",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c4b6bb756d:0xfe86040d1ae14cdf",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T02:03:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c4c193ecb1:0x5c20888c1c0f76f1",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T02:05:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c4c6b8286f:0x137fbd99b8e821a0",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T02:06:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c522d4a6e5:0x85e73bb4e4911eb2",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T02:07:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c531b6224f:0x10734436afb305b7",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T02:09:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c550db86e7:0x83671c1950aa1290",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T02:10:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98c92a92be03:0xf143c2bfb8fe97b8",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T02:12:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ce32d3e313:0x9323f89dbb357ef8",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T02:13:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98cee83bf88f:0x189ec1593b1fcd76",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T02:14:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d021d7b567:0x4e9dfee174bd1c16",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T02:16:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d0570d933b:0xc8fed1ee5873a54",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T02:17:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d05b867d3d:0x30a4e59986364543",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T02:19:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d05f526e03:0x2be93565b2f21b91",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T02:20:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d070c90e97:0x7882e967a3936600",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T02:21:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d0750a881f:0xc42c13947ddcd99a",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T02:23:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d0898b5bd1:0xbf8f08dbe1ae887b",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T02:24:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d0f1a885ad:0x29a8b46bfecbba8f",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T02:26:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d0f26ea843:0xec8b38106401b101",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T02:27:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d0f3b1d07f:0x7075b5719ddeba93",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T02:29:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d0f84e7223:0x5b97f962a42ea237",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T02:30:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d144141691:0x68ff037b84f80bd8",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T02:31:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d3ddcad817:0xe33dd754b3d52ff7",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T02:33:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d45ef7caaf:0x8c768eb66ca1cf2e",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T02:34:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d50c9de3cf:0xb17a73f25726f70d",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T02:35:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d510738443:0x7de9eb5933a60afd",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T02:37:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d5e6435fdb:0xcc79ce2689c201a9",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T02:38:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d61527008b:0x5cafd965150e51f7",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T02:40:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d657b10f45:0x9d9c73db871fe481",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T02:41:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d6dd71b117:0xf4cbb804e5887a8e",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T02:43:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d6ec19be1d:0xa7b02d0f01bb0479",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T02:44:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d751964d01:0x74ff3127919e2fff",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T02:45:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d757be9623:0xee2f3ebf3b4f8a3c",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T02:46:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d764db01c7:0x8b032630c1c11103",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T02:48:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d779afd59d:0x7e081bd29b4a1cf4",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T02:49:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d792867947:0x1e92253fb551f3b2",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T02:51:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d7e8f6d88b:0x2800069904eab00e",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T02:52:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d83b8da949:0x695be4772ca78708",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T02:54:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d85586cbf5:0xe2ac96eb24fd18d8",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T02:55:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d87a055a29:0x81970f2d207973b0",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T02:56:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d88924a89b:0x17a6526e688c840a",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T02:58:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98d9f8711651:0xf1e51a87048ea917",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T02:59:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98da36982047:0x73327a2edca8cc11",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T03:01:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98daa68dfd03:0x5a7a164931c2b121",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T03:02:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98daa6d27109:0x862aa9140c77d523",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T03:03:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98dacc22c1d5:0x4678ac4baa1514f2",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T03:04:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98db7c4fcd7b:0x36fccf93e6f6c94c",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T03:05:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98dbac5c2fc9:0x4b4b81e4c4e99b0",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T03:07:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98dd34582f25:0x9dd0a9c93c42d301",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T03:08:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ddc71eaec1:0x6acd64196db94999",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T03:10:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98def6bf1367:0x7a6520de096aa94a",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T03:11:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98df2a413415:0xc0501673dcc904a0",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T03:12:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98df2ccc9855:0x3664c1410c864e58",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T03:14:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e0c1000f05:0x1785a490c28c477b",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T03:15:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e0cfe2c2bd:0x84cd7668848fffe8",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-22T03:17:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e5a521c63d:0x4413fb390aa87fbe",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T03:18:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e7a9e437ff:0x86a1c5809b1527cb",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T03:19:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e84c09b567:0x510447ea0aff1d96",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T03:21:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e90a8ff3cf:0x76d15af188afb1af",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T03:22:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e913849d2d:0xb3aab2a8d3d7c138",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T03:23:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e91fbc95db:0x12e44bfb219aec2a",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T03:25:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e93c785d5d:0x1745bad813a0af72",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T03:26:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e9445754bf:0x8de8904fe5fe2896",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-22T03:27:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e9445754bf:0x8de8904fe5fe2896",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T03:28:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e95eb788eb:0x7813a63444d9eb46",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T03:29:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e995c41023:0xe789424b47b94601",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T03:31:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e9a2439cd1:0xdad7968cf55aaea6",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T03:32:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98e9cc86e3a7:0xe45bbb1c2e9f8e9e",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T03:33:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ea0264691d:0x21cba3c391702cc7",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T03:34:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ea3104c763:0x51121108299a9433",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T03:36:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ea7dd864bf:0xae8cace58403c2f3",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T03:37:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ea7faef149:0x73625e11783d97bc",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T03:38:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98eebb515579:0x59953c3617bd3c37",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T03:40:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98eecc3d112d:0x932ad4e208dd89f3",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-22T03:41:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ef0834578d:0xb043c0b4e10b90c3",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T03:43:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ef361cdf51:0xef64140bd22a5bfd",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T03:44:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98ef729ba207:0x268dd4336a1a12a5",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T03:45:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f208ed33e5:0x720a0788d62f5dda",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-22T03:47:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f247657b69:0x391b7434205d89b9",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T03:48:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f25483c90b:0xf18c1b4fc8ff1587",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T03:50:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f2b3b55369:0x810f8a9d58386575",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T03:51:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f3176490c5:0x2ebaa8f70584bcf9",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T03:53:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f3459c3ba3:0xb062f37ce2832397",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T03:54:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f3b26b7385:0x1482dce063f6662",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T03:55:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f484c16471:0x2bfa3d02e5ecaecf",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T03:56:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f6224803a5:0xdc773d46b1e72f79",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T03:58:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f62921efe1:0x87642ac87b0a5817",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T03:59:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c98f96071f42b:0x72509024af8a98c4",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T04:01:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990000132a65:0xde5a5196fbb88eac",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T04:02:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990000636ed7:0x19445b13deb41321",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T04:03:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990000d1d563:0x67fe2989dac132b6",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T04:05:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900020a53b3:0x58e637cc2cf1f801",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T04:06:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990003af0043:0x3032c84305d9f479",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T04:07:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990003fb44c3:0xb23e78300464eddb",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T04:09:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990005f0e6cd:0x9a903ae6740819dc",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T04:11:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990006721ad9:0xb85e85c73271b08d",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T04:12:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99000884902d:0x53ab4cdd11c3d121",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T04:13:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990008cfc775:0xbfcf7f4ebe81e2b5",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T04:15:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900090ce279:0x8dcb256a5fb84112",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T04:16:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99000a6efecb:0xee58d9ccb22a4a9f",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T04:17:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99000cd33bcd:0x781bf6b9a65845f7",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T04:18:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99000cd824ad:0x4fda221ccc161b7c",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T04:20:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99000e15456f:0x5da48a52aaec23bf",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T04:21:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990010baf24b:0x5768e2598b30e4e3",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T04:23:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990012936869:0x7210f2494eeedc8f",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T04:24:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990013496037:0x1943801e46f6407a",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T04:25:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900145bfb13:0x5d1062be9ab56f57",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T04:27:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990015276d05:0x9e0578ae3108e565",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T04:28:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990016014d71:0x5c395bc5a4e0d601",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T04:30:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990016f81d61:0xf614f89c66663092",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T04:31:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900188a4589:0x9847e0c463c227c3",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T04:32:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001893bfcf:0x63012ca37a241f0b",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T04:34:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900194a15af:0xf47037714d8f5c49",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T04:35:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990019c260c9:0x1baf766e5322da92",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T04:36:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001ca7b7ab:0xb0cc5efe9d23e154",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T04:37:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001cf7e7b7:0x73b03a393342ae69",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T04:39:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001dab744b:0x3ae5e45feeeaea87",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T04:40:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001ebcd907:0xdf5dfd4027978a2",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-22T04:42:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001f3b208f:0x86ecfec22532070b",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T04:43:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001f41d813:0xaa19d7f3cbb41f18",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T04:44:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001fca65bd:0xa419d51b26ebd9d9",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T04:46:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99001fd8fc25:0x4f65cce71a144f2a",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T04:47:49",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990020710399:0x7df5596788d6d0f3",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-22T04:49:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990020b5f6a3:0x3ede3ac98a03b1f9",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T04:50:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900219d25cb:0x8cc494bbd28038c9",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T04:51:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990023e1bccb:0xec0cf295753dbf9f",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T04:53:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990024b6ded3:0xed96bf51ed39511e",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T04:54:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990024b73287:0xbc8c14a13fca5f8e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T04:55:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99002870f491:0xa0e28f26f7fc0199",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T04:57:11",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990028aa39bb:0xf2d298c4c6968dff",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T04:58:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99002a12a3c3:0x8cbf0158b369d934",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T04:59:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99002b72dfc1:0x394668257aec5fb9",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T05:01:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99002cf7a713:0xefc499325f72804",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T05:02:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99002e132b67:0xef5182256e19e847",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T05:03:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99002eb8e73d:0x2ec14281ae1b31a5",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T05:05:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99002ebcd881:0x6ac68dfc74d5afa9",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T05:06:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900303bbfe7:0x3f79810cfc3877d0",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T05:08:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990030865c73:0x4d4583dadd633055",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T05:09:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900310b00c5:0xc314b4a1fd139845",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T05:10:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900324a4fa1:0xd40bb6b2841d1796",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T05:12:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900349f374d:0x319aca31256d4e88",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T05:13:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99003631990b:0x922a036c3cea3846",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T05:15:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900369fb85b:0x3651d57d9924f5e1",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T05:16:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990038bfcc71:0xa47456eb91488931",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T05:18:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990038e9a8b7:0xb1e5112441e9504a",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T05:19:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900396c9ae5:0x2bf3403a81f01173",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T05:20:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99003b218513:0xac965fb77a465672",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T05:22:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99003b7339cb:0x91837ab1507ccf5d",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T05:23:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99003d4132f3:0xf91a761909f4f634",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T05:24:34",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99003d602db7:0x8e756e16bd7a7602",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T05:26:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900424fcb71:0x64f0c0fbb78e8772",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T05:27:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990042bcb8f7:0x43351d2c3203358",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T05:28:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990042c0df41:0xb8d697a8eb3ef9f7",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T05:30:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990044c6a5f3:0xd28d5fa1161da1f1",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T05:31:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900470fed6d:0x6999caed8caac9fc",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T05:33:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004809c24b:0x24fc95aa81867d34",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T05:34:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004818a583:0xf1de4e2699289b1b",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T05:35:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004b059241:0xf8a479954533b77d",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T05:36:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004b3e8107:0xd08f249e005d8a45",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T05:38:02",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004c48e2c3:0xa2b00a2f91fd8b95",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T05:39:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004c971bd5:0xfc2be99e0f887497",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T05:40:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004dbd2acd:0xdaa7dfef218cae9",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T05:41:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99004fff93e5:0x30d74e8db3de02d4",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T05:42:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900520a74f5:0xbb5ae55e2121cd3e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T05:44:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005273de55:0x95322b3575790339",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T05:45:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005492f049:0xd27f6878751454c6",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T05:46:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990057ba6c87:0x66a1f8fa25b3e4ce",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T05:48:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990059251fd7:0x52482bed523af6ff",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T05:49:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005a8ebafd:0xdbd3bb6946613c5f",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T05:50:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005b6db3d3:0x2ec858b81f696fd3",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T05:52:12",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005be7bdc9:0x33e3298396cc4767",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T05:53:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005c4f18fb:0x475774e68ff10adc",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T05:54:52",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005cf3ae89:0xb808f1607aeb5998",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T05:56:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005d85e7d1:0xb5746aec90465663",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T05:57:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99005dc8ed97:0xf2dbecfa86f58264",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-22T05:58:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990060d6e311:0xcce2c8e618b93d89",
+      "outcome": "success",
+      "images": 5
+    },
+    {
+      "ts": "2026-04-22T05:59:55",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006185f787:0x4bc69536e0091e36",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T06:01:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900620fe20f:0x6d3d11750796f0bf",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T06:03:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006284a70d:0xd9eb9b3bd994c3e2",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T06:04:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990062f641b1:0x3e297da24ee47cf3",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T06:05:37",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900631c7187:0xf82b1438ee19cf46",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T06:06:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006336c0e1:0x7b4eccd49c52769b",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T06:08:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990063775475:0x70cbb34d8bab9a7e",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T06:09:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006498cb17:0x2ffab6bc58f658b1",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T06:10:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990064d7c851:0xb0cf889ce07ec9b2",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T06:12:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990066509231:0xd70de120c51496a0",
+      "outcome": "success",
+      "images": 1
+    },
+    {
+      "ts": "2026-04-22T06:13:40",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900671de6b7:0xab77b975c2b83956",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T06:14:54",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006766deb9:0xbd87bb9d07f8ff69",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T06:16:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900684a1213:0x7cf7c8f9135faea",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T06:17:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990069a1aaa5:0x4df2021d82c22fc3",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T06:18:35",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006a1beaeb:0xe45504561697a2a6",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T06:19:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006b52cf2d:0xf60708fba943eb9a",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T06:21:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006b8894d3:0x69be55be9a8faf44",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T06:22:29",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006c2db4e3:0xc09e6184b47672dc",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T06:23:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006c6d5d4b:0xcc828947cc72dc25",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T06:25:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006d4fbd35:0x878bec3feb1712e3",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T06:26:16",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99006e842fbf:0xbb85c69d7f6e5885",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T06:27:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990071fc69e7:0xf31e732951ec35d7",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T06:28:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990073c6798b:0xc24d19bbdaa67ff6",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T06:30:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990073f1fc93:0x7552dfdca2f25a7e",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T06:31:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990075520061:0xc5534efd7ab83f81",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T06:32:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990075e4e81b:0x280068430d7dd8ad",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T06:33:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900764ea465:0x78ca880714056b46",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T06:34:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990077813741:0x738db69ec801a223",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T06:36:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990077e54943:0x8f446fac6db0b10e",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T06:38:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900799732fd:0xde685db6b67e20a0",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T06:39:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990079cb2d49:0x331e001c43309102",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T06:40:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990079d11839:0xf769908b42b82be9",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T06:42:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99007a1f6991:0xa1f4051ba7cf8b0",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T06:44:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99007b668e99:0x5e43782a06d77d8e",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T06:45:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99007c8cfe65:0x530eda591f71eb95",
+      "outcome": "success",
+      "images": 6
+    },
+    {
+      "ts": "2026-04-22T06:47:00",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99007c8f2053:0xa003f1ea6709ddb0",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T06:48:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99007d85f929:0xd654998ea51a16ba",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T06:49:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99007ddec1af:0xee3dcf5eb79e0906",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T06:51:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900850ef729:0x2f828e775c7c19cb",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T06:52:17",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900a9c912db:0xe3a1935e64df458c",
+      "outcome": "nav_error"
+    },
+    {
+      "ts": "2026-04-22T06:52:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900a9c912db:0xe3a1935e64df458c",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T06:53:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9900f4497279:0xdc005bcff0034c11",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T06:55:09",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990156eb72b3:0x5f8e1c4fb7b9795b",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T06:56:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99027661498b:0xf82993495fccdac",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T06:57:53",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9902adbc4b03:0x3c3841254005ed82",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T06:59:07",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9902ea8e4045:0xe0ebe565dbf000cf",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T07:00:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990300227f0d:0xe9bb4e14963c9e7d",
+      "outcome": "success",
+      "images": 19
+    },
+    {
+      "ts": "2026-04-22T07:01:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99031490e131:0xf69395571d126aa1",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T07:03:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990383f87e63:0x78cb76e3ed666101",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T07:04:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99039cb94643:0xd50c698d4eebf0fd",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T07:05:43",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9904174ca5cb:0x72e9552d0726ff50",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T07:07:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99042d626ab5:0x7f5c2f1304021c11",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T07:08:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990474348fbf:0xec17951f647e96be",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T07:09:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9904cad2fe29:0x9a9f3ef86f6548bd",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T07:11:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9905828ba7f3:0x972f8e69f38f443a",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T07:12:22",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9905c066fe7d:0xc41b5cdbccbf6ec9",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T07:13:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990663370f9f:0x7b601a237a00cecf",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T07:15:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9907be591ff5:0x9ddecc29bc991c49",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T07:16:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9907db7b8aed:0xbf30fec1d91907be",
+      "outcome": "success",
+      "images": 13
+    },
+    {
+      "ts": "2026-04-22T07:17:46",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99083e04c86d:0x1d2247a2653076b0",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T07:18:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990862dfe1ad:0x2a9555aad12a46ec",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T07:20:25",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9908bc30fe73:0xa2df9d567a1796c1",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T07:21:39",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9908fa43666f:0xc5ff1bb907381021",
+      "outcome": "success",
+      "images": 12
+    },
+    {
+      "ts": "2026-04-22T07:22:57",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99094db44343:0x989a1f5b2afea25",
+      "outcome": "success",
+      "images": 2
+    },
+    {
+      "ts": "2026-04-22T07:24:13",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990a5378d285:0x42857fa200bfd009",
+      "outcome": "success",
+      "images": 14
+    },
+    {
+      "ts": "2026-04-22T07:25:48",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990aa5eb0df7:0x942917b75f767ef6",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T07:27:14",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990ac76790cd:0xe4178dbfab1841c7",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T07:28:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990b0702ddd5:0xbb7233ee06f5919d",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T07:29:56",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990b450360af:0x783be8c7a3c70aab",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T07:31:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990b9441db2d:0xaf66e1603dcb4abc",
+      "outcome": "success",
+      "images": 7
+    },
+    {
+      "ts": "2026-04-22T07:32:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990c790b97d5:0xa0a811f78ddd61ba",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T07:34:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990cbd40e36b:0xd1c0186e455d8a82",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T07:35:24",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990cc564ab8b:0x8a96556bcb5f25dd",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T07:36:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990d47d08bb9:0xf794aa0348ab2296",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T07:38:05",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990d47d08bb9:0xfbe67652d9bbce9e",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T07:39:19",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990d5fd8f1b9:0x36e828173deb6b26",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T07:40:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990d6705e793:0xf96e2782b698a6b2",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T07:42:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990d8c44c11d:0x1604b97113297814",
+      "outcome": "success",
+      "images": 4
+    },
+    {
+      "ts": "2026-04-22T07:43:32",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990d8c44c11d:0xd1262cc5079e156f",
+      "outcome": "success",
+      "images": 10
+    },
+    {
+      "ts": "2026-04-22T07:45:03",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c990f0de83701:0x7fe74196610a1022",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T07:46:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99101a7ca5cf:0xcfe9f80c238a751c",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T07:48:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99101fb8e31b:0x14407dd26ed20d17",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T07:49:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99102c15b061:0x9edbe51d714dbb82",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T07:50:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c991034f8b97d:0x6c27155723094aa6",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T07:52:18",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9910d897b877:0x62988985def25dc8",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T07:53:50",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99118129bd01:0x5650a108b5d69048",
+      "outcome": "success",
+      "images": 8
+    },
+    {
+      "ts": "2026-04-22T07:55:23",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99118ef57cbf:0x2e38afcb694153e8",
+      "outcome": "success",
+      "images": 20
+    },
+    {
+      "ts": "2026-04-22T07:56:31",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9911a32137c9:0x10e4ffc7e0931705",
+      "outcome": "success",
+      "images": 15
+    },
+    {
+      "ts": "2026-04-22T07:57:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9911b8c41a3b:0x549c58873ea0ab3b",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T07:59:21",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9911c3a47577:0x7184460286e0fc61",
+      "outcome": "success",
+      "images": 11
+    },
+    {
+      "ts": "2026-04-22T08:00:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9911e4a5cead:0xae16335514c5738b",
+      "outcome": "success",
+      "images": 18
+    },
+    {
+      "ts": "2026-04-22T08:01:58",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c991202bac3c3:0xef1d7e936d96470d",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T08:03:36",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c99126d2ef227:0x21a07a3949a7772a",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T08:05:06",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9912bae09d01:0x75b4946914b7875",
+      "outcome": "success",
+      "images": 3
+    },
+    {
+      "ts": "2026-04-22T08:06:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357c9912e1bc7939:0x1d3c304fd5327892",
+      "outcome": "success",
+      "images": 17
+    },
+    {
+      "ts": "2026-04-22T08:10:24",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca10006461b81:0xb333e02ad35f6356!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:11:50",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca1003fb95b47:0xc67c7a980028056f!8m2!3d37.5052113!4d127.0042957!16s%2Fg%2F11yn6jx0x3!19sChIJR1u5PwChfDURbwUoAJh6fMY?authuser=0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:13:21",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca16d247226bd:0x527e52b303b63e5e!8m2!3d37.4909695!4d127.0100686!16s%2Fg%2F11g8pbhnj9!19sChIJvSZyJG2hfDURXj62A7NSflI?authuser=0",
+      "outcome": "success",
+      "images": 9
+    },
+    {
+      "ts": "2026-04-22T08:14:33",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca17302697d83:0xf7785080de9ab0bf!8m2!3d37.4938847!4d127.0050668!16s%2Fg%2F11k3n731jr!19sChIJg31pAnOhfDURv7Ca3oBQePc?authuser=0",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:16:03",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca174094b0375:0x10531fd9eb21b7d8!8m2!3d37.4820931!4d126.9965208!16s%2Fg%2F11s7dv4_42!19sChIJdQNLCXShfDUR2Lch69kfUxA?authuser=0",
+      "outcome": "success",
+      "images": 16
+    },
+    {
+      "ts": "2026-04-22T08:17:17",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca3004060ae63:0x3a81bb8600341a94!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:18:23",
+      "proxy": "direct",
+      "cafe_id": "google_!4m7!3m6!1s0x357ca30078c71d9b:0x22a8d95daeb9d054!8",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:19:45",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b570078b010e5:0x31b3de028a505bb6",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:20:59",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b583ada9e7793:0x83fbecf07d8dd56d",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:22:33",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b586069ffe201:0xbb341d6915d3a42f",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:23:41",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b588aa21ccbed:0x25269882c5ac5695",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:25:15",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b59003bf7c6c9:0xb2fef29e946ad497",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:26:44",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b592639154fe9:0x4a3d0b8de37c147c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:28:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e20c204c1b9:0x61a63af5cc1605e4",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:29:27",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e25365a9f99:0x968fb751590bc5f1",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:31:01",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e47c44da16d:0x1e117a68182dee05",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:32:26",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5e48127003fd:0x826ea5cee2370d2c",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:33:38",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5ee3f70003bb:0x32c58640cd50ec5e",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:34:51",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5efc83e1ddf5:0xea5c382891610927",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:36:04",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a120407:0xda5c8ed55b7f101a",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:37:20",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000a42dfff:0xba49f7ba5070d236",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:38:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f000edda7d1:0x8ec28d7e91fe18ca",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:40:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00102008d5:0x1eb7952d69eb3710",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:41:42",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0023ca7eb7:0xd049860b4c48e3db",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:43:10",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f0026d7176b:0x35e8202cd81cb642",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:44:30",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f002b44ee51:0x67ccaa85b1b03cda",
+      "outcome": "no_images"
+    },
+    {
+      "ts": "2026-04-22T08:45:47",
+      "proxy": "direct",
+      "cafe_id": "google_0x357b5f00316a96e3:0x367d496d383e832c",
+      "outcome": "no_images"
     }
   ]
 }

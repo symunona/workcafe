@@ -80,6 +80,13 @@ export interface SourceCafe {
   images: ImageInfo[]
 }
 
+export interface Snapshot {
+  name: string
+  date: string
+  cafe_count: number
+  notes: string
+}
+
 export interface Chain {
   id: string
   name: string

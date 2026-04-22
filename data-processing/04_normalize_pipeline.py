@@ -332,7 +332,19 @@ def main():
     parser.add_argument("--socket", help="Override db_server socket path", default="/tmp/workcafe_play_db.sock")
     parser.add_argument("--englishify-db", default=os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'englishify.db')),
                         help="Path to englishify.db translation cache")
+    parser.add_argument("--no-backup", action="store_true", help="Skip automatic backup of clean.db before run")
     args = parser.parse_args()
+
+    if not args.reset and not args.no_backup:
+        backup_script = os.path.abspath(os.path.join(_HERE, '..', 'scripts', 'backup-clean.sh'))
+        if os.path.exists(backup_script):
+            import subprocess
+            print("Running backup-clean before pipeline...")
+            result = subprocess.run([backup_script, "--db", args.db], capture_output=False)
+            if result.returncode != 0:
+                print("Warning: backup failed (continuing anyway)")
+        else:
+            print(f"Warning: backup script not found at {backup_script}")
 
     conn = sqlite3.connect(args.db, timeout=30)
     conn.execute("PRAGMA journal_mode=WAL")

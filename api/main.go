@@ -345,6 +345,97 @@ func corsJSON(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 }
 
+// ─── Snapshot DB cache ────────────────────────────────────────────────────────
+
+type snapshotCache struct {
+	mu      sync.Mutex
+	dbs     map[string]*sql.DB
+	dataDir string
+}
+
+func newSnapshotCache(dataDir string) *snapshotCache {
+	return &snapshotCache{dbs: make(map[string]*sql.DB), dataDir: dataDir}
+}
+
+func (sc *snapshotCache) get(name string) (*sql.DB, error) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	if db, ok := sc.dbs[name]; ok {
+		return db, nil
+	}
+	path := filepath.Join(sc.dataDir, "history", "clean_"+name+".db")
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("snapshot not found: %s", name)
+	}
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&mode=ro")
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(4)
+	sc.dbs[name] = db
+	return db, nil
+}
+
+// dbForRequest returns the snapshot DB if ?snapshot= is set, else the live db.
+func (sc *snapshotCache) dbForRequest(r *http.Request, live *sql.DB) *sql.DB {
+	name := r.URL.Query().Get("snapshot")
+	if name == "" {
+		return live
+	}
+	sdb, err := sc.get(name)
+	if err != nil {
+		return live
+	}
+	return sdb
+}
+
+type SnapshotInfo struct {
+	Name      string `json:"name"`
+	Date      string `json:"date"`
+	CafeCount int    `json:"cafe_count"`
+	Notes     string `json:"notes"`
+}
+
+func (sc *snapshotCache) list() ([]SnapshotInfo, error) {
+	historyDir := filepath.Join(sc.dataDir, "history")
+	entries, err := os.ReadDir(historyDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []SnapshotInfo{}, nil
+		}
+		return nil, err
+	}
+	var out []SnapshotInfo
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".db") {
+			continue
+		}
+		// clean_2026-04-23-v1.db → name = 2026-04-23-v1
+		name := strings.TrimPrefix(strings.TrimSuffix(e.Name(), ".db"), "clean_")
+		date := ""
+		if len(name) >= 10 {
+			date = name[:10]
+		}
+		// read cafe count
+		count := 0
+		if sdb, err := sc.get(name); err == nil {
+			sdb.QueryRow("SELECT COUNT(*) FROM clean_cafes").Scan(&count)
+		}
+		// read notes preview from .md
+		notes := ""
+		mdPath := filepath.Join(historyDir, "clean_"+name+".md")
+		if mdBytes, err := os.ReadFile(mdPath); err == nil {
+			notes = string(mdBytes)
+		}
+		out = append(out, SnapshotInfo{Name: name, Date: date, CafeCount: count, Notes: notes})
+	}
+	// reverse: newest first
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	return out, nil
+}
+
 func main() {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
@@ -360,22 +451,36 @@ func main() {
 	}
 
 	// clean.db — normalized cafe + image data, served to frontend
-	db, err := sql.Open("sqlite", dbPath)
+	// _pragma=journal_mode(WAL): join existing WAL; _pragma=busy_timeout(5000): wait up to 5s on lock
+	db, err := sql.Open("sqlite", "file:"+dbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
 	// scraped.db — live scraper output; used only for real-time metrics in /api/status
-	rawDb, err := sql.Open("sqlite", rawDbPath)
+	rawDb, err := sql.Open("sqlite", "file:"+rawDbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rawDb.Close()
 
+	snapshots := newSnapshotCache(dataDir)
+
 	mux := http.NewServeMux()
 
 	mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(dataDir))))
+
+	// ── GET /api/snapshots ────────────────────────────────────────────────────
+	mux.HandleFunc("/api/snapshots", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		list, err := snapshots.list()
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		json.NewEncoder(w).Encode(list)
+	})
 
 	// ── GET /api/cafe?id=... ─────────────────────────────────────────────────
 	mux.HandleFunc("/api/cafe", func(w http.ResponseWriter, r *http.Request) {
@@ -982,7 +1087,8 @@ func main() {
 	// ── GET /api/chains ────────────────────────────────────────────────────────
 	mux.HandleFunc("/api/chains", func(w http.ResponseWriter, r *http.Request) {
 		corsJSON(w)
-		rows, err := db.Query(`
+		sdb := snapshots.dbForRequest(r, db)
+		rows, err := sdb.Query(`
 			SELECT c.id, c.name, c.name_english, COUNT(cc.id) as count
 			FROM cafe_chains c
 			JOIN clean_cafes cc ON c.id = cc.chain_id
@@ -1022,6 +1128,7 @@ func main() {
 
 	// ── GET /api/clean_cafes ─────────────────────────────────────────────────
 	mux.HandleFunc("/api/clean_cafes", func(w http.ResponseWriter, r *http.Request) {
+		sdb := snapshots.dbForRequest(r, db)
 		q := r.URL.Query()
 		const limit = 1000
 		var conditions []string
@@ -1076,9 +1183,9 @@ func main() {
 		countArgs := make([]interface{}, len(args))
 		copy(countArgs, args)
 		var total int
-		db.QueryRow("SELECT COUNT(*) FROM clean_cafes cc "+where, countArgs...).Scan(&total)
+		sdb.QueryRow("SELECT COUNT(*) FROM clean_cafes cc "+where, countArgs...).Scan(&total)
 
-		rows, err := db.Query(`
+		rows, err := sdb.Query(`
 			SELECT cc.id, cc.name, COALESCE(cc.english_name,''), cc.avg_lat, cc.avg_lon,
 			       COALESCE(cc.providers,'[]'), COALESCE(cc.source_ids,'[]'),
 			       COALESCE(cc.address,''), COALESCE(cc.url,''),
@@ -1135,6 +1242,7 @@ func main() {
 
 	// ── GET /api/clean_cafe?id=... ────────────────────────────────────────────
 	mux.HandleFunc("/api/clean_cafe", func(w http.ResponseWriter, r *http.Request) {
+		sdb := snapshots.dbForRequest(r, db)
 		id := r.URL.Query().Get("id")
 		if id == "" {
 			http.Error(w, "id required", 400)
@@ -1142,7 +1250,7 @@ func main() {
 		}
 
 		// Clean cafe base info
-		row := db.QueryRow(`
+		row := sdb.QueryRow(`
 			SELECT cc.id, cc.name, COALESCE(cc.english_name,''), cc.avg_lat, cc.avg_lon,
 			       COALESCE(cc.providers,'[]'), COALESCE(cc.source_ids,'[]'),
 			       COALESCE(cc.address,''), COALESCE(cc.url,''),
@@ -1162,7 +1270,7 @@ func main() {
 		}
 
 		// Source scraped_cafes
-		sourceRows, err := db.Query(`
+		sourceRows, err := sdb.Query(`
 			SELECT c.id, COALESCE(c.provider,''), COALESCE(c.name,''),
 			       c.lat, c.lon, COALESCE(c.address,''), COALESCE(c.url,''),
 			       COALESCE(c.metadata,'null'), COALESCE(c.scraped_at,'')
@@ -1208,7 +1316,7 @@ func main() {
 				placeholders[i] = "?"
 				imgArgs[i] = sid
 			}
-			imgRows, err := db.Query(`
+			imgRows, err := sdb.Query(`
 				SELECT cafe_id, provider, local_path, image_url, photo_id,
 				       width, height, file_size, scraped_at
 				FROM images
