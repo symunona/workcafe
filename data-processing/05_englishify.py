@@ -13,7 +13,6 @@ Output: data/seoul/englishify.db  (lookup table used by 04_normalize_pipeline.py
 import os
 import sys
 import re
-import json
 import sqlite3
 import argparse
 import time
@@ -77,25 +76,26 @@ def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
     return count
 
 
-def _parse_json_array(text: str, expected_len: int) -> list:
-    """Strip markdown fences, try direct parse, fall back to regex extraction."""
-    # Strip ```json ... ``` or ``` ... ```
-    clean = re.sub(r'^```(?:json)?\s*', '', text.strip(), flags=re.IGNORECASE)
-    clean = re.sub(r'\s*```$', '', clean.strip())
-    # Try direct parse
-    try:
-        result = json.loads(clean)
-        if isinstance(result, list):
-            return result
-    except json.JSONDecodeError:
-        pass
-    # Fall back: find first JSON array in text (greedy: take outermost [...])
-    m = re.search(r'\[.*\]', clean, re.DOTALL)
-    if m:
-        result = json.loads(m.group())
-        if isinstance(result, list):
-            return result
-    raise ValueError(f"No JSON array found (expected {expected_len}): {text[:200]!r}")
+def _parse_pairs(text: str, batch: list) -> dict:
+    """Parse 'korean; english' lines → {korean: english}. Case-insensitive source match."""
+    result = {}
+    for line in text.splitlines():
+        line = line.strip().lstrip('-').strip()
+        if ';' not in line:
+            continue
+        kr, _, en = line.partition(';')
+        kr, en = kr.strip(), en.strip()
+        if kr and en:
+            result[kr] = en
+    return result
+
+
+def _translate_one(kr: str, model: str) -> str:
+    return llm_generate(
+        f"Translate this Korean cafe name to English. "
+        f"Use transliteration for brand names. "
+        f"Return only the English name, nothing else: {kr}"
+    ).strip()
 
 
 def _progress(already: int, done: int, total: int, elapsed: float, bar_len: int = 30) -> str:
@@ -131,36 +131,41 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
 
     for i in range(0, total, BATCH_SIZE):
         batch = pending[i:i + BATCH_SIZE]
+        names_block = "\n".join(batch)
         prompt = (
-            "Translate these Korean cafe/coffee shop names to English. "
-            "Use transliteration for brand names (e.g. 스타벅스 → Starbucks). "
-            "Return ONLY a JSON array of strings, same order, no explanation:\n"
-            + json.dumps(batch, ensure_ascii=False)
+            "Translate each Korean cafe/coffee shop name to English.\n"
+            "Use transliteration for brand names (e.g. 스타벅스 → Starbucks).\n"
+            "Return ONLY lines in this format, one per name, no extra text:\n"
+            "korean; english\n\n"
+            + names_block
         )
+        pairs = {}
         try:
-            result = llm_generate(prompt)
-            translations = _parse_json_array(result, len(batch))
-            for kr, en in zip(batch, translations):
-                cur.execute("""
-                    UPDATE name_translations
-                       SET english_name = ?, model = ?, translated_at = datetime('now')
-                     WHERE korean_name = ?
-                """, (en.strip(), model, kr))
-                translated += 1
+            pairs = _parse_pairs(llm_generate(prompt), batch)
         except Exception:
-            for kr in batch:
-                try:
-                    en = llm_generate(
-                        f"Translate this Korean cafe name to English (one name only, brand transliteration): {kr}"
-                    ).strip()
-                    cur.execute("""
-                        UPDATE name_translations
-                           SET english_name = ?, model = ?, translated_at = datetime('now')
-                         WHERE korean_name = ?
-                    """, (en, f"{model}-single", kr))
-                    translated += 1
-                except Exception:
-                    pass
+            pass
+
+        # retry any names the model missed
+        missed = [kr for kr in batch if kr not in pairs]
+        if missed:
+            print(f"\n  retrying {len(missed)} missed", end="", flush=True)
+        for kr in missed:
+            try:
+                pairs[kr] = _translate_one(kr, model)
+            except Exception:
+                pass
+
+        for kr in batch:
+            en = pairs.get(kr, "")
+            if not en:
+                continue
+            cur.execute("""
+                UPDATE name_translations
+                   SET english_name = ?, model = ?, translated_at = datetime('now')
+                 WHERE korean_name = ?
+            """, (en, model, kr))
+            translated += 1
+
         eng.commit()
         print(_progress(already, translated, total, time.time() - t0), end="", flush=True)
 
