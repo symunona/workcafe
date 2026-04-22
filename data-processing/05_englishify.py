@@ -125,9 +125,9 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
         return 0
 
     total = len(pending)
-    print(f"  ollama: {already} already translated, {total} remaining — batches of {BATCH_SIZE}")
     translated = 0
     t0 = time.time()
+    print(_progress(already, 0, total, 0), end="", flush=True)
 
     for i in range(0, total, BATCH_SIZE):
         batch = pending[i:i + BATCH_SIZE]
@@ -147,8 +147,7 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
                      WHERE korean_name = ?
                 """, (en.strip(), model, kr))
                 translated += 1
-        except Exception as e:
-            print(f"\n  batch {i // BATCH_SIZE} failed ({e}), retrying one-by-one...")
+        except Exception:
             for kr in batch:
                 try:
                     en = llm_generate(
@@ -160,12 +159,12 @@ def ollama_batch(eng: sqlite3.Connection, model: str = "qwen2.5:1.5b") -> int:
                          WHERE korean_name = ?
                     """, (en, f"{model}-single", kr))
                     translated += 1
-                except Exception as e2:
-                    print(f"    failed: {kr!r}: {e2}")
+                except Exception:
+                    pass
         eng.commit()
         print(_progress(already, translated, total, time.time() - t0), end="", flush=True)
 
-    print()  # newline after progress bar
+    print()
 
     return translated
 
