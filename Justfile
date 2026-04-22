@@ -115,9 +115,9 @@ check:
     echo ""
     echo "── Data ─────────────────────────────────────────────"
 
-    if [ -f "$WDIR/data/seoul/cafedata.db" ]; then ok "cafedata.db"
-    else fail "cafedata.db missing" \
-        "ssh c \"gzip -c ~/dev/workcafe/data/seoul/cafedata.db\" | gunzip > $WDIR/data/seoul/cafedata.db" \
+    if [ -f "$WDIR/data/seoul/scraped.db" ]; then ok "scraped.db"
+    else fail "scraped.db missing" \
+        "ssh c \"gzip -c ~/dev/workcafe/data/seoul/scraped.db\" | gunzip > $WDIR/data/seoul/scraped.db" \
         "API (/api/scraped_cafes), all scrapers (write target)"; fi
 
     if [ -d "$WDIR/data/seoul" ]; then ok "data/seoul/ dir"
@@ -481,14 +481,14 @@ images cafe_id="":
 pull-models:
     #!/usr/bin/env bash
     source venv/bin/activate
-    python data-processing/cleaner/02_pull_models.py
+    python data-processing/02_pull_models.py
 
 # Run DB migration to add clean_cafes, cafe_chains tables and new columns
 [group('Data Pipeline')]
 db-migrate:
     #!/usr/bin/env bash
     source venv/bin/activate
-    python data-processing/cleaner/01_migrate_db.py
+    python data-processing/01_migrate_db.py
 
 # Normalize scraped_cafes into clean_cafes (safe to restart, skips already-processed)
 # Options: --embed (add embeddings, slower), --provider kakao/google/naver/osm
@@ -496,11 +496,12 @@ db-migrate:
 normalize limit="0":
     #!/usr/bin/env bash
     source venv/bin/activate
-    cd scraper
+    PLAY_SOCK=/tmp/workcafe_play_db.sock
+    ENG_DB=data/seoul/englishify.db
     if [ "{{limit}}" = "0" ]; then
-        python data-processing/cleaner/04_normalize_pipeline.py
+        python3 data-processing/04_normalize_pipeline.py --socket "$PLAY_SOCK" --englishify-db "$ENG_DB"
     else
-        python data-processing/cleaner/04_normalize_pipeline.py --limit {{limit}}
+        python3 data-processing/04_normalize_pipeline.py --socket "$PLAY_SOCK" --englishify-db "$ENG_DB" --limit {{limit}}
     fi
 
 # Detect chains from scraped_cafes name frequency; writes to cafe_chains on play DB.
@@ -514,56 +515,39 @@ detect-chains:
         echo "Play DB not running — starting..."
         bash scripts/start_play_db.sh
     fi
-    python3 data-processing/cleaner/03_detect_chains.py \
+    python3 data-processing/03_detect_chains.py \
         --socket "$PLAY_SOCK" \
         --verbose
 
-# Translate Korean cafe names to English. Chain cafes filled from cafe_chains (no model call).
-# Independent cafes: ollama batch-30 (~2.7/s). Benchmark showed opus-mt-ko-en is faster
-# (~10/s inference) but hallucinates on Korean brand transliterations ("I'm sorry, I'm sorry"
-# for 카페드리옹) — ollama understands the "cafe brand name" context and wins on quality.
+# Build/update englishify.db translation cache (Korean→English name lookup).
+# Chain cafes filled from cafe_chains (no LLM call). Independent: ollama batch-30.
+# Benchmark note: opus-mt-ko-en ~10/s but hallucinates brand transliterations;
+# ollama qwen2.5:1.5b wins on quality for cafe names.
+# Safe to re-run: idempotent. Output: data/seoul/englishify.db
 [group('Data Pipeline')]
 englishify:
     #!/usr/bin/env bash
     source venv/bin/activate
-    python3 data-processing/cleaner/05_english_names_bulk.py --backend ollama --batch-size 30
-
-# Benchmark ollama vs opus-mt on 50 random names. Run this if considering switching backends.
-[group('Data Pipeline')]
-englishify-benchmark:
-    #!/usr/bin/env bash
-    source venv/bin/activate
-    echo "=== ollama batch-30 (current) ==="
-    python3 data-processing/cleaner/05_english_names_bulk.py --benchmark --backend ollama --benchmark-size 50
-    echo ""
-    echo "=== opus-mt-ko-en (faster but hallucinates brand names) ==="
-    python3 data-processing/cleaner/05_english_names_bulk.py --benchmark --backend opus --benchmark-size 50
-
-# Generate English names for clean_cafes (runs after normalize)
-[group('Data Pipeline')]
-english-names:
-    #!/usr/bin/env bash
-    source venv/bin/activate
-    python3 data-processing/cleaner/05_english_names.py
+    python3 data-processing/05_englishify.py --socket /tmp/workcafe_play_db.sock
 
 # Bulk-update images.belongs_to_cafe_id from scraped_cafes table (run after normalize)
 [group('Data Pipeline')]
 link-images:
     #!/usr/bin/env bash
     source venv/bin/activate
-    cd scraper && python3 ../data-processing/cleaner/06_update_image_links.py
+    python3 data-processing/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
 
-# Full normalization pass: migrate → normalize → link images → english names
+# Dedup raw scraped_cafes in scraped.db (same provider+location: keep latest).
+# Manual only — mutates live scraped.db.
 [group('Data Pipeline')]
-normalize-all:
+dedup-scraped:
     #!/usr/bin/env bash
     source venv/bin/activate
-    python3 data-processing/cleaner/01_migrate_db.py
-    cd scraper && python3 ../data-processing/cleaner/04_normalize_pipeline.py
-    cd scraper && python3 ../data-processing/cleaner/06_update_image_links.py
-    python3 data-processing/cleaner/05_english_names.py --chains-only
+    echo "WARNING: this mutates scraped.db directly. Continue? [y/N]"
+    read confirm; [ "$confirm" = "y" ] || exit 0
+    python3 data-processing/00_dedup_raw_cafes.py --socket /tmp/workcafe_db.sock
 
-# Clean up orphaned/incomplete normalization data (resets belongs_to_cafe_id for re-run)
+# Copy scraped.db → clean.db (stops play db server first to avoid conflict)
 [group('Data Pipeline')]
 db-clean:
     #!/usr/bin/env bash
@@ -572,7 +556,7 @@ db-clean:
     if [ -f "$PLAY_PID" ]; then
         OLD_PID=$(cat "$PLAY_PID" 2>/dev/null || true)
         if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-            echo "Stopping play db server (PID $OLD_PID) before replacing DB..."
+            echo "Stopping play db server (PID $OLD_PID)..."
             kill "$OLD_PID"
             for i in $(seq 1 20); do
                 kill -0 "$OLD_PID" 2>/dev/null || break
@@ -582,74 +566,73 @@ db-clean:
         fi
         rm -f "$PLAY_PID" "$PLAY_SOCK"
     fi
-    cp -f data/seoul/cafedata.db data/seoul/clean-data.db
-    rm -f data/seoul/clean-data.db-wal data/seoul/clean-data.db-shm
-    source venv/bin/activate
-    printf 'y\n' | python3 data-processing/cleaner/db_clean.py
+    cp -f data/seoul/scraped.db data/seoul/clean.db
+    rm -f data/seoul/clean.db-wal data/seoul/clean.db-shm
+    echo "clean.db refreshed from scraped.db"
 
-# Full merge pipeline: dedup raw → reset clean data → merge → link images → stats
+# Full merge pipeline: scraped.db → clean.db with merged, enriched, linked data
+# Steps: copy → migrate schema → detect chains → englishify → normalize → link images
 [group('Data Pipeline')]
 merge-pipeline:
     #!/usr/bin/env bash
     set -euo pipefail
     PY="$(pwd)/venv/bin/python3"
     B='\033[1m'; G='\033[0;32m'; Y='\033[0;33m'; NC='\033[0m'
-    TELEMETRY_PY="$(pwd)/data-processing/cleaner/pipeline_telemetry.py"
+    TELEMETRY_PY="$(pwd)/data-processing/pipeline_telemetry.py"
     STEPS=""
-    _t() { echo $(($(date +%s%3N) / 1000)); }   # current unix seconds (integer)
+    _t() { echo $(($(date +%s%3N) / 1000)); }
     _elapsed() { echo $(( $(_t) - $1 )); }
 
     PIPELINE_START=$(_t)
 
     echo ""
-    echo -e "${B}━━━ Step 0/5  Copy scraper DB to clean DB ━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 1/6  Copy scraped.db → clean.db ━━━━━━━━━━━━━━━━━━${NC}"
     T=$(_t); just db-clean
-    STEPS="${STEPS}db-clean:$(_elapsed $T)"
+    STEPS="copy:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 1/6  Start play DB server ━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 2/6  Start play DB server (clean.db) ━━━━━━━━━━━━━━${NC}"
     T=$(_t); bash scripts/start_play_db.sh
     STEPS="${STEPS},server:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 2/6  Dedup raw scraped_cafes (same provider + location) ━━━${NC}"
-    T=$(_t); $PY data-processing/cleaner/00_dedup_raw_cafes.py --db data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
-    STEPS="${STEPS},dedup:$(_elapsed $T)"
+    echo -e "${B}━━━ Step 3/6  Migrate schema (clean_cafes, cafe_chains tables) ━━━━${NC}"
+    T=$(_t); $PY data-processing/01_migrate_db.py --db data/seoul/clean.db
+    STEPS="${STEPS},migrate:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 3/6  Reset clean_cafes + cafe_chains ━━━━━━━━━━━━━${NC}"
-    T=$(_t); printf 'y\n' | $PY data-processing/cleaner/db_clean.py --socket /tmp/workcafe_play_db.sock
-    STEPS="${STEPS},reset:$(_elapsed $T)"
+    echo -e "${B}━━━ Step 4/6  Detect chains from name frequency ━━━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t); $PY data-processing/03_detect_chains.py --socket /tmp/workcafe_play_db.sock
+    STEPS="${STEPS},chains:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 3.5/6  Detect chains from name frequency ━━━━━━━━━━━━━━━━━${NC}"
-    T=$(_t); $PY data-processing/cleaner/03_detect_chains.py --socket /tmp/workcafe_play_db.sock
-    STEPS="${STEPS},detect-chains:$(_elapsed $T)"
+    echo -e "${B}━━━ Step 5/6  Build/update englishify.db translation cache ━━━━━━━━━━${NC}"
+    T=$(_t); $PY data-processing/05_englishify.py --socket /tmp/workcafe_play_db.sock
+    STEPS="${STEPS},englishify:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 4/6  Merge scraped_cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
-    T=$(_t)
-    cd scraper && $PY ../data-processing/cleaner/04_normalize_pipeline.py --db ../data/seoul/clean-data.db --socket /tmp/workcafe_play_db.sock
-    cd ..
+    echo -e "${B}━━━ Step 6/6  Merge scraped_cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t); $PY data-processing/04_normalize_pipeline.py \
+        --db data/seoul/clean.db \
+        --socket /tmp/workcafe_play_db.sock \
+        --englishify-db data/seoul/englishify.db
     STEPS="${STEPS},normalize:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 5/6  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━${NC}"
-    T=$(_t)
-    cd scraper && $PY ../data-processing/cleaner/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
-    cd ..
+    echo -e "${B}━━━ Step 7/6  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t); $PY data-processing/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
     STEPS="${STEPS},link-images:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Telemetry ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Telemetry ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     $PY "$TELEMETRY_PY" \
         --log telemetry.log \
         --start "$PIPELINE_START" \
         --steps "$STEPS" \
-        --db data/seoul/clean-data.db || true
+        --db data/seoul/clean.db || true
 
     echo ""
-    echo -e "${B}━━━ Restart API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Restart API ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     just service api restart || true
 
     echo ""

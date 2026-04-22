@@ -29,7 +29,7 @@ CENTER_LAT = 37.490230
 CENTER_LON = 126.994312
 STEP_SIZE = 0.01  # Roughly 1km
 
-DB_PATH = '../data/seoul/cafedata.db'
+DB_PATH = '../data/seoul/scraped.db'
 DATA_DIR = '../data/seoul'
 
 def get_tor_session():

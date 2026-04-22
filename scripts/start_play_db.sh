@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/scraper"
 
-DB_PATH="../data/seoul/clean-data.db"
+DB_PATH="../data/seoul/clean.db"
 SOCKET_PATH="/tmp/workcafe_play_db.sock"
 PID_FILE="/tmp/workcafe_play_db.pid"
 

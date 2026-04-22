@@ -4,6 +4,7 @@
 
 | Date | Version | What changed |
 |------|---------|--------------|
+| 2026-04-22 12:00 | v0.6.0 | DB rename: cafedata.db→scraped.db, clean-data.db→clean.db. englishify.db: persistent Korean→English name cache. Pipeline redesign: cp scraped→clean, migrate, chains, englishify, normalize (uses englishify.db lookup), link-images. data-processing/ committed (was gitignored). Stale doc deletion. scraper/AGENTS.md + data-processing/AGENTS.md written. |
 | 2026-04-22 09:00 | v0.5.1 | Scraper dir split: images/, places/, lib/ subdirs. scripts/ for root shell scripts. PYTHONPATH=$WDIR/scraper/lib in all service units. scrape-one recipe fixed (was broken). |
 | 2026-04-22 08:00 | v0.5.0 | Watchdog system (watchdog.py + systemd timer). Kakao/Naver metadata scrapers v1. Fixed image scraper silent hangs (AbortController wrapping body read; CAFE_TIMEOUT_SECS ref). Major Justfile expansion. Scraper dir reorganized: archive/, tools/, tests/ subdirs. File placement rules added to AGENTS.md. |
 | 2026-04-22 04:00 | v0.4.x | Watchdog prototype, register_watchdog.sh, Settings UI watchdog panel, /api/watchdog-status endpoint. |
@@ -36,14 +37,24 @@ This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get sta
 
 ## Database Architecture
 
-Two SQLite databases, each with a distinct role:
+Three SQLite databases, each with a distinct role:
 
 | File | Written by | Read by | Contains |
 |------|-----------|---------|----------|
-| `data/seoul/cafedata.db` | Scrapers (via `db_server` socket) | API `/api/status` metrics only | Raw scraped cafes + images, always live |
-| `data/seoul/clean-data.db` | Normalization pipeline (`just merge-pipeline`) | API for all cafe/map queries | Deduplicated clean cafes, cafe chains, merged images |
+| `data/seoul/scraped.db` | Scrapers (via `db_server` socket) | API `/api/status` metrics only | Raw scraped cafes + images, always live |
+| `data/seoul/clean.db` | Pipeline (`just merge-pipeline`) | API for all cafe/map queries | Deduplicated clean cafes, cafe chains, merged images |
+| `data/seoul/englishify.db` | `just englishify` | `just normalize` | Korean→English name translation cache (accumulates across runs) |
 
-**Rule:** never query `clean-data.db` for scraper activity metrics — it lags behind by however long since the last pipeline run. Always query `cafedata.db` for rates, counts, and timestamps. The API (`api/main.go`) opens both: `rawDb` for `/api/status`, `db` for everything else.
+**Rule:** never query `clean.db` for scraper activity metrics — it lags behind. Always query `scraped.db` for rates, counts, and timestamps. The API (`api/main.go`) opens both: `rawDb` for `/api/status`, `db` for everything else.
+
+See `data-processing/AGENTS.md` for full pipeline details.
+
+## Sub-Agent Docs
+
+| File | Covers |
+|------|--------|
+| `scraper/AGENTS.md` | Active scrapers, lib/ modules, output schema, failure modes |
+| `data-processing/AGENTS.md` | Pipeline steps, DB architecture, englishify.db schema |
 
 ## Services & Processes
 
@@ -133,7 +144,7 @@ bd dolt push          # Push beads data to remote
 
 ### Databases
 
-**Only two canonical DBs:** `data/seoul/cafedata.db` (raw) and `data/seoul/clean-data.db` (normalized).
+**Only three canonical DBs:** `data/seoul/scraped.db` (raw), `data/seoul/clean.db` (normalized), `data/seoul/englishify.db` (translation cache).
 
 - **Never** create `.db` files in `scraper/`, project root, or any other location.
 - Dev/play fixture: `api/play.db` only — it is gitignored.

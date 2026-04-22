@@ -4,8 +4,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 DB_DIR="data/seoul"
-SRC_DB="$DB_DIR/cafedata.db"
-PLAY_DB="$DB_DIR/clean-data.db"
+SRC_DB="$DB_DIR/scraped.db"
+PLAY_DB="$DB_DIR/clean.db"
 
 echo "Copying $SRC_DB to $PLAY_DB..."
 rm -f "$PLAY_DB" "$PLAY_DB-wal" "$PLAY_DB-shm"

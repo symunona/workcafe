@@ -54,7 +54,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(message)s',
     handlers=[
-        logging.FileHandler("log/scraper_google_images_v1.log"),
+        logging.FileHandler(os.path.join(_HERE, '..', 'log', 'scraper_google_images_v1.log')),
         logging.StreamHandler(),
     ]
 )

@@ -347,25 +347,25 @@ func corsJSON(w http.ResponseWriter) {
 func main() {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "../data/seoul/clean-data.db"
+		dbPath = "../data/seoul/clean.db"
 	}
 	rawDbPath := os.Getenv("RAW_DB_PATH")
 	if rawDbPath == "" {
-		rawDbPath = "../data/seoul/cafedata.db"
+		rawDbPath = "../data/seoul/scraped.db"
 	}
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {
 		dataDir = "../data/seoul"
 	}
 
-	// clean-data.db — normalized cafe + image data, served to frontend
+	// clean.db — normalized cafe + image data, served to frontend
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	// cafedata.db — live scraper output; used only for real-time metrics in /api/status
+	// scraped.db — live scraper output; used only for real-time metrics in /api/status
 	rawDb, err := sql.Open("sqlite", rawDbPath)
 	if err != nil {
 		log.Fatal(err)

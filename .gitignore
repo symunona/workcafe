@@ -1,9 +1,10 @@
 
 # Data directory
 data/
-data*/
+data-2/
 
 scraper/google-proxy-stats.json
+scraper/images/google-proxy-stats.json
 
 # Dolt database files (added by bd init)
 .dolt/

@@ -260,8 +260,6 @@ def run_pass(dbc: DBClient):
 
 
 def main():
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    os.makedirs('log', exist_ok=True)
     ensure_column()
     dbc = DBClient()
 

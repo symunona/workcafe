@@ -10,7 +10,7 @@ LOG_DIR="/home/symunona/dev/workcafe/log"
 DATE=$(date +%Y-%m-%d)
 TIME=$(date +%H:%M:%S)
 LOG_FILE="$LOG_DIR/$DATE.log"
-DB="/home/symunona/dev/workcafe/data/seoul/cafedata.db"
+DB="/home/symunona/dev/workcafe/data/seoul/scraped.db"
 
 SERVICES=(
   "workcafe-kakao-images"
@@ -206,7 +206,7 @@ CLAUDE_PROMPT="You are doing a daily health check on a Seoul cafe image scraping
 - workcafe-naver-images: downloads photos via Naver Maps Playwright (GraphQL, ~857 scraped_cafes)
 - workcafe-google-images: downloads photos from Google Maps via Playwright (intentionally slow: 60-90s sleep between scraped_cafes, ~1,164 scraped_cafes). Expected rate: ~10-20 images/hr max. A rate near zero is only a problem if the service is also inactive or the last journal line is >2h old.
 - All services: Restart=always, RestartSec=300
-- DB: /home/symunona/dev/workcafe/data/seoul/cafedata.db (images table has scraped_at timestamps)
+- DB: /home/symunona/dev/workcafe/data/seoul/scraped.db (images table has scraped_at timestamps)
 - Service files: ~/.config/systemd/user/workcafe-*-images.service
 - Scrapers: /home/symunona/dev/workcafe/scraper/scraper_*_images_v*.py
 
@@ -227,7 +227,7 @@ A 'Skip: all N images downloaded' means that cafe is fully done.
 3. Check disk usage — if < 2GB free, services were already stopped by this script. Log CRITICAL.
    If < 5GB free, warn with estimated days to limit at current rate.
 4. **Kakao pass completion check**: Run this query to see progress:
-   sqlite3 /home/symunona/dev/workcafe/data/seoul/cafedata.db \
+   sqlite3 /home/symunona/dev/workcafe/data/seoul/scraped.db \
      \"SELECT COUNT(*) as scraped_cafes, MIN(cnt) as min_imgs, MAX(cnt) as max_imgs, ROUND(AVG(cnt),1) as avg_imgs
       FROM (SELECT COUNT(*) as cnt FROM images WHERE provider='kakao' GROUP BY cafe_id);\"
    If the Kakao scraper has been inactive for >6h AND min_imgs >= 150 (all scraped_cafes have at least one
