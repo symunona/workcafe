@@ -169,7 +169,9 @@ def main():
 - Scraped cafes included: {n_scraped}
 - Created: {today}
 
-Re-tag: `just tag-images-yolo {n_str} 0.25`
+Re-tag:
+- YOLO: `just tag-images-yolo {n_str} 0.25`
+- RAM+: `just tag-images-ram {n_str}`
 """
     Path(out_path.replace(".db", ".md")).write_text(md)
 
