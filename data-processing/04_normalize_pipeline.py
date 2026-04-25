@@ -34,9 +34,11 @@ from db_client import DBClient
 
 DB_PATH = os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'clean.db'))
 
-MERGE_RADIUS_AUTO = 8.0
+MERGE_RADIUS_HARD = 9.0    # unconditional (GPS noise floor ~5-8m)
+MERGE_RADIUS_SOFT = 20.0   # name-checked zone for typical OSM/Kakao GPS offset (8-13m)
 MERGE_RADIUS_MAX = 150.0
-NAME_SIM_THRESHOLD = 0.8
+NAME_SIM_THRESHOLD = 0.8   # standard threshold for 20-150m zone
+SOFT_NAME_THRESHOLD = 0.44 # soft zone: just above unrelated Korean 5-char name sim (~0.4)
 
 
 # ─── Read helpers (direct SQLite) ─────────────────────────────────────────────
@@ -44,19 +46,19 @@ NAME_SIM_THRESHOLD = 0.8
 def find_clean_cafes_nearby(conn, lat, lon, radius_m=50.0):
     min_lat, max_lat, min_lon, max_lon = lat_lon_bbox(lat, lon, radius_m)
     rows = conn.execute("""
-        SELECT id, name, avg_lat, avg_lon, providers, source_ids, chain_id
+        SELECT id, name, english_name, avg_lat, avg_lon, providers, source_ids, chain_id
         FROM clean_cafes
         WHERE avg_lat BETWEEN ? AND ? AND avg_lon BETWEEN ? AND ?
     """, (min_lat, max_lat, min_lon, max_lon)).fetchall()
     result = []
     for row in rows:
-        dist = haversine_m(lat, lon, row[2], row[3])
+        dist = haversine_m(lat, lon, row[3], row[4])
         if dist <= radius_m:
             result.append({
-                "id": row[0], "name": row[1],
-                "avg_lat": row[2], "avg_lon": row[3],
-                "providers": row[4], "source_ids": row[5],
-                "chain_id": row[6], "distance_m": dist,
+                "id": row[0], "name": row[1], "english_name": row[2],
+                "avg_lat": row[3], "avg_lon": row[4],
+                "providers": row[5], "source_ids": row[6],
+                "chain_id": row[7], "distance_m": dist,
             })
     return sorted(result, key=lambda x: x["distance_m"])
 
@@ -252,28 +254,55 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
 
             dist = nc["distance_m"]
 
-            if dist <= MERGE_RADIUS_AUTO:
+            # Hard zone: unconditional (GPS noise floor, no two different cafes this close)
+            if dist <= MERGE_RADIUS_HARD:
                 matched_id = nc["id"]
                 break
 
+            # Compute best name similarity across raw / strip_branch / english
             sim = name_similarity(cafe["name"], nc["name"])
-            if sim["combined"] >= NAME_SIM_THRESHOLD:
+            sim2 = name_similarity(strip_branch(cafe["name"]), strip_branch(nc["name"]))
+            if sim2["combined"] > sim["combined"]:
+                sim = sim2
+            cafe_en = (eng_lookup or {}).get(cafe["name"])
+            nc_en = nc.get("english_name")
+            if cafe_en and nc_en:
+                sim_en = name_similarity(cafe_en, nc_en)
+                if sim_en["combined"] > sim["combined"]:
+                    sim = sim_en
+            best_score = sim["combined"]
+
+            # Soft zone (9-20m): accept lower threshold — GPS offset true matches
+            # fall through on failure so a better-named candidate can still match
+            if dist <= MERGE_RADIUS_SOFT and best_score >= SOFT_NAME_THRESHOLD:
                 matched_id = nc["id"]
                 break
 
-            # Chain same-name check
+            # Standard zone (20-150m): require high name similarity
+            if dist > MERGE_RADIUS_SOFT and best_score >= NAME_SIM_THRESHOLD:
+                matched_id = nc["id"]
+                break
+
+            # Chain canonical match — handles cross-language (e.g. "Compose Coffee" vs "컴포즈커피")
+            # Works at any distance; critical for chains with Korean/English name mismatch
             if nc["chain_id"]:
                 cr = is_chain_cafe(cafe["name"], chain_names)
                 if cr["is_chain"]:
                     chain_base = cr.get("chain_name") or strip_branch(cafe["name"])
                     row = conn.execute(
-                        "SELECT name FROM cafe_chains WHERE id = ?", (nc["chain_id"],)
+                        "SELECT name, name_english FROM cafe_chains WHERE id = ?", (nc["chain_id"],)
                     ).fetchone()
-                    if row and name_similarity(chain_base, row[0])["combined"] >= 0.8:
-                        matched_id = nc["id"]
-                        break
-            
-            # If we didn't break, it's a candidate for LLM
+                    if row:
+                        nc_cr = is_chain_cafe(row[0], chain_names)
+                        nc_canonical = nc_cr.get("chain_name") or row[1] or row[0]
+                        if nc_canonical and nc_canonical == chain_base:
+                            matched_id = nc["id"]
+                            break
+                        if name_similarity(chain_base, row[0])["combined"] >= 0.8:
+                            matched_id = nc["id"]
+                            break
+
+            # Candidate for LLM fallback
             llm_candidates.append(nc)
             
         if not matched_id and llm_candidates:
@@ -334,6 +363,26 @@ def main():
                         help="Path to englishify.db translation cache")
     parser.add_argument("--no-backup", action="store_true", help="Skip automatic backup of clean.db before run")
     args = parser.parse_args()
+
+    # ── Exclusive run guard ────────────────────────────────────────────────────
+    lock_path = args.db + ".pipeline.lock"
+    if os.path.exists(lock_path):
+        try:
+            with open(lock_path) as lf:
+                info = lf.read().strip()
+        except Exception:
+            info = "(unreadable)"
+        print(f"\nERROR: {args.db} is already locked by another pipeline run.")
+        print(f"       Lock: {lock_path}")
+        print(f"       Info: {info}")
+        print(f"\n       If the previous run crashed, remove the lock manually:")
+        print(f"       rm {lock_path}\n")
+        sys.exit(1)
+
+    import atexit
+    with open(lock_path, "w") as lf:
+        lf.write(f"pid={os.getpid()} db={args.db}")
+    atexit.register(lambda: os.path.exists(lock_path) and os.remove(lock_path))
 
     if not args.reset and not args.no_backup:
         backup_script = os.path.abspath(os.path.join(_HERE, '..', 'scripts', 'backup-clean.sh'))
