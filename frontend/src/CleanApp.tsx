@@ -429,11 +429,11 @@ export default function CleanApp() {
       )}
 
       {selectedId && (
-        <CleanCafeDetailsPane cafeId={selectedId} onClose={() => navigate('/')} />
+        <CleanCafeDetailsPane cafeId={selectedId} onClose={() => navigate('/')} activeTags={filters.tags} />
       )}
-      
+
       {selectedId && location.search && (
-        <CafeDetailsPage />
+        <CafeDetailsPage activeTags={filters.tags} />
       )}
       
       {showSettings && (

@@ -7,9 +7,10 @@ import { useSnapshot } from './SnapshotSelector'
 interface Props {
   cafeId: string
   onClose: () => void
+  activeTags?: Set<string>
 }
 
-export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
+export function CleanCafeDetailsPane({ cafeId, onClose, activeTags }: Props) {
   const [cafe, setCafe] = useState<CleanCafe | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -42,10 +43,20 @@ export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
   }, [allImages])
 
   const sortedImages = useMemo(() => {
+    if (activeTags?.size) {
+      const hit = allImages.filter(img => img.tags?.some(t => activeTags.has(t.tag)))
+      const miss = allImages.filter(img => !img.tags?.some(t => activeTags.has(t.tag)))
+      hit.sort((a, b) => {
+        const sa = Math.max(0, ...(a.tags?.filter(t => activeTags.has(t.tag)).map(t => t.score) ?? []))
+        const sb = Math.max(0, ...(b.tags?.filter(t => activeTags.has(t.tag)).map(t => t.score) ?? []))
+        return sb - sa
+      })
+      return [...hit, ...miss]
+    }
     const tagged = allImages.filter(img => img.tags?.length)
     const untagged = allImages.filter(img => !img.tags?.length)
     return [...tagged, ...untagged]
-  }, [allImages])
+  }, [allImages, activeTags])
 
   const sampledImages = useMemo(() => {
     const pool = tagFilter ? sortedImages.filter(img => img.tags?.some(t => t.tag === tagFilter)) : sortedImages

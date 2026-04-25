@@ -5,7 +5,7 @@ import { PROVIDER_COLORS } from '../utils'
 import { useSnapshot } from './SnapshotSelector'
 import { TaggedImage } from './TaggedImage'
 
-export function CafeDetailsPage() {
+export function CafeDetailsPage({ activeTags }: { activeTags?: Set<string> }) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -27,7 +27,7 @@ export function CafeDetailsPage() {
       .catch(() => setLoading(false))
   }, [id, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(new Set())
+  const [activeTagFilter, setActiveTagFilter] = useState<Set<string>>(() => new Set(activeTags))
   const [hoveredTag, setHoveredTag] = useState<string | null>(null)
 
   const sources = cafe?.sources || []
@@ -47,8 +47,15 @@ export function CafeDetailsPage() {
 
   const sortedDisplayImages = useMemo(() => {
     if (displayImages.every(img => !img.tags?.length)) return displayImages
+    if (activeTagFilter.size) {
+      return [...displayImages].sort((a, b) => {
+        const sa = Math.max(0, ...(a.tags?.filter(t => activeTagFilter.has(t.tag)).map(t => t.score) ?? []))
+        const sb = Math.max(0, ...(b.tags?.filter(t => activeTagFilter.has(t.tag)).map(t => t.score) ?? []))
+        return sb - sa
+      })
+    }
     return [...displayImages].sort((a, b) => (b.tags?.length ?? 0) - (a.tags?.length ?? 0))
-  }, [displayImages])
+  }, [displayImages, activeTagFilter])
 
   const filteredImages = activeTagFilter.size === 0
     ? sortedDisplayImages
