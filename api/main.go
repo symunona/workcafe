@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -367,10 +368,17 @@ func (sc *snapshotCache) get(name string) (*sql.DB, error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf("snapshot not found: %s", name)
 	}
-	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&mode=ro")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)")
 	if err != nil {
 		return nil, err
 	}
+	// Idempotent schema migrations for snapshots created before these schema versions.
+	db.Exec(`ALTER TABLE image_tags ADD COLUMN boxes TEXT`)
+	db.Exec(`ALTER TABLE scraped_cafes ADD COLUMN scraped_at TEXT`)
+	db.Exec(`ALTER TABLE images ADD COLUMN width INTEGER`)
+	db.Exec(`ALTER TABLE images ADD COLUMN height INTEGER`)
+	db.Exec(`ALTER TABLE images ADD COLUMN scraped_at TEXT`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS cafe_chains (id TEXT PRIMARY KEY, name TEXT, name_english TEXT, count INTEGER)`)
 	db.SetMaxOpenConns(4)
 	sc.dbs[name] = db
 	return db, nil
@@ -405,7 +413,11 @@ func (sc *snapshotCache) list() ([]SnapshotInfo, error) {
 		}
 		return nil, err
 	}
-	var out []SnapshotInfo
+	type snapshotEntry struct {
+		info  SnapshotInfo
+		mtime int64
+	}
+	var entries2 []snapshotEntry
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".db") {
 			continue
@@ -415,6 +427,10 @@ func (sc *snapshotCache) list() ([]SnapshotInfo, error) {
 		date := ""
 		if len(name) >= 10 {
 			date = name[:10]
+		}
+		var mtime int64
+		if fi, err := e.Info(); err == nil {
+			mtime = fi.ModTime().Unix()
 		}
 		// read cafe count
 		count := 0
@@ -427,11 +443,16 @@ func (sc *snapshotCache) list() ([]SnapshotInfo, error) {
 		if mdBytes, err := os.ReadFile(mdPath); err == nil {
 			notes = string(mdBytes)
 		}
-		out = append(out, SnapshotInfo{Name: name, Date: date, CafeCount: count, Notes: notes})
+		entries2 = append(entries2, snapshotEntry{
+			info:  SnapshotInfo{Name: name, Date: date, CafeCount: count, Notes: notes},
+			mtime: mtime,
+		})
 	}
-	// reverse: newest first
-	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
-		out[i], out[j] = out[j], out[i]
+	// Sort newest first by file mtime
+	sort.Slice(entries2, func(i, j int) bool { return entries2[i].mtime > entries2[j].mtime })
+	out := make([]SnapshotInfo, len(entries2))
+	for i, e := range entries2 {
+		out[i] = e.info
 	}
 	return out, nil
 }
@@ -464,6 +485,18 @@ func main() {
 		log.Fatal(err)
 	}
 	defer rawDb.Close()
+
+	// image_tags may not exist in clean.db (tags live in experiment snapshots).
+	// Create empty table so image queries don't crash when no snapshot selected.
+	db.Exec(`CREATE TABLE IF NOT EXISTS image_tags (
+		image_id INTEGER NOT NULL,
+		tag      TEXT    NOT NULL,
+		score    REAL    NOT NULL DEFAULT 1.0,
+		boxes    TEXT,
+		PRIMARY KEY (image_id, tag)
+	)`)
+	// Idempotent: add boxes column to DBs created before this schema version.
+	db.Exec(`ALTER TABLE image_tags ADD COLUMN boxes TEXT`)
 
 	snapshots := newSnapshotCache(dataDir)
 
@@ -1126,6 +1159,103 @@ func main() {
 		json.NewEncoder(w).Encode(chains)
 	})
 
+	// ── GET /api/tags ────────────────────────────────────────────────────────
+	mux.HandleFunc("/api/tags", func(w http.ResponseWriter, r *http.Request) {
+		sdb := snapshots.dbForRequest(r, db)
+		rows, err := sdb.Query(`
+			SELECT je.key as tag, COUNT(*) as cafe_count
+			FROM clean_cafes, json_each(tags) je
+			WHERE tags IS NOT NULL
+			GROUP BY je.key
+			ORDER BY cafe_count DESC`)
+		if err != nil {
+			corsJSON(w)
+			json.NewEncoder(w).Encode([]interface{}{})
+			return
+		}
+		defer rows.Close()
+		type TagCount struct {
+			Tag   string `json:"tag"`
+			Count int    `json:"count"`
+		}
+		result := make([]TagCount, 0)
+		for rows.Next() {
+			var t TagCount
+			rows.Scan(&t.Tag, &t.Count)
+			result = append(result, t)
+		}
+		corsJSON(w)
+		json.NewEncoder(w).Encode(result)
+	})
+
+	// ── GET /api/image-tags — tag list from image_tags table ─────────────────
+	mux.HandleFunc("/api/image-tags", func(w http.ResponseWriter, r *http.Request) {
+		sdb := snapshots.dbForRequest(r, db)
+		rows, err := sdb.Query(`
+			SELECT tag, COUNT(*) as cnt
+			FROM image_tags
+			GROUP BY tag
+			ORDER BY cnt DESC`)
+		type TagCount struct {
+			Tag   string `json:"tag"`
+			Count int    `json:"count"`
+		}
+		result := make([]TagCount, 0)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var t TagCount
+				rows.Scan(&t.Tag, &t.Count)
+				result = append(result, t)
+			}
+		}
+		corsJSON(w)
+		json.NewEncoder(w).Encode(result)
+	})
+
+	// ── GET /api/tag-images?tag=X&limit=500 — images for tag, score DESC ─────
+	mux.HandleFunc("/api/tag-images", func(w http.ResponseWriter, r *http.Request) {
+		sdb := snapshots.dbForRequest(r, db)
+		tag := r.URL.Query().Get("tag")
+		if tag == "" {
+			corsJSON(w)
+			json.NewEncoder(w).Encode([]interface{}{})
+			return
+		}
+		limit := 500
+		type TagImage struct {
+			ImageID   int             `json:"image_id"`
+			CafeID    string          `json:"cafe_id"`
+			LocalPath string          `json:"local_path"`
+			Score     float64         `json:"score"`
+			Boxes     json.RawMessage `json:"boxes"`
+		}
+		rows, err := sdb.Query(`
+			SELECT it.image_id, i.cafe_id, i.local_path, it.score,
+			       json(COALESCE(it.boxes,'null'))
+			FROM image_tags it
+			JOIN images i ON i.id = it.image_id
+			WHERE it.tag = ?
+			ORDER BY it.score DESC
+			LIMIT ?`, tag, limit)
+		result := make([]TagImage, 0)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var ti TagImage
+				var boxesStr string
+				rows.Scan(&ti.ImageID, &ti.CafeID, &ti.LocalPath, &ti.Score, &boxesStr)
+				if boxesStr == "" {
+					boxesStr = "null"
+				}
+				ti.Boxes = json.RawMessage(boxesStr)
+				result = append(result, ti)
+			}
+		}
+		corsJSON(w)
+		json.NewEncoder(w).Encode(result)
+	})
+
 	// ── GET /api/clean_cafes ─────────────────────────────────────────────────
 	mux.HandleFunc("/api/clean_cafes", func(w http.ResponseWriter, r *http.Request) {
 		sdb := snapshots.dbForRequest(r, db)
@@ -1173,6 +1303,13 @@ func main() {
 				placeholders = append(placeholders, "?")
 			}
 			conditions = append(conditions, "cc.chain_id IN ("+strings.Join(placeholders, ",")+")")
+		}
+
+		if tags := q.Get("tags"); tags != "" {
+			for _, tag := range strings.Split(tags, ",") {
+				args = append(args, "$."+strings.TrimSpace(tag))
+				conditions = append(conditions, "json_extract(cc.tags, ?) IS NOT NULL")
+			}
 		}
 
 		where := ""
@@ -1317,31 +1454,39 @@ func main() {
 				imgArgs[i] = sid
 			}
 			imgRows, err := sdb.Query(`
-				SELECT cafe_id, provider, local_path, image_url, photo_id,
-				       width, height, file_size, scraped_at
-				FROM images
-				WHERE cafe_id IN (`+strings.Join(placeholders, ",")+`) AND file_size > 0
-				ORDER BY cafe_id, scraped_at DESC`, imgArgs...)
+				SELECT i.id, i.cafe_id, i.provider, i.local_path, i.image_url, i.photo_id,
+				       COALESCE(i.width,0), COALESCE(i.height,0), i.file_size, COALESCE(i.scraped_at,''),
+				       COALESCE((SELECT json_group_array(json_object('tag',tag,'score',score,'boxes',json(COALESCE(boxes,'null')))) FROM image_tags WHERE image_id = i.id), '[]')
+				FROM images i
+				WHERE i.cafe_id IN (`+strings.Join(placeholders, ",")+`) AND i.file_size > 0
+				ORDER BY i.cafe_id, i.scraped_at DESC`, imgArgs...)
 			if err == nil {
 				defer imgRows.Close()
 				type ImageInfo struct {
-					CafeID    string `json:"cafe_id"`
-					Provider  string `json:"provider"`
-					LocalPath string `json:"local_path"`
-					ImageURL  string `json:"image_url"`
-					PhotoID   string `json:"photo_id"`
-					Width     int    `json:"width"`
-					Height    int    `json:"height"`
-					FileSize  int    `json:"file_size"`
-					ScrapedAt string `json:"scraped_at"`
+					ID        int             `json:"id"`
+					CafeID    string          `json:"cafe_id"`
+					Provider  string          `json:"provider"`
+					LocalPath string          `json:"local_path"`
+					ImageURL  string          `json:"image_url"`
+					PhotoID   string          `json:"photo_id"`
+					Width     int             `json:"width"`
+					Height    int             `json:"height"`
+					FileSize  int             `json:"file_size"`
+					ScrapedAt string          `json:"scraped_at"`
+					Tags      json.RawMessage `json:"tags"`
 				}
 				imagesByCafe := map[string][]ImageInfo{}
 				allImages := make([]ImageInfo, 0)
 				for imgRows.Next() {
 					var img ImageInfo
-					imgRows.Scan(&img.CafeID, &img.Provider, &img.LocalPath,
+					var tagsStr string
+					imgRows.Scan(&img.ID, &img.CafeID, &img.Provider, &img.LocalPath,
 						&img.ImageURL, &img.PhotoID, &img.Width, &img.Height,
-						&img.FileSize, &img.ScrapedAt)
+						&img.FileSize, &img.ScrapedAt, &tagsStr)
+					if tagsStr == "" {
+						tagsStr = "[]"
+					}
+					img.Tags = json.RawMessage(tagsStr)
 					imagesByCafe[img.CafeID] = append(imagesByCafe[img.CafeID], img)
 					allImages = append(allImages, img)
 				}

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { CleanCafe } from '../types'
 import { PROVIDER_COLORS } from '../utils'
+import { useSnapshot } from './SnapshotSelector'
 
 interface Props {
   cafeId: string
@@ -11,16 +12,54 @@ interface Props {
 export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
   const [cafe, setCafe] = useState<CleanCafe | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { snapshot, apiUrl } = useSnapshot()
 
   useEffect(() => {
     setLoading(true)
     setCafe(null)
-    fetch(`/api/clean_cafe?id=${encodeURIComponent(cafeId)}`)
-      .then(r => r.json())
+    setError(false)
+    setTagFilter(null)
+    fetch(apiUrl(`/api/clean_cafe?id=${encodeURIComponent(cafeId)}`))
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(data => { setCafe(data); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [cafeId])
+      .catch(() => { setError(true); setLoading(false) })
+  }, [cafeId, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const allImages = cafe?.all_images ?? []
+  const providers = cafe?.providers ?? []
+
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const img of allImages) {
+      for (const t of img.tags ?? []) {
+        counts.set(t.tag, (counts.get(t.tag) ?? 0) + 1)
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])
+  }, [allImages])
+
+  const sortedImages = useMemo(() => {
+    const tagged = allImages.filter(img => img.tags?.length)
+    const untagged = allImages.filter(img => !img.tags?.length)
+    return [...tagged, ...untagged]
+  }, [allImages])
+
+  const sampledImages = useMemo(() => {
+    const pool = tagFilter ? sortedImages.filter(img => img.tags?.some(t => t.tag === tagFilter)) : sortedImages
+    const result: typeof pool = []
+    const usedProviders = new Set<string>()
+    for (const img of pool) {
+      if (!usedProviders.has(img.provider)) { result.push(img); usedProviders.add(img.provider) }
+    }
+    for (const img of pool) {
+      if (result.length >= 6) break
+      if (!result.includes(img)) result.push(img)
+    }
+    return result
+  }, [sortedImages, tagFilter])
 
   if (loading) return (
     <div className="fixed left-0 top-0 h-full w-96 bg-white shadow-xl z-[1000] flex items-center justify-center">
@@ -28,20 +67,29 @@ export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
     </div>
   )
 
-  if (!cafe) return null
-
-  const allImages = cafe.all_images ?? []
-  const providers = cafe.providers ?? []
+  if (error || !cafe) return (
+    <div className="fixed left-0 top-0 h-full w-96 bg-white shadow-xl z-[1000] flex flex-col">
+      <div className="p-4 flex items-center justify-between border-b">
+        <span className="text-sm text-gray-500 font-mono truncate">{cafeId}</span>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl flex-shrink-0 ml-2">✕</button>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
+        <span className="text-3xl">🔍</span>
+        <p className="text-sm text-gray-500">Not found in this snapshot.</p>
+        <p className="text-xs text-gray-400">Switch to Live to see full data.</p>
+      </div>
+    </div>
+  )
 
   // Extract some useful metadata from sources
   let tel = ''
   let bizhour = ''
   let homePage = ''
-  
+
   if (cafe.sources) {
     const naver = cafe.sources.find(s => s.provider === 'naver')
     const kakao = cafe.sources.find(s => s.provider === 'kakao')
-    
+
     if (naver && naver.metadata) {
       const meta = naver.metadata as any;
       tel = meta.tel || meta.telDisplay || ''
@@ -52,20 +100,6 @@ export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
       tel = meta.phone || ''
       homePage = meta.homepage || ''
     }
-  }
-
-  // Sample top 6 images from diff providers
-  const sampledImages = []
-  const usedProviders = new Set<string>()
-  for (const img of allImages) {
-    if (!usedProviders.has(img.provider)) {
-      sampledImages.push(img)
-      usedProviders.add(img.provider)
-    }
-  }
-  for (const img of allImages) {
-    if (sampledImages.length >= 6) break
-    if (!sampledImages.includes(img)) sampledImages.push(img)
   }
 
   return (
@@ -128,9 +162,27 @@ export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
         )}
 
         {/* Image gallery (Top 6 sampled) */}
-        {sampledImages.length > 0 && (
+        {allImages.length > 0 && (
           <div className="px-4 pt-3">
-            <p className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Gallery</p>
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                Gallery {tagFilter ? `· ${sampledImages.length} with "${tagFilter}"` : `(${allImages.length})`}
+              </p>
+              {tagFilter && (
+                <button className="text-xs text-blue-500 hover:underline" onClick={() => setTagFilter(null)}>clear</button>
+              )}
+            </div>
+            {tagCounts.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-3">
+                {tagCounts.map(([tag, count]) => (
+                  <button key={tag}
+                    onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                    className={`px-1.5 py-0.5 text-[10px] rounded-full border transition-colors ${tagFilter === tag ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                    {tag} <span className={tagFilter === tag ? 'text-blue-200' : 'text-gray-400'}>{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               {sampledImages.map((img, i) => {
                 const originalIndex = allImages.indexOf(img);
@@ -146,6 +198,15 @@ export function CleanCafeDetailsPane({ cafeId, onClose }: Props) {
                   <span className="absolute bottom-1 right-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded backdrop-blur-sm">
                     {img.provider}
                   </span>
+                  {img.tags?.length > 0 && (
+                    <div className="absolute top-1 left-1 flex flex-wrap gap-0.5 max-w-[90%]">
+                      {img.tags.slice(0, 3).map(t => (
+                        <span key={t.tag} className="text-[9px] bg-black/65 text-white px-1 py-0.5 rounded-full backdrop-blur-sm leading-tight">
+                          {t.tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )})}
             </div>

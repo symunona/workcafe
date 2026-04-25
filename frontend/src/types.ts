@@ -55,7 +55,14 @@ export interface Cafe {
   scraped_at: string
 }
 
+export interface TagInfo {
+  tag: string
+  score: number
+  boxes?: number[][] | null   // [[x1,y1,x2,y2], ...] normalized 0-1; null/absent = no bbox data
+}
+
 export interface ImageInfo {
+  id: number
   cafe_id: string
   provider: string
   local_path: string
@@ -65,6 +72,7 @@ export interface ImageInfo {
   height: number
   file_size: number
   scraped_at: string
+  tags: TagInfo[]
 }
 
 export interface SourceCafe {

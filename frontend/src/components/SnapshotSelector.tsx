@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Snapshot } from '../types'
 
 const STORAGE_KEY = 'workcafe_snapshot'
@@ -25,13 +25,13 @@ export function useSnapshot() {
 
 function renderMd(md: string): string {
   return md
-    .replace(/^#+ .+$/gm, '')                  // drop all headings
-    .replace(/<!--[\s\S]*?-->/g, '')            // drop comments
+    .replace(/^#+ .+$/gm, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/```([\s\S]*?)```/g, (_, inner) =>
       `<pre class="bg-gray-100 rounded p-2 text-xs font-mono overflow-x-auto my-2 whitespace-pre">${inner.trim()}</pre>`)
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-gray-700">$1</strong>')
-    .replace(/\n{2,}/g, '<br/>')
-    .replace(/\n/g, ' ')
+    .replace(/\n{2,}/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>')
     .trim()
 }
 
@@ -42,16 +42,42 @@ interface Props {
 
 export function SnapshotSelector({ snapshot, setSnapshot }: Props) {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
+  const [loading, setLoading] = useState(false)
+  const [newCount, setNewCount] = useState(0)
   const [open, setOpen] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
+  const knownNamesRef = useRef<Set<string>>(new Set())
   const isHistorical = !!snapshot
 
-  useEffect(() => {
-    fetch('/api/snapshots')
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setSnapshots(data ?? []))
-      .catch(() => {})
+  const fetchSnapshots = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data: Snapshot[] = await fetch('/api/snapshots').then(r => r.ok ? r.json() : [])
+      const list = data ?? []
+      const incoming = new Set(list.map(s => s.name))
+      const fresh = knownNamesRef.current.size > 0
+        ? list.filter(s => !knownNamesRef.current.has(s.name)).length
+        : 0
+      knownNamesRef.current = incoming
+      setSnapshots(list)
+      setNewCount(prev => prev + fresh)
+    } catch {
+      // keep stale list
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  // Initial fetch on mount
+  useEffect(() => { fetchSnapshots() }, [fetchSnapshots])
+
+  // Refetch every time modal opens
+  useEffect(() => {
+    if (open) {
+      setNewCount(0)
+      fetchSnapshots()
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return
@@ -70,7 +96,7 @@ export function SnapshotSelector({ snapshot, setSnapshot }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className={`flex items-center gap-1.5 rounded-lg shadow px-3 py-1.5 text-sm transition-colors ${
+        className={`relative flex items-center gap-1.5 rounded-lg shadow px-3 py-1.5 text-sm transition-colors ${
           isHistorical
             ? 'bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100'
             : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -80,6 +106,11 @@ export function SnapshotSelector({ snapshot, setSnapshot }: Props) {
         {isHistorical && <span className="text-amber-500">⚠</span>}
         <span className="font-mono text-xs">{snapshot || 'Live'}</span>
         <span className="text-gray-400">🕐</span>
+        {newCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-green-500 text-white text-[10px] font-bold px-1">
+            {newCount}
+          </span>
+        )}
       </button>
 
       {open && (
@@ -94,7 +125,18 @@ export function SnapshotSelector({ snapshot, setSnapshot }: Props) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-base font-semibold text-gray-900">DB History</h2>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+              <div className="flex items-center gap-3">
+                {loading && (
+                  <span className="text-xs text-gray-400 flex items-center gap-1.5">
+                    <svg className="animate-spin h-3 w-3 text-gray-400" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Loading…
+                  </span>
+                )}
+                <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+              </div>
             </div>
 
             {/* List */}
@@ -119,7 +161,7 @@ export function SnapshotSelector({ snapshot, setSnapshot }: Props) {
                 </div>
               </div>
 
-              {snapshots.length === 0 && (
+              {!loading && snapshots.length === 0 && (
                 <div className="text-sm text-gray-400 text-center py-8">No snapshots yet</div>
               )}
 

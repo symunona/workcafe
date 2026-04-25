@@ -1,0 +1,226 @@
+import { useEffect, useState, useRef } from 'react'
+import { useSnapshot, SnapshotSelector } from './SnapshotSelector'
+
+interface TagCount {
+  tag: string
+  count: number
+}
+
+interface TagImage {
+  image_id: number
+  cafe_id: string
+  local_path: string
+  score: number
+}
+
+const THRESHOLDS: { label: string; value: number; color: string }[] = [
+  { label: 'A', value: 0.22, color: '#ef9a9a' },
+  { label: 'B', value: 0.25, color: '#ffcc80' },
+  { label: 'C', value: 0.27, color: '#a5d6a7' },
+]
+
+interface Props {
+  onClose: () => void
+}
+
+export function TagBrowserOverlay({ onClose }: Props) {
+  const { snapshot, setSnapshot, apiUrl } = useSnapshot()
+  const [tags, setTags] = useState<TagCount[]>([])
+  const [selectedTag, setSelectedTag] = useState<string>('')
+  const [images, setImages] = useState<TagImage[]>([])
+  const [loadingTags, setLoadingTags] = useState(true)
+  const [loadingImages, setLoadingImages] = useState(false)
+  const [threshold, setThreshold] = useState(0.22)
+  const thresholdRef = useRef(threshold)
+  thresholdRef.current = threshold
+
+  // Close on Escape
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', h)
+    return () => document.removeEventListener('keydown', h)
+  }, [onClose])
+
+  // Load tag list when snapshot changes
+  useEffect(() => {
+    setLoadingTags(true)
+    setImages([])
+    fetch(apiUrl('/api/image-tags'))
+      .then(r => r.ok ? r.json() : [])
+      .then((data: TagCount[]) => {
+        setTags(data ?? [])
+        if (data?.length > 0 && !selectedTag) setSelectedTag(data[0].tag)
+      })
+      .catch(() => setTags([]))
+      .finally(() => setLoadingTags(false))
+  }, [snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load images when tag or snapshot changes
+  useEffect(() => {
+    if (!selectedTag) return
+    setLoadingImages(true)
+    setImages([])
+    fetch(apiUrl(`/api/tag-images?tag=${encodeURIComponent(selectedTag)}`))
+      .then(r => r.ok ? r.json() : [])
+      .then((data: TagImage[]) => setImages(data ?? []))
+      .catch(() => setImages([]))
+      .finally(() => setLoadingImages(false))
+  }, [selectedTag, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const aboveThreshold = images.filter(i => i.score >= threshold)
+  const belowThreshold = images.filter(i => i.score < threshold)
+
+  // Find the threshold divider position in sorted-by-score list
+  const thresholdInfo = THRESHOLDS.find(t => t.value === threshold)
+
+  return (
+    <div className="fixed inset-0 z-[900] bg-gray-950 flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-900 border-b border-gray-800 shrink-0">
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-white text-lg leading-none px-1"
+          title="Close (Esc)"
+        >✕</button>
+        <span className="text-white font-semibold text-sm">Tag Browser</span>
+        <div className="h-4 w-px bg-gray-700" />
+
+        {/* Threshold selector */}
+        <div className="flex items-center gap-1">
+          <span className="text-gray-500 text-xs mr-1">Threshold:</span>
+          {THRESHOLDS.map(t => (
+            <button
+              key={t.label}
+              onClick={() => setThreshold(t.value)}
+              className="px-2.5 py-1 rounded text-xs font-mono font-semibold transition-all"
+              style={{
+                background: threshold === t.value ? t.color : 'transparent',
+                color: threshold === t.value ? '#111' : '#9ca3af',
+                border: `1px solid ${threshold === t.value ? t.color : '#374151'}`,
+              }}
+            >
+              {t.label} ≥{t.value}
+            </button>
+          ))}
+        </div>
+
+        <div className="ml-auto">
+          <SnapshotSelector snapshot={snapshot} setSnapshot={setSnapshot} />
+        </div>
+      </div>
+
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar — tag list */}
+        <div className="w-52 shrink-0 bg-gray-900 border-r border-gray-800 overflow-y-auto">
+          {loadingTags ? (
+            <div className="text-gray-500 text-xs p-4">Loading…</div>
+          ) : tags.length === 0 ? (
+            <div className="text-gray-500 text-xs p-4">No image_tags in this snapshot.</div>
+          ) : (
+            <div className="py-2">
+              {tags.map(({ tag, count }) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between gap-2 transition-colors ${
+                    selectedTag === tag
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  <span className="truncate">{tag}</span>
+                  <span className={`text-xs shrink-0 ${selectedTag === tag ? 'text-blue-200' : 'text-gray-500'}`}>{count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Main image grid */}
+        <div className="flex-1 overflow-y-auto">
+          {loadingImages ? (
+            <div className="flex items-center justify-center h-32 text-gray-500 text-sm">Loading…</div>
+          ) : images.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
+              {selectedTag ? 'No images for this tag in current snapshot.' : 'Select a tag.'}
+            </div>
+          ) : (
+            <div className="p-4">
+              {/* Stats bar */}
+              <div className="text-xs text-gray-500 mb-3 flex items-center gap-4">
+                <span>
+                  <span className="text-white font-medium">{aboveThreshold.length}</span> above threshold
+                  <span style={{ color: thresholdInfo?.color }} className="ml-1 font-mono">({threshold})</span>
+                </span>
+                <span>{belowThreshold.length} below</span>
+                <span>{images.length} total</span>
+                <span className="text-gray-600">sorted by score ↓</span>
+              </div>
+
+              {/* Images above threshold */}
+              {aboveThreshold.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {aboveThreshold.map(img => (
+                    <ImageCard key={img.image_id} img={img} dimmed={false} threshold={threshold} />
+                  ))}
+                </div>
+              )}
+
+              {/* Threshold divider */}
+              {belowThreshold.length > 0 && (
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px" style={{ background: thresholdInfo?.color ?? '#888' }} />
+                  <span
+                    className="text-xs font-mono font-semibold px-2 py-0.5 rounded"
+                    style={{ background: thresholdInfo?.color, color: '#111' }}
+                  >
+                    Exp {thresholdInfo?.label} cutoff ≥{threshold}
+                  </span>
+                  <div className="flex-1 h-px" style={{ background: thresholdInfo?.color ?? '#888' }} />
+                </div>
+              )}
+
+              {/* Images below threshold */}
+              {belowThreshold.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {belowThreshold.map(img => (
+                    <ImageCard key={img.image_id} img={img} dimmed threshold={threshold} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ImageCard({ img, dimmed }: { img: TagImage; dimmed: boolean; threshold?: number }) {
+  const [error, setError] = useState(false)
+  const scoreColor = img.score >= 0.27 ? '#a5d6a7' : img.score >= 0.25 ? '#ffcc80' : '#ef9a9a'
+
+  if (error) return null
+
+  return (
+    <div
+      className="relative rounded overflow-hidden shrink-0 transition-opacity"
+      style={{ width: 160, height: 160, opacity: dimmed ? 0.35 : 1 }}
+    >
+      <img
+        src={img.local_path}
+        alt=""
+        className="w-full h-full object-cover"
+        onError={() => setError(true)}
+        loading="lazy"
+      />
+      {/* Score badge */}
+      <div
+        className="absolute bottom-1 right-1 text-xs font-mono font-bold px-1.5 py-0.5 rounded"
+        style={{ background: scoreColor, color: '#111' }}
+      >
+        {img.score.toFixed(3)}
+      </div>
+    </div>
+  )
+}
