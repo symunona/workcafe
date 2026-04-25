@@ -1,0 +1,367 @@
+#!/usr/bin/env python3
+"""
+RAM+ image tagger — tags cafe images using Recognize Anything Plus Model (4585 classes).
+Saves tags to image_tags table (same schema as YOLO tagger, no boxes).
+
+Weights auto-downloaded on first run (~700MB swin_base or ~2.3GB swin_large).
+
+Run from project root:
+    SNAPSHOT=$(python scripts/create_tag_snapshot.py --n 100 | tail -1)
+    python scripts/tag_images_ram.py --from-db "$SNAPSHOT"
+
+Or via Justfile:
+    just tag-images-ram 100
+"""
+
+import argparse, json, os, sqlite3, time
+from pathlib import Path
+
+DATA_DIR   = "data/seoul"
+BATCH_SIZE = 32
+
+# RAM+ weights — swin_base fits 4GB VRAM with room to spare (~1.5GB); swin_large needs ~2.5GB
+MODEL_URLS = {
+    "swin_base":  "https://huggingface.co/xinyu1205/recognize-anything-plus-model/resolve/main/ram_plus_swin_base_14m.pth",
+    "swin_large": "https://huggingface.co/xinyu1205/recognize-anything-plus-model/resolve/main/ram_plus_swin_large_14m.pth",
+}
+DEFAULT_VIT = "swin_base"
+
+# Tags to keep from RAM's 4585 classes (substring match, case-insensitive).
+# None = skip.  Add more as needed.
+TAG_FILTER: dict[str, str | None] = {
+    # Seating
+    "bar stool":      "bar stool",
+    "stool":          "stool",
+    "armchair":       "armchair",
+    "office chair":   "office chair",
+    "swivel chair":   "swivel chair",
+    "computer chair": "computer chair",
+    "folding chair":  "folding chair",
+    "chair":          "chair",
+    "sofa":           "sofa",
+    "couch":          "couch",
+    "bench":          "bench",
+    "loveseat":       "loveseat",
+    # Tables / workspace
+    "computer desk":  "computer desk",
+    "writing desk":   "writing desk",
+    "office desk":    "office desk",
+    "desk":           "desk",
+    "dining table":   "dining table",
+    "dinning table":  "dining table",
+    "round table":    "round table",
+    "glass table":    "glass table",
+    "coffee table":   "coffee table",
+    "table":          "table",
+    # Power
+    "electric outlet":        "power outlet",
+    "power plugs and sockets":"power outlet",
+    "extension cord":         "extension cord",
+    "charger":                "charger",
+    "socket":                 "power outlet",
+    # Devices
+    "laptop":          "laptop",
+    "laptop keyboard": "laptop",
+    "notebook":        "laptop",
+    "tablet computer": "tablet",
+    "computer":        "computer",
+    # Space
+    "window":  "window",
+    "glass window": "window",
+    # Food / drink
+    "coffee":        "coffee",
+    "coffee cup":    "coffee",
+    "coffeepot":     "coffee",
+    "food":          "food",
+    "drink":         "drink",
+    # Misc cafe
+    "barista":        "barista",
+    "bookshelf":      "bookshelf",
+    "plant":          "plant",
+    "indoor plant":   "plant",
+}
+
+
+def _parse_args():
+    p = argparse.ArgumentParser(description="RAM+ image tagger")
+    p.add_argument("--from-db",  required=True, dest="db")
+    p.add_argument("--n",        default="all",   help="Cafes to process (int or 'all')")
+    p.add_argument("--vit",      default=DEFAULT_VIT, choices=["swin_base", "swin_large"])
+    p.add_argument("--threshold",type=float, default=0.68, help="RAM confidence threshold (default 0.68)")
+    p.add_argument("--rollup-every", type=int, default=500, dest="rollup_every")
+    return p.parse_args()
+
+
+def local_to_disk(local_path: str) -> str:
+    stripped = local_path.removeprefix("/images")
+    return os.path.join(DATA_DIR, stripped.lstrip("/"))
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS image_tags (
+            image_id INTEGER NOT NULL REFERENCES images(id),
+            tag      TEXT    NOT NULL,
+            score    REAL    NOT NULL DEFAULT 1.0,
+            boxes    TEXT,
+            PRIMARY KEY (image_id, tag)
+        );
+        CREATE INDEX IF NOT EXISTS idx_image_tags_tag   ON image_tags(tag);
+        CREATE INDEX IF NOT EXISTS idx_image_tags_image ON image_tags(image_id);
+    """)
+    try:
+        conn.execute("ALTER TABLE image_tags ADD COLUMN boxes TEXT")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+
+
+def sample_images(conn: sqlite3.Connection, n_cafes: int | None) -> list[tuple]:
+    if n_cafes is None:
+        return conn.execute("""
+            SELECT id, cafe_id, local_path FROM images
+            WHERE file_size > 0 AND local_path IS NOT NULL AND local_path != ''
+            ORDER BY cafe_id
+        """).fetchall()
+    return conn.execute("""
+        SELECT i.id, i.cafe_id, i.local_path
+        FROM images i
+        JOIN (
+            SELECT cafe_id FROM images
+            WHERE file_size > 0 AND local_path IS NOT NULL AND local_path != ''
+            GROUP BY cafe_id ORDER BY COUNT(*) DESC LIMIT ?
+        ) top ON i.cafe_id = top.cafe_id
+        WHERE i.file_size > 0 AND i.local_path IS NOT NULL AND i.local_path != ''
+        ORDER BY i.cafe_id
+    """, (n_cafes,)).fetchall()
+
+
+def already_tagged(conn: sqlite3.Connection, image_id: int) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM image_tags WHERE image_id = ? LIMIT 1", (image_id,)
+    ).fetchone() is not None
+
+
+def rollup(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("""
+        SELECT c.belongs_to_cafe_id, it.tag, COUNT(*) as cnt
+        FROM image_tags it
+        JOIN images i ON i.id = it.image_id
+        JOIN scraped_cafes c ON c.id = i.cafe_id
+        WHERE c.belongs_to_cafe_id IS NOT NULL
+        GROUP BY c.belongs_to_cafe_id, it.tag
+    """).fetchall()
+    cafe_tags: dict[str, dict[str, int]] = {}
+    for cafe_id, tag, cnt in rows:
+        cafe_tags.setdefault(cafe_id, {})[tag] = cnt
+    conn.executemany(
+        "UPDATE clean_cafes SET tags = ? WHERE id = ?",
+        [(json.dumps(dict(sorted(t.items(), key=lambda x: -x[1]))), cid)
+         for cid, t in cafe_tags.items()]
+    )
+    conn.commit()
+
+
+def build_tag_filter(all_ram_tags: list[str]) -> dict[int, str]:
+    """Map RAM tag index → our normalized tag name, using TAG_FILTER patterns."""
+    result: dict[int, str] = {}
+    for idx, ram_tag in enumerate(all_ram_tags):
+        lower = ram_tag.lower()
+        for pattern, mapped in TAG_FILTER.items():
+            if pattern.lower() == lower:  # exact match first
+                if mapped is not None:
+                    result[idx] = mapped
+                break
+        else:
+            for pattern, mapped in TAG_FILTER.items():
+                if pattern.lower() in lower:
+                    if mapped is not None:
+                        result.setdefault(idx, mapped)
+                    break
+    return result
+
+
+def get_weights(vit: str) -> str:
+    fname = f"ram_plus_{vit}_14m.pth"
+    if os.path.exists(fname):
+        return fname
+    url = MODEL_URLS[vit]
+    print(f"Downloading weights: {url}")
+    import urllib.request
+    def _progress(count, block, total):
+        pct = count * block / total * 100
+        print(f"  {pct:.1f}%", end="\r")
+    urllib.request.urlretrieve(url, fname, _progress)
+    print(f"\nSaved: {fname}")
+    return fname
+
+
+def run() -> None:
+    args = _parse_args()
+
+    try:
+        import torch
+        from PIL import Image, UnidentifiedImageError
+        from ram.models import ram_plus
+        from ram import get_transform
+    except ImportError as e:
+        print(f"Missing dependency: {e}")
+        print("Install: pip install git+https://github.com/xinyu1205/recognize-anything timm fairscale")
+        raise SystemExit(1)
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Device: {device}")
+
+    weights = get_weights(args.vit)
+    print(f"Loading RAM+ ({args.vit}) from {weights}...")
+
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        model = ram_plus(
+            pretrained=weights,
+            image_size=384,
+            vit=args.vit,
+            threshold=args.threshold,
+        )
+    model.eval()
+    model = model.to(device)
+
+    transform = get_transform(image_size=384)
+
+    # Read RAM tag list from model
+    ram_tag_list = [t.strip() for t in open(model.tag_list).readlines()]
+    tag_filter = build_tag_filter(ram_tag_list)
+    print(f"RAM tags: {len(ram_tag_list)} total, {len(tag_filter)} mapped to our vocab")
+    print("Mapped classes:")
+    seen: set[str] = set()
+    for idx, name in sorted(tag_filter.items(), key=lambda x: x[1]):
+        if name not in seen:
+            print(f"  {ram_tag_list[idx]!r:35s} → {name!r}")
+            seen.add(name)
+
+    conn = sqlite3.connect(args.db)
+    migrate(conn)
+
+    n_cafes = None if args.n == "all" else int(args.n)
+    images = sample_images(conn, n_cafes)
+    total = len(images)
+    print(f"\nImages to process: {total}")
+    print(f"Confidence threshold: {args.threshold}")
+
+    skipped = tagged = failed = 0
+    tag_counts: dict[str, int] = {}
+    t_start = time.perf_counter()
+    times_per_img: list[float] = []
+
+    for batch_start in range(0, total, BATCH_SIZE):
+        batch = images[batch_start : batch_start + BATCH_SIZE]
+
+        tensors: list = []
+        valid: list[int] = []
+
+        for image_id, _cafe_id, local_path in batch:
+            if already_tagged(conn, image_id):
+                skipped += 1
+                continue
+            disk_path = local_to_disk(local_path)
+            try:
+                img = Image.open(disk_path).convert("RGB")
+                tensors.append(transform(img))
+                valid.append(image_id)
+            except (FileNotFoundError, UnidentifiedImageError, OSError):
+                failed += 1
+
+        if not tensors:
+            continue
+
+        import torch
+        batch_tensor = torch.stack(tensors).to(device)
+
+        t0 = time.perf_counter()
+        with torch.no_grad():
+            # RAM+ returns (tag_string, tag_string_chinese) per image in batch
+            tag_output = model.generate_tag(batch_tensor)
+        dt = time.perf_counter() - t0
+        times_per_img.extend([dt / len(tensors)] * len(tensors))
+
+        rows: list[tuple] = []
+        for image_id, tags_str in zip(valid, tag_output[0]):
+            # tags_str is like "chair | table | window"
+            raw_tags = [t.strip().lower() for t in tags_str.split("|") if t.strip()]
+            for raw in raw_tags:
+                # Find matching mapped tag
+                for pattern, mapped in TAG_FILTER.items():
+                    if pattern.lower() == raw or pattern.lower() in raw:
+                        if mapped is not None:
+                            rows.append((image_id, mapped, 1.0, None))
+                            tag_counts[mapped] = tag_counts.get(mapped, 0) + 1
+                        break
+            tagged += 1
+
+        if rows:
+            conn.executemany(
+                "INSERT OR REPLACE INTO image_tags (image_id, tag, score, boxes) VALUES (?, ?, ?, ?)",
+                rows,
+            )
+            conn.commit()
+
+        if args.rollup_every > 0 and tagged > 0 and tagged % args.rollup_every < BATCH_SIZE:
+            rollup(conn)
+
+        done = batch_start + len(batch)
+        elapsed = time.perf_counter() - t_start
+        ips = tagged / elapsed if elapsed > 0 else 0
+        print(f"  [{done:5d}/{total}] tagged={tagged} skipped={skipped} failed={failed}  {ips:.1f} img/s", end="\r")
+
+    total_elapsed = time.perf_counter() - t_start
+    avg_ips = tagged / total_elapsed if total_elapsed > 0 else 0
+    avg_ms = (sum(times_per_img) / len(times_per_img) * 1000) if times_per_img else 0
+
+    print(f"\n\nDone. tagged={tagged} skipped={skipped} failed={failed}")
+    print(f"Throughput: {avg_ips:.1f} img/s  avg latency: {avg_ms:.1f} ms/img")
+
+    if args.rollup_every > 0:
+        rollup(conn)
+        print("Rollup complete.")
+
+    n_tag_rows = conn.execute("SELECT COUNT(*) FROM image_tags").fetchone()[0]
+    print(f"Total tag rows: {n_tag_rows}")
+
+    print("\nTag distribution:")
+    dist = conn.execute("""
+        SELECT tag, COUNT(*) as cnt FROM image_tags GROUP BY tag ORDER BY cnt DESC
+    """).fetchall()
+    for tag, cnt in dist:
+        print(f"  {tag:<30} {cnt:5d} images")
+
+    # Write benchmark to .md
+    db_path = Path(args.db)
+    md_path = db_path.with_suffix(".md")
+    tag_lines = "\n".join(f"- {tag}: {cnt} imgs" for tag, cnt in dist)
+    bench = f"""
+## RAM+ Tagging Results
+
+- Model: RAM+ {args.vit}
+- Confidence threshold: {args.threshold}
+- Images processed: {tagged}
+- Throughput: {avg_ips:.1f} img/s, avg {avg_ms:.1f} ms/img
+- Tag rows written: {n_tag_rows}
+
+### Tag Distribution
+{tag_lines}
+"""
+    if md_path.exists():
+        existing = md_path.read_text()
+        if "## RAM+ Tagging" in existing:
+            existing = existing[:existing.index("## RAM+ Tagging")]
+        md_path.write_text(existing.rstrip() + "\n" + bench)
+    else:
+        md_path.write_text(f"# RAM+ Tagging\n\n- DB: `{args.db}`\n" + bench)
+
+    print(f"Benchmark written to {md_path}")
+    conn.close()
+
+
+if __name__ == "__main__":
+    run()

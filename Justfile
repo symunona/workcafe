@@ -836,3 +836,21 @@ tag-images-yolo n="100" conf="0.25":
 
     echo ""
     echo "Done: $SNAPSHOT"
+
+# Tag images with RAM+ (Recognize Anything Plus, 4585 classes) — run on existing snapshot or create new
+[group('Data Pipeline')]
+tag-images-ram n="100" vit="swin_base":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PY="$(pwd)/venv/bin/python3"
+
+    echo "━━━ Creating RAM snapshot (n={{n}}) ━━━"
+    SNAPSHOT=$("$PY" scripts/create_tag_snapshot.py --n {{n}} | tail -1)
+    echo "Snapshot: $SNAPSHOT"
+
+    echo ""
+    echo "━━━ Tagging images with RAM+ ({{vit}}) ━━━"
+    "$PY" scripts/tag_images_ram.py --n all --vit {{vit}} --from-db "$SNAPSHOT"
+
+    echo ""
+    echo "Done: $SNAPSHOT"
