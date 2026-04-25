@@ -43,6 +43,8 @@ def _parse_args():
     p.add_argument("--n",     default="all",            help="Number of cafes (int or 'all')")
     p.add_argument("--conf",  type=float, default=0.25, help="Min detection confidence (default 0.25)")
     p.add_argument("--model", default=MODEL_NAME,       help="YOLOv8 model file or name")
+    p.add_argument("--rollup-every", type=int, default=500, dest="rollup_every",
+                   help="Roll up image_tags→clean_cafes.tags every N images (0=disabled, default 500)")
     return p.parse_args()
 
 
@@ -95,6 +97,26 @@ def already_tagged(conn: sqlite3.Connection, image_id: int) -> bool:
     return conn.execute(
         "SELECT 1 FROM image_tags WHERE image_id = ? LIMIT 1", (image_id,)
     ).fetchone() is not None
+
+
+def rollup(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("""
+        SELECT c.belongs_to_cafe_id, it.tag, COUNT(*) as cnt
+        FROM image_tags it
+        JOIN images i ON i.id = it.image_id
+        JOIN scraped_cafes c ON c.id = i.cafe_id
+        WHERE c.belongs_to_cafe_id IS NOT NULL
+        GROUP BY c.belongs_to_cafe_id, it.tag
+    """).fetchall()
+    cafe_tags: dict[str, dict[str, int]] = {}
+    for cafe_id, tag, cnt in rows:
+        cafe_tags.setdefault(cafe_id, {})[tag] = cnt
+    conn.executemany(
+        "UPDATE clean_cafes SET tags = ? WHERE id = ?",
+        [(json.dumps(dict(sorted(t.items(), key=lambda x: -x[1]))), cid)
+         for cid, t in cafe_tags.items()]
+    )
+    conn.commit()
 
 
 def build_class_filter(model_names: dict[int, str]) -> dict[int, str]:
@@ -205,6 +227,9 @@ def run() -> None:
             )
             conn.commit()
 
+        if args.rollup_every > 0 and tagged > 0 and tagged % args.rollup_every < BATCH_SIZE:
+            rollup(conn)
+
         done = batch_start + len(batch)
         elapsed = time.perf_counter() - t_start
         ips = tagged / elapsed if elapsed > 0 else 0
@@ -216,6 +241,10 @@ def run() -> None:
 
     print(f"\n\nDone. tagged={tagged} skipped={skipped} failed={failed}")
     print(f"Throughput: {avg_ips:.1f} img/s  avg latency: {avg_ms:.1f} ms/img")
+
+    if args.rollup_every > 0:
+        rollup(conn)
+        print("Rollup complete.")
 
     n_tag_rows = conn.execute("SELECT COUNT(*) FROM image_tags").fetchone()[0]
     n_with_boxes = conn.execute("SELECT COUNT(*) FROM image_tags WHERE boxes IS NOT NULL").fetchone()[0]
