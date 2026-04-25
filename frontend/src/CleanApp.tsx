@@ -11,6 +11,7 @@ import { CafeDetailsPage } from './components/CafeDetailsPage'
 import { SettingsModal } from './components/SettingsModal'
 import { Checkbox } from './components/Checkbox'
 import { SnapshotSelector, useSnapshot } from './components/SnapshotSelector'
+import { TagBrowserOverlay } from './components/TagBrowserOverlay'
 
 interface ViewportBounds {
   minLat: number; maxLat: number; minLon: number; maxLon: number
@@ -21,6 +22,12 @@ interface Filters {
   multipleImages: boolean
   providers: Set<string>
   chains: Set<string>
+  tags: Set<string>
+}
+
+interface TagCount {
+  tag: string
+  count: number
 }
 
 interface MarkerLayerProps {
@@ -133,10 +140,12 @@ export default function CleanApp() {
   const { snapshot, setSnapshot, apiUrl } = useSnapshot()
   const [cafeMap, setCafeMap] = useState<Map<string, CleanCafe>>(new Map())
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState<Filters>({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set() })
+  const [filters, setFilters] = useState<Filters>({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set(), tags: new Set() })
   const [showFilters, setShowFilters] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showTagBrowser, setShowTagBrowser] = useState(false)
   const [chains, setChains] = useState<Chain[]>([])
+  const [availableTags, setAvailableTags] = useState<TagCount[]>([])
   const [total, setTotal] = useState(0)
   const [isLocating, setIsLocating] = useState(false)
 
@@ -145,6 +154,7 @@ export default function CleanApp() {
 
   useEffect(() => {
     fetch(apiUrl('/api/chains')).then(r => r.ok ? r.json() : []).then(data => setChains((data ?? []).slice(0, 30))).catch(console.error)
+    fetch(apiUrl('/api/tags')).then(r => r.ok ? r.json() : []).then(data => setAvailableTags(data ?? [])).catch(console.error)
   }, [snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pan map to cafe when navigating directly to a /cafe/:id URL
@@ -172,6 +182,7 @@ export default function CleanApp() {
     else if (f.withImages) params.set('withImages', 'true')
     if (f.providers.size > 0) params.set('providers', [...f.providers].join(','))
     if (f.chains.size > 0) params.set('chains', [...f.chains].join(','))
+    if (f.tags.size > 0) params.set('tags', [...f.tags].join(','))
 
     setLoading(true)
     try {
@@ -261,11 +272,13 @@ export default function CleanApp() {
               {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
             </span>
           </div>
+        </div>
+        <div className="flex items-center gap-2 pointer-events-auto">
           <button
-            className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 ${filters.withImages || filters.multipleImages || filters.providers.size > 0 ? 'ring-2 ring-blue-400' : ''}`}
+            className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 ${filters.withImages || filters.multipleImages || filters.providers.size > 0 || filters.tags.size > 0 ? 'ring-2 ring-blue-400' : ''}`}
             onClick={() => setShowFilters(!showFilters)}
           >
-            Filter {filters.withImages || filters.multipleImages || filters.providers.size > 0 ? '●' : ''}
+            Filter {filters.withImages || filters.multipleImages || filters.providers.size > 0 || filters.tags.size > 0 ? '●' : ''}
           </button>
           <button
             className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
@@ -273,8 +286,12 @@ export default function CleanApp() {
           >
             Scraper Status
           </button>
-        </div>
-        <div className="pointer-events-auto">
+          <button
+            className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
+            onClick={() => setShowTagBrowser(true)}
+          >
+            Tags
+          </button>
           <SnapshotSelector snapshot={snapshot} setSnapshot={setSnapshot} />
         </div>
       </div>
@@ -306,8 +323,9 @@ export default function CleanApp() {
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[600] bg-white rounded-xl shadow-2xl p-6 w-[500px] max-h-[80vh] overflow-y-auto flex gap-8">
-          <div className="flex-1">
+        <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl p-6 max-h-[80vh] overflow-y-auto flex gap-8" style={{ minWidth: 480 }}>
+          {/* Column 1: image / provider filters */}
+          <div className="w-44 shrink-0">
             <h3 className="font-semibold mb-4 text-base">Filters</h3>
             <div className="mb-3 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
               <Checkbox
@@ -323,7 +341,7 @@ export default function CleanApp() {
                 label={<span className="text-sm">Multiple images (2+)</span>}
               />
             </div>
-            <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Provider filter</div>
+            <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Provider</div>
             {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
               <div key={p} className="mb-2 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
                 <Checkbox
@@ -343,12 +361,44 @@ export default function CleanApp() {
               </div>
             ))}
             <button className="mt-6 text-sm font-medium text-gray-400 hover:text-gray-800 transition-colors"
-              onClick={() => setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set() })}>
-              Clear all filters
+              onClick={() => setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set(), tags: new Set() })}>
+              Clear all
             </button>
           </div>
-          <div className="flex-1">
-            <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Top Chains</div>
+
+          {/* Column 2: image tags */}
+          {availableTags.length > 0 && (
+            <div className="w-44 shrink-0">
+              <div className="font-semibold mb-4 text-base">Tags</div>
+              <div className="flex flex-col gap-1">
+                {availableTags.map(({ tag, count }) => {
+                  const active = filters.tags.has(tag)
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => setFilters(f => {
+                        const s = new Set(f.tags)
+                        active ? s.delete(tag) : s.add(tag)
+                        return { ...f, tags: s }
+                      })}
+                      className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-sm border transition-colors text-left ${
+                        active
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400'
+                      }`}
+                    >
+                      <span>{tag}</span>
+                      <span className={`text-xs font-medium shrink-0 ${active ? 'text-blue-100' : 'text-gray-400'}`}>{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Column 3: chains */}
+          <div className="w-44 shrink-0">
+            <div className="font-semibold mb-4 text-base">Chains</div>
             <div className="space-y-1.5">
               {chains.map(c => {
                 const chainColor = CHAIN_COLORS[c.name_english || c.name];
@@ -388,6 +438,10 @@ export default function CleanApp() {
       
       {showSettings && (
         <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+
+      {showTagBrowser && (
+        <TagBrowserOverlay onClose={() => setShowTagBrowser(false)} />
       )}
     </div>
   )
