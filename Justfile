@@ -850,7 +850,7 @@ tag-images-ram n="100" vit="swin_base":
 
     echo ""
     echo "━━━ Tagging images with RAM+ ({{vit}}) ━━━"
-    "$PY" scripts/tag_images_ram.py --n all --vit {{vit}} --from-db "$SNAPSHOT"
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True "$PY" scripts/tag_images_ram.py --n all --vit {{vit}} --from-db "$SNAPSHOT"
 
     echo ""
     echo "Done: $SNAPSHOT"
