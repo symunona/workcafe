@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useSnapshot, SnapshotSelector } from './SnapshotSelector'
 
 interface TagCount {
@@ -33,13 +33,18 @@ export function TagBrowserOverlay({ onClose }: Props) {
   const [threshold, setThreshold] = useState(0.22)
   const thresholdRef = useRef(threshold)
   thresholdRef.current = threshold
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
-  // Close on Escape
+  // Close on Escape / arrow nav
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { if (lightboxIndex != null) closeLightbox(); else onClose() }
+      if (e.key === 'ArrowLeft') prevImage()
+      if (e.key === 'ArrowRight') nextImage()
+    }
     document.addEventListener('keydown', h)
     return () => document.removeEventListener('keydown', h)
-  }, [onClose])
+  }, [onClose, lightboxIndex, closeLightbox, prevImage, nextImage])
 
   // Load tag list when snapshot changes
   useEffect(() => {
@@ -69,6 +74,11 @@ export function TagBrowserOverlay({ onClose }: Props) {
 
   const aboveThreshold = images.filter(i => i.score >= threshold)
   const belowThreshold = images.filter(i => i.score < threshold)
+  const displayImages = [...aboveThreshold, ...belowThreshold]
+
+  const closeLightbox = useCallback(() => setLightboxIndex(null), [])
+  const prevImage = useCallback(() => setLightboxIndex(i => i != null ? Math.max(0, i - 1) : null), [])
+  const nextImage = useCallback(() => setLightboxIndex(i => i != null ? Math.min(displayImages.length - 1, i + 1) : null), [displayImages.length])
 
   // Find the threshold divider position in sorted-by-score list
   const thresholdInfo = THRESHOLDS.find(t => t.value === threshold)
@@ -160,8 +170,9 @@ export function TagBrowserOverlay({ onClose }: Props) {
               {/* Images above threshold */}
               {aboveThreshold.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {aboveThreshold.map(img => (
-                    <ImageCard key={img.image_id} img={img} dimmed={false} threshold={threshold} />
+                  {aboveThreshold.map((img, i) => (
+                    <ImageCard key={img.image_id} img={img} dimmed={false} threshold={threshold}
+                      onClick={() => setLightboxIndex(i)} />
                   ))}
                 </div>
               )}
@@ -183,8 +194,9 @@ export function TagBrowserOverlay({ onClose }: Props) {
               {/* Images below threshold */}
               {belowThreshold.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {belowThreshold.map(img => (
-                    <ImageCard key={img.image_id} img={img} dimmed threshold={threshold} />
+                  {belowThreshold.map((img, i) => (
+                    <ImageCard key={img.image_id} img={img} dimmed threshold={threshold}
+                      onClick={() => setLightboxIndex(aboveThreshold.length + i)} />
                   ))}
                 </div>
               )}
@@ -192,11 +204,93 @@ export function TagBrowserOverlay({ onClose }: Props) {
           )}
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightboxIndex != null && displayImages[lightboxIndex] && (
+        <Lightbox
+          images={displayImages}
+          index={lightboxIndex}
+          threshold={threshold}
+          onClose={closeLightbox}
+          onPrev={prevImage}
+          onNext={nextImage}
+        />
+      )}
     </div>
   )
 }
 
-function ImageCard({ img, dimmed }: { img: TagImage; dimmed: boolean; threshold?: number }) {
+function Lightbox({ images, index, threshold, onClose, onPrev, onNext }: {
+  images: TagImage[]
+  index: number
+  threshold: number
+  onClose: () => void
+  onPrev: () => void
+  onNext: () => void
+}) {
+  const img = images[index]
+  const scoreColor = img.score >= 0.27 ? '#a5d6a7' : img.score >= 0.25 ? '#ffcc80' : '#ef9a9a'
+  const hasPrev = index > 0
+  const hasNext = index < images.length - 1
+
+  return (
+    <div
+      className="fixed inset-0 z-[1000] bg-black/90 flex items-center justify-center"
+      onClick={onClose}
+    >
+      {/* Prev button */}
+      {hasPrev && (
+        <button
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl px-3 py-2 rounded-full bg-black/40 hover:bg-black/70 z-10"
+          onClick={e => { e.stopPropagation(); onPrev() }}
+        >‹</button>
+      )}
+
+      {/* Image */}
+      <div
+        className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+        onClick={e => e.stopPropagation()}
+      >
+        <img
+          src={img.local_path}
+          alt=""
+          className="max-w-[90vw] max-h-[90vh] object-contain rounded shadow-2xl"
+        />
+        {/* Score badge */}
+        <div
+          className="absolute bottom-2 right-2 text-xs font-mono font-bold px-2 py-1 rounded shadow"
+          style={{ background: scoreColor, color: '#111' }}
+        >
+          {img.score.toFixed(3)}
+        </div>
+        {/* Counter */}
+        <div className="absolute top-2 right-2 text-xs text-white/60 bg-black/50 px-2 py-1 rounded font-mono">
+          {index + 1} / {images.length}
+        </div>
+        {/* Cafe id */}
+        <div className="absolute top-2 left-2 text-xs text-white/50 bg-black/50 px-2 py-1 rounded font-mono truncate max-w-xs">
+          {img.cafe_id}
+        </div>
+      </div>
+
+      {/* Next button */}
+      {hasNext && (
+        <button
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-4xl px-3 py-2 rounded-full bg-black/40 hover:bg-black/70 z-10"
+          onClick={e => { e.stopPropagation(); onNext() }}
+        >›</button>
+      )}
+
+      {/* Close */}
+      <button
+        className="absolute top-4 right-4 text-white/60 hover:text-white text-2xl px-2"
+        onClick={onClose}
+      >✕</button>
+    </div>
+  )
+}
+
+function ImageCard({ img, dimmed, onClick }: { img: TagImage; dimmed: boolean; threshold?: number; onClick?: () => void }) {
   const [error, setError] = useState(false)
   const scoreColor = img.score >= 0.27 ? '#a5d6a7' : img.score >= 0.25 ? '#ffcc80' : '#ef9a9a'
 
@@ -204,8 +298,9 @@ function ImageCard({ img, dimmed }: { img: TagImage; dimmed: boolean; threshold?
 
   return (
     <div
-      className="relative rounded overflow-hidden shrink-0 transition-opacity"
+      className="relative rounded overflow-hidden shrink-0 transition-opacity cursor-pointer hover:ring-2 hover:ring-white/40"
       style={{ width: 160, height: 160, opacity: dimmed ? 0.35 : 1 }}
+      onClick={onClick}
     >
       <img
         src={img.local_path}

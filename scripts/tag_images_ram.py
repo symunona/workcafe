@@ -126,7 +126,7 @@ def sample_images(conn: sqlite3.Connection, n_cafes: int | None) -> list[tuple]:
         return conn.execute("""
             SELECT id, cafe_id, local_path FROM images
             WHERE file_size > 0 AND local_path IS NOT NULL AND local_path != ''
-            ORDER BY cafe_id
+            ORDER BY RANDOM()
         """).fetchall()
     return conn.execute("""
         SELECT i.id, i.cafe_id, i.local_path
@@ -137,7 +137,7 @@ def sample_images(conn: sqlite3.Connection, n_cafes: int | None) -> list[tuple]:
             GROUP BY cafe_id ORDER BY COUNT(*) DESC LIMIT ?
         ) top ON i.cafe_id = top.cafe_id
         WHERE i.file_size > 0 AND i.local_path IS NOT NULL AND i.local_path != ''
-        ORDER BY i.cafe_id
+        ORDER BY RANDOM()
     """, (n_cafes,)).fetchall()
 
 
@@ -256,8 +256,33 @@ def run() -> None:
     n_cafes = None if args.n == "all" else int(args.n)
     images = sample_images(conn, n_cafes)
     total = len(images)
-    print(f"\nImages to process: {total}")
+
+    # Count already-tagged upfront so progress bar starts correctly
+    pre_tagged = conn.execute(
+        "SELECT COUNT(DISTINCT image_id) FROM image_tags"
+    ).fetchone()[0]
+    remaining = total - pre_tagged
+
+    print(f"\nImages total:      {total}")
+    print(f"Already tagged:    {pre_tagged}  ({100*pre_tagged/total:.1f}%)")
+    print(f"Remaining:         {remaining}")
     print(f"Confidence threshold: {args.threshold}")
+
+    def _bar(done_this_run: int, elapsed: float, bar_len: int = 30) -> str:
+        overall_done = pre_tagged + done_this_run
+        pct = overall_done / total if total > 0 else 0
+        filled = int(bar_len * pct)
+        bar = "█" * filled + "░" * (bar_len - filled)
+        eta = ""
+        if done_this_run > 0 and elapsed > 0:
+            rate = done_this_run / elapsed
+            secs_left = (remaining - done_this_run) / rate
+            if secs_left > 0:
+                h, rem = divmod(int(secs_left), 3600)
+                m, s = divmod(rem, 60)
+                eta = f"  ETA {f'{h}h' if h else ''}{m}m{s:02d}s"
+        rate_str = f"  {done_this_run/elapsed:.1f} img/s" if elapsed > 0 else ""
+        return f"[{bar}] {overall_done}/{total} ({pct*100:.1f}%){rate_str}{eta}"
 
     skipped = tagged = failed = 0
     tag_counts: dict[str, int] = {}
@@ -283,6 +308,8 @@ def run() -> None:
                 failed += 1
 
         if not tensors:
+            elapsed = time.perf_counter() - t_start
+            print(f"\r{_bar(tagged, elapsed)}  skip={skipped} fail={failed}", end="", flush=True)
             continue
 
         import torch
@@ -321,10 +348,8 @@ def run() -> None:
         if args.rollup_every > 0 and tagged > 0 and tagged % args.rollup_every < BATCH_SIZE:
             rollup(conn)
 
-        done = batch_start + len(batch)
         elapsed = time.perf_counter() - t_start
-        ips = tagged / elapsed if elapsed > 0 else 0
-        print(f"  [{done:5d}/{total}] tagged={tagged} skipped={skipped} failed={failed}  {ips:.1f} img/s", end="\r")
+        print(f"\r{_bar(tagged, elapsed)}  skip={skipped} fail={failed}", end="", flush=True)
 
     total_elapsed = time.perf_counter() - t_start
     avg_ips = tagged / total_elapsed if total_elapsed > 0 else 0

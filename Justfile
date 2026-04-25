@@ -651,10 +651,28 @@ dedup-scraped:
     read confirm; [ "$confirm" = "y" ] || exit 0
     python3 data-processing/00_dedup_raw_cafes.py --socket /tmp/workcafe_db.sock
 
-# Copy scraped.db → clean.db (stops play db server first to avoid conflict)
+# Sync new scraped_cafes + images from scraped.db into clean.db (additive, idempotent).
+[group('Data Pipeline')]
+sync-from-scraped:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 data-processing/00_sync_from_scraped.py
+
+# DESTRUCTIVE: overwrite clean.db from scraped.db — wipes all merged/normalized data.
+# Requires explicit confirmation. Use merge-pipeline for incremental updates.
 [group('Data Pipeline')]
 db-clean:
     #!/usr/bin/env bash
+    echo ""
+    echo -e "\033[1;31m⚠  WARNING: This will OVERWRITE clean.db with a raw copy of scraped.db.\033[0m"
+    echo "   All merged clean_cafes, chains, tags, and image links will be LOST."
+    echo ""
+    printf "   Type 'yes' to confirm: "
+    read -r CONFIRM
+    if [ "$CONFIRM" != "yes" ]; then
+        echo "Aborted."
+        exit 1
+    fi
     PLAY_PID=/tmp/workcafe_play_db.pid
     PLAY_SOCK=/tmp/workcafe_play_db.sock
     if [ -f "$PLAY_PID" ]; then
@@ -674,8 +692,9 @@ db-clean:
     rm -f data/seoul/clean.db-wal data/seoul/clean.db-shm
     echo "clean.db refreshed from scraped.db"
 
-# Full merge pipeline: scraped.db → clean.db with merged, enriched, linked data
-# Steps: copy → migrate schema → detect chains → englishify → normalize → link images
+# Incremental merge pipeline: processes only new scraped_cafes (belongs_to_cafe_id IS NULL).
+# Does NOT overwrite clean.db. Run `just db-clean` first only for a full rebuild.
+# Steps: start server → migrate schema → detect chains → englishify → normalize → link images
 [group('Data Pipeline')]
 merge-pipeline:
     #!/usr/bin/env bash
@@ -689,8 +708,20 @@ merge-pipeline:
 
     PIPELINE_START=$(_t)
 
-    # ── Guard: refuse if play DB socket or pipeline lock already exists ───────
+    # ── Cleanup trap: stop play DB server on exit/error/Ctrl+C ───────────────
     PLAY_SOCK=/tmp/workcafe_play_db.sock
+    _stop_play_db() {
+        local pid
+        pid=$(cat /tmp/workcafe_play_db.pid 2>/dev/null || true)
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo "Stopping play DB server (PID $pid)..."
+            kill "$pid" 2>/dev/null || true
+        fi
+        rm -f /tmp/workcafe_play_db.sock /tmp/workcafe_play_db.pid
+    }
+    trap '_stop_play_db' EXIT
+
+    # ── Guard: refuse if play DB socket or pipeline lock already exists ───────
     LOCK_FILE=data/seoul/clean.db.pipeline.lock
     if [ -S "$PLAY_SOCK" ]; then
         echo -e "\n\033[1;31mERROR: Play DB socket already exists: $PLAY_SOCK\033[0m"
@@ -708,32 +739,32 @@ merge-pipeline:
     fi
 
     echo ""
-    echo -e "${B}━━━ Step 1/6  Copy scraped.db → clean.db ━━━━━━━━━━━━━━━━━━${NC}"
-    T=$(_t); just db-clean
-    STEPS="copy:$(_elapsed $T)"
+    echo -e "${B}━━━ Step 1/7  Sync new rows scraped.db → clean.db ━━━━━━━━━━━━━━━━━━${NC}"
+    T=$(_t); $PY data-processing/00_sync_from_scraped.py
+    STEPS="sync:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 2/6  Start play DB server (clean.db) ━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 2/7  Start play DB server (clean.db) ━━━━━━━━━━━━━━${NC}"
     T=$(_t); bash scripts/start_play_db.sh
     STEPS="${STEPS},server:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 3/6  Migrate schema (clean_cafes, cafe_chains tables) ━━━━${NC}"
+    echo -e "${B}━━━ Step 3/7  Migrate schema (clean_cafes, cafe_chains tables) ━━━━${NC}"
     T=$(_t); $PY data-processing/01_migrate_db.py --db data/seoul/clean.db
     STEPS="${STEPS},migrate:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 4/6  Detect chains from name frequency ━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 4/7  Detect chains from name frequency ━━━━━━━━━━━━━━━━━━━${NC}"
     T=$(_t); $PY data-processing/03_detect_chains.py --socket /tmp/workcafe_play_db.sock
     STEPS="${STEPS},chains:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 5/6  Build/update englishify.db translation cache ━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 5/7  Build/update englishify.db translation cache ━━━━━━━━━━${NC}"
     T=$(_t); $PY data-processing/05_englishify.py --socket /tmp/workcafe_play_db.sock
     STEPS="${STEPS},englishify:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 6/6  Merge scraped_cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 6/7  Merge scraped_cafes → clean_cafes ━━━━━━━━━━━━━━━━━━━━${NC}"
     T=$(_t); $PY data-processing/04_normalize_pipeline.py \
         --db data/seoul/clean.db \
         --socket /tmp/workcafe_play_db.sock \
@@ -741,7 +772,7 @@ merge-pipeline:
     STEPS="${STEPS},normalize:$(_elapsed $T)"
 
     echo ""
-    echo -e "${B}━━━ Step 7/6  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${B}━━━ Step 7/7  Link images → clean_cafes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     T=$(_t); $PY data-processing/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
     STEPS="${STEPS},link-images:$(_elapsed $T)"
 
@@ -837,9 +868,19 @@ tag-images-yolo n="100" conf="0.25":
     echo ""
     echo "Done: $SNAPSHOT"
 
-# Tag images with RAM+ (Recognize Anything Plus, 4585 classes) — run on existing snapshot or create new
+# Tag all images in clean.db with RAM+ (continuous — skips already-tagged, safe to restart)
 [group('Data Pipeline')]
-tag-images-ram n="100" vit="swin_base":
+image-pipeline vit="swin_large":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PY="$(pwd)/venv/bin/python3"
+    echo "━━━ RAM+ image-pipeline on clean.db ({{vit}}) ━━━"
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+        "$PY" scripts/tag_images_ram.py --n all --vit {{vit}} --from-db data/seoul/clean.db
+
+# Tag images with RAM+ on a snapshot (for experiments — does not touch clean.db)
+[group('Data Pipeline')]
+tag-images-ram n="100" vit="swin_large":
     #!/usr/bin/env bash
     set -euo pipefail
     PY="$(pwd)/venv/bin/python3"

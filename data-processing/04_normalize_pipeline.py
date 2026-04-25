@@ -423,108 +423,124 @@ def main():
     chain_names = load_chain_cache(conn)
     print(f"Chains loaded: {len(chain_names)}")
 
-    fetch_q = ("SELECT id, name, lat, lon, provider, address, url, metadata FROM scraped_cafes "
-               "WHERE belongs_to_cafe_id IS NULL")
-    params = []
-    if args.provider:
-        fetch_q += " AND provider = ?"
-        params.append(args.provider)
-    fetch_q += " ORDER BY CASE provider WHEN 'kakao' THEN 1 WHEN 'naver' THEN 2 WHEN 'google' THEN 3 WHEN 'osm' THEN 4 ELSE 5 END, id"
+    def fetch_rows(provider_filter: str | None, exclude: bool = False) -> list:
+        """Fetch unprocessed scraped_cafes rows, optionally filtered by provider."""
+        q = ("SELECT id, name, lat, lon, provider, address, url, metadata FROM scraped_cafes "
+             "WHERE belongs_to_cafe_id IS NULL")
+        params: list = []
+        if args.provider:
+            q += " AND provider = ?"
+            params.append(args.provider)
+        if provider_filter:
+            q += f" AND provider {'!=' if exclude else '='} ?"
+            params.append(provider_filter)
+        q += " ORDER BY id"
+        _cur = conn.execute(q, params)
+        rows = _cur.fetchall()
+        _cur.close()
+        conn.commit()
+        return rows
 
-    # Pre-fetch all rows into memory so the cursor is closed before processing.
-    # Keeping an open cursor holds a SQLite read-transaction on conn, which prevents
-    # conn.commit() inside process_cafe from refreshing the clean_cafes snapshot —
-    # causing every cafe to create a new entry instead of merging into existing ones.
-    print("Loading scraped_cafes into memory...")
-    _cur = conn.execute(fetch_q, params)
-    all_rows = _cur.fetchall()
-    _cur.close()   # close cursor before commit so the read-transaction is fully released
-    del _cur
-    if args.limit > 0:
-        all_rows = all_rows[:args.limit]
-    total = len(all_rows)
-    conn.commit()  # now properly refreshes snapshot; process_cafe's conn.commit() will too
+    def run_pass(label: str, rows: list, all_created: list, all_merged: list) -> tuple[int, int, int]:
+        """Process a batch of rows, return (done, created, merged, errors)."""
+        if args.limit > 0:
+            rows = rows[:args.limit]
+        total = len(rows)
+        if total == 0:
+            print(f"  {label}: nothing to process.")
+            return 0, 0, 0
 
-    print(f"Cafes to process: {total}")
-    print("Running... (Ctrl+C to pause, safe to restart)")
+        print(f"\n  {label}: {total} cafes")
+        print("  Running... (Ctrl+C to pause, safe to restart)")
 
-    done = created = merged = errors = 0
-    provider_stats: dict[str, dict] = {}   # provider -> {done, created, merged}
-    start = time.time()
-    last_print = 0
-    current_provider = ""
+        done = created = merged = errors = 0
+        provider_stats: dict[str, dict] = {}
+        start = time.time()
+        last_print = 0
 
-    try:
-        for batch_start in range(0, len(all_rows), 500):
-            batch = all_rows[batch_start:batch_start + 500]
-            batch_links: list[tuple[str, str]] = []  # (clean_id, cafe_id)
+        try:
+            for batch_start in range(0, len(rows), 500):
+                batch = rows[batch_start:batch_start + 500]
+                batch_links: list[tuple[str, str]] = []
 
-            for row in batch:
-                cafe = {
-                    "id": row[0], "name": row[1], "lat": row[2],
-                    "lon": row[3], "provider": row[4],
-                    "address": row[5] or "", "url": row[6] or "",
-                    "metadata": row[7] or ""
-                }
-                prov = cafe["provider"]
-                if prov not in provider_stats:
-                    provider_stats[prov] = {"done": 0, "created": 0, "merged": 0}
-                if prov != current_provider:
-                    if current_provider:
-                        ps = provider_stats[current_provider]
-                        print(f"\n  [{current_provider}] done: {ps['done']}  new={ps['created']} merged={ps['merged']}")
-                    current_provider = prov
-                    print(f"\n  → Processing provider: {prov}")
-                try:
-                    clean_id, was_created = process_cafe(conn, dbc, cafe, chain_names, args.embed, eng_lookup)
-                    batch_links.append((clean_id, cafe["id"]))
-                    if was_created:
-                        created += 1
-                        provider_stats[prov]["created"] += 1
-                    else:
-                        merged += 1
-                        provider_stats[prov]["merged"] += 1
-                except Exception as e:
-                    errors += 1
-                    if errors <= 5:
-                        print(f"\n  ERROR on {cafe['id']} ({prov} / {cafe['name'][:30]}): {e}")
-                done += 1
-                provider_stats[prov]["done"] += 1
-                now = time.time()
-                if now - last_print >= 2.0:
-                    ps = provider_stats[prov]
-                    suffix = (f"  {prov} new={ps['created']} merged={ps['merged']}"
-                              f"  total new={created} merged={merged} err={errors}"
-                              f"  [{fmt_name(cafe['name'])}]")
-                    print(f"\r{progress_bar(done, total, now - start)}{suffix}",
-                          end="", flush=True)
-                    last_print = now
+                for row in batch:
+                    cafe = {
+                        "id": row[0], "name": row[1], "lat": row[2],
+                        "lon": row[3], "provider": row[4],
+                        "address": row[5] or "", "url": row[6] or "",
+                        "metadata": row[7] or ""
+                    }
+                    prov = cafe["provider"]
+                    if prov not in provider_stats:
+                        provider_stats[prov] = {"done": 0, "created": 0, "merged": 0}
+                    try:
+                        clean_id, was_created = process_cafe(conn, dbc, cafe, chain_names, args.embed, eng_lookup)
+                        batch_links.append((clean_id, cafe["id"]))
+                        if was_created:
+                            created += 1
+                            provider_stats[prov]["created"] += 1
+                            all_created.append(clean_id)
+                        else:
+                            merged += 1
+                            provider_stats[prov]["merged"] += 1
+                            all_merged.append(clean_id)
+                    except Exception as e:
+                        errors += 1
+                        if errors <= 5:
+                            print(f"\n  ERROR on {cafe['id']} ({prov} / {cafe['name'][:30]}): {e}")
+                    done += 1
+                    provider_stats[prov]["done"] += 1
+                    now = time.time()
+                    if now - last_print >= 2.0:
+                        ps = provider_stats[prov]
+                        suffix = (f"  {prov} new={ps['created']} merged={ps['merged']}"
+                                  f"  [{fmt_name(cafe['name'])}]")
+                        print(f"\r  {progress_bar(done, total, now - start)}{suffix}",
+                              end="", flush=True)
+                        last_print = now
 
-            # Batch update belongs_to_cafe_id — 1 dbc call per batch instead of per cafe
-            if batch_links:
-                dbc.executemany(
-                    "UPDATE scraped_cafes SET belongs_to_cafe_id = ? WHERE id = ? AND belongs_to_cafe_id IS NULL",
-                    batch_links
-                )
-                dbc.executemany(
-                    "UPDATE images SET belongs_to_cafe_id = ? WHERE cafe_id = ?",
-                    batch_links
-                )
+                if batch_links:
+                    dbc.executemany(
+                        "UPDATE scraped_cafes SET belongs_to_cafe_id = ? WHERE id = ? AND belongs_to_cafe_id IS NULL",
+                        batch_links
+                    )
+                    dbc.executemany(
+                        "UPDATE images SET belongs_to_cafe_id = ? WHERE cafe_id = ?",
+                        batch_links
+                    )
 
-    except KeyboardInterrupt:
-        print("\nPaused.")
+        except KeyboardInterrupt:
+            print("\n  Paused.")
 
-    elapsed = time.time() - start
-    print(f"\n\nDone in {elapsed:.1f}s ({elapsed/60:.1f}m)")
-    print(f"  Processed:    {done}")
-    print(f"  New:          {created}")
-    print(f"  Merged:       {merged}")
-    print(f"  Errors:       {errors}")
-    if provider_stats:
-        print(f"\n  Per-provider:")
-        for prov, ps in provider_stats.items():
-            pct = 100 * ps["merged"] / ps["done"] if ps["done"] > 0 else 0
-            print(f"    {prov:<8} done={ps['done']:>6}  new={ps['created']:>6}  merged={ps['merged']:>5}  ({pct:.0f}% merged)")
+        elapsed = time.time() - start
+        print(f"\n  {label} done in {elapsed:.1f}s — new={created} merged={merged} errors={errors}")
+        if provider_stats:
+            for prov, ps in provider_stats.items():
+                pct = 100 * ps["merged"] / ps["done"] if ps["done"] > 0 else 0
+                print(f"    {prov:<8} done={ps['done']:>6}  new={ps['created']:>6}  merged={ps['merged']:>5}  ({pct:.0f}% merged)")
+        return done, created, merged
+
+    all_created: list = []
+    all_merged: list = []
+
+    print("\nLoading scraped_cafes into memory...")
+
+    # ── Pass 1: Kakao (insert-only, no spatial lookup — fast) ─────────────────
+    print("\n━━━ Pass 1/2  Kakao (insert-only) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    kakao_rows = fetch_rows("kakao")
+    d1, c1, m1 = run_pass("Kakao", kakao_rows, all_created, all_merged)
+
+    # ── Pass 2: Non-kakao (spatial merge — slower, accurate ETA) ─────────────
+    print("\n━━━ Pass 2/2  Non-kakao (spatial merge) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    other_rows = fetch_rows("kakao", exclude=True)
+    d2, c2, m2 = run_pass("Non-kakao", other_rows, all_created, all_merged)
+
+    done    = d1 + d2
+    created = c1 + c2
+    merged  = m1 + m2
+
+    elapsed_total = 0  # individual passes track their own elapsed
+    print(f"\n\nTotal: processed={done}  new={created}  merged={merged}")
 
     # Final DB counts via dbc (authoritative)
     print(f"\n  clean_cafes:  {dbc.fetchval('SELECT COUNT(*) FROM clean_cafes')}")
