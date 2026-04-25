@@ -58,10 +58,21 @@ def save_image(
         with open(jpg_path, 'wb') as f:
             f.write(data)
 
-        w, h = img.size
-        return jpg_path, {'width': w, 'height': h, 'file_size': len(data)}
+        actual_size = os.path.getsize(jpg_path)
+        if actual_size != len(data):
+            os.remove(jpg_path)
+            raise OSError(f"write incomplete: expected {len(data)} bytes, got {actual_size} on disk")
 
+        w, h = img.size
+        return jpg_path, {'width': w, 'height': h, 'file_size': actual_size}
+
+    except OSError:
+        raise
     except Exception:
         with open(save_path, 'wb') as f:
             f.write(img_bytes)
-        return save_path, {'width': None, 'height': None, 'file_size': len(img_bytes)}
+        actual_size = os.path.getsize(save_path)
+        if actual_size == 0:
+            os.remove(save_path)
+            raise OSError(f"raw fallback write produced empty file: {save_path}")
+        return save_path, {'width': None, 'height': None, 'file_size': actual_size}

@@ -9,6 +9,11 @@ def download_image(url, save_path, headers=None):
         if response.status_code == 200:
             with open(save_path, 'wb') as f:
                 f.write(response.content)
+            if not os.path.exists(save_path) or os.path.getsize(save_path) == 0:
+                if os.path.exists(save_path):
+                    os.remove(save_path)
+                print(f"download_image: file missing or empty after write: {save_path}")
+                return False
             return True
     except Exception as e:
         print(f"Error downloading {url}: {e}")

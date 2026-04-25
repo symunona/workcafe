@@ -451,7 +451,13 @@ def process_one_page(dbc, session, cafe_id, provider_id, metadata, page, ua=None
             time.sleep(DELAY_BETWEEN_IMGS)
             continue
 
-        _, size_meta = save_image(img_bytes, save_path)
+        try:
+            _, size_meta = save_image(img_bytes, save_path)
+        except OSError as e:
+            log.warning(f"  save_image failed, skipping DB insert: {e}")
+            failed += 1
+            time.sleep(DELAY_BETWEEN_IMGS)
+            continue
         img_meta = extract_image_meta(img_bytes)   # EXIF from original bytes
         img_meta.update(size_meta)                 # post-resize w/h/size override
 

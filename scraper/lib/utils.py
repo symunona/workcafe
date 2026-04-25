@@ -29,8 +29,10 @@ CENTER_LAT = 37.490230
 CENTER_LON = 126.994312
 STEP_SIZE = 0.01  # Roughly 1km
 
-DB_PATH = '../data/seoul/scraped.db'
-DATA_DIR = '../data/seoul'
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.normpath(os.path.join(_HERE, '..', '..'))
+DATA_DIR = os.path.join(_PROJECT_ROOT, 'data', 'seoul')
+DB_PATH = os.path.join(_PROJECT_ROOT, 'data', 'seoul', 'scraped.db')
 
 def get_tor_session():
     session = requests.Session()

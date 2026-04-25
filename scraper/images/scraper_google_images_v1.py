@@ -400,10 +400,13 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
             break
 
         if download_image(session, img_url, save_path):
+            file_size = os.path.getsize(save_path) if os.path.exists(save_path) else 0
+            if file_size == 0:
+                log.warning(f"  {cafe_id}: file missing/empty after download, skipping DB insert: {save_path}")
+                continue
             downloaded += 1
             local_path = f"/images/google/{safe_id}/images/{fname}"
             photo_id = f"{cafe_id}_{idx}"
-            file_size = os.path.getsize(save_path)
             row_exists = dbc.fetchone(
                 'SELECT 1 FROM images WHERE cafe_id=? AND photo_id=?',
                 (cafe_id, photo_id)

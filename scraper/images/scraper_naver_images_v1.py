@@ -465,7 +465,12 @@ async def process_one_page(dbc, browser_page, http_session,
 
         img_bytes = download_image(http_session, url)
         if img_bytes is not None:
-            _, img_meta = save_image(img_bytes, save_path)
+            try:
+                _, img_meta = save_image(img_bytes, save_path)
+            except OSError as e:
+                log.warning(f"  save_image failed, skipping DB insert: {e}")
+                failed += 1
+                continue
             idx += 1
             new_downloads += 1
             if local_path not in all_local:
