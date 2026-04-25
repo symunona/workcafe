@@ -17,7 +17,7 @@ import argparse, json, os, sqlite3, time
 from pathlib import Path
 
 DATA_DIR   = "data/seoul"
-BATCH_SIZE = 32
+BATCH_SIZE = 8   # swin_large BERT head needs lots of memory; 8 fits 4GB VRAM
 
 # RAM+ weights — only swin_large available (~2.3GB, fits 4GB VRAM when not running YOLO)
 # Regular RAM (less accurate) also available as fallback
@@ -233,6 +233,8 @@ def run() -> None:
             threshold=args.threshold,
         )
     model.eval()
+    if device == "cuda":
+        model = model.half()  # fp16: ~1.6GB vs 3.2GB float32
     model = model.to(device)
 
     transform = get_transform(image_size=384)
@@ -285,6 +287,8 @@ def run() -> None:
 
         import torch
         batch_tensor = torch.stack(tensors).to(device)
+        if device == "cuda":
+            batch_tensor = batch_tensor.half()
 
         t0 = time.perf_counter()
         with torch.no_grad():
