@@ -10,6 +10,11 @@ scraper/images/google-proxy-stats.json
 .dolt/
 *.db
 
+# ML model weights
+*.pt
+*.onnx
+*.pth
+
 # Python
 venv/
 __pycache__/

@@ -112,3 +112,51 @@ CREATE TABLE name_translations (
 ```
 
 Used by `04_normalize_pipeline.py` as a lookup dict at startup: `{korean_name: english_name}`. Never modified during normalization — only updated by `05_englishify.py`.
+
+
+# Image Pipelines
+
+Start work from `clean.db`.
+Copy over ~ 100 sampled clean cafes (consistent, e.g first 100) - with their image refs to a new db - put it in the `data/seoul/history/` folder so it's instantly usable for human for review on the UI as a snapshot - always work into that.
+
+**Snapshot export tool:** `scripts/create_tag_snapshot.py`
+```bash
+# Create subset of 100 cafes (top by image count) as a snapshot DB
+SNAPSHOT=$(python scripts/create_tag_snapshot.py --n 100 | tail -1)
+# Or full dataset:
+SNAPSHOT=$(python scripts/create_tag_snapshot.py --n all | tail -1)
+# Custom output path:
+python scripts/create_tag_snapshot.py --n 100 --output data/seoul/history/clean_yolo_n100.db
+# From a different source DB:
+python scripts/create_tag_snapshot.py --n 100 --from-db data/seoul/clean.db
+```
+Copies: `clean_cafes`, `cafe_chains`, `scraped_cafes`, `images`, creates empty `image_tags` (with `boxes TEXT` column). Writes a `.md` file beside the DB for snapshot browser notes.
+
+**Full pipeline for a tagging run:**
+```bash
+# 1. Create snapshot
+SNAPSHOT=$(python scripts/create_tag_snapshot.py --n 100 | tail -1)
+
+# 2. Tag images (YOLOv8 OIV7)
+python scripts/tag_images_yolo.py --from-db "$SNAPSHOT" --conf 0.25
+
+# 3. Roll up image tags → clean_cafes.tags (makes tags visible in map filter)
+python scripts/tag_cafes_rollup.py --db "$SNAPSHOT"
+```
+
+Or in one shot: `just tag-images-yolo 100 0.25`
+
+Always make scripts parametric, so they can be ran:
+- on a subset of data - always start with the export first using `create_tag_snapshot.py` - e.g. 100 cafes limit. (always copy the belonging scraped cafe data and chains over too!)
+- from a specific db (`--from-db`)
+- to a specific db (use snapshot export)
+
+Do spot check the result, and eval if it worked nicely.
+Always create benchmarks, per image process speed, most popular tags, whatever makes sense, write into db's md file, so frontend I can look at it. Do not use markdown tables in the .md — they don't render in the snapshot browser. Use bullet lists instead.
+
+After tagging, always run rollup so tags show up in filter:
+```bash
+python scripts/tag_cafes_rollup.py --db "$SNAPSHOT"
+```
+This writes `{tag: image_count}` JSON to `clean_cafes.tags` for every cafe that has tagged images.
+

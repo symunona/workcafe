@@ -186,10 +186,12 @@ install-services:
     [Service]
     Type=simple
     WorkingDirectory=$WDIR/api
+    ExecStartPre=-/usr/bin/pkill -x workcafe-api
     ExecStartPre=/snap/bin/go build -o workcafe-api .
     ExecStart=$WDIR/api/workcafe-api
     Restart=on-failure
     RestartSec=5
+    KillMode=control-group
 
     [Install]
     WantedBy=default.target"
@@ -504,6 +506,108 @@ normalize limit="0":
         python3 data-processing/04_normalize_pipeline.py --socket "$PLAY_SOCK" --englishify-db "$ENG_DB" --limit {{limit}}
     fi
 
+# Create a spatial subset of scraped.db for fast pipeline testing.
+# Extracts scraped_cafes within a blocksize×blocksize meter square around center.
+# belongs_to_cafe_id reset to NULL so pipeline runs fresh on subset.
+# Example: just subset 37.492 126.989 1000 data/seoul/subset_test.db
+[group('Data Pipeline')]
+subset lat lng blocksize="1000" target="data/seoul/subset.db":
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 scripts/create_subset.py --lat {{lat}} --lng {{lng}} --blocksize {{blocksize}} {{target}}
+
+# Validate merge quality against known same-place cafe groups in the 방배카페거리 test area.
+# Run after merge-pipeline to check if merges are correct.
+[group('Data Pipeline')]
+test-pipeline db="data/seoul/clean.db":
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 scripts/test_merge.py --db {{db}}
+
+# Fast merge quality test for the 방배/내방 area.
+# Builds a 1km subset (~144 cafes), runs mini-pipeline, checks merge correctness.
+# Uses a dedicated socket/pidfile so it never conflicts with the production play DB.
+# Takes ~30s total.
+[group('Data Pipeline')]
+test-merge-naebang:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source venv/bin/activate
+
+    PY="$(pwd)/venv/bin/python3"
+    SUBSET_DB="/tmp/naebang_scraped.db"
+    CLEAN_DB="/tmp/naebang_clean.db"
+    SOCK="/tmp/naebang_test.sock"
+    PID_FILE="/tmp/naebang_test.pid"
+    ENG_DB="$(pwd)/data/seoul/englishify.db"
+
+    B='\033[1m'; NC='\033[0m'
+
+    # ── Guard ─────────────────────────────────────────────────────────────────
+    if [ -S "$SOCK" ]; then
+        echo -e "\n\033[1;31mERROR: Test DB socket already exists: $SOCK\033[0m"
+        echo "       Another test pipeline is running. Kill PID \$(cat $PID_FILE 2>/dev/null) or:"
+        echo "       rm -f $SOCK $PID_FILE"
+        exit 1
+    fi
+    if [ -f "${CLEAN_DB}.pipeline.lock" ]; then
+        echo -e "\n\033[1;31mERROR: Pipeline lock exists: ${CLEAN_DB}.pipeline.lock\033[0m"
+        echo "       rm ${CLEAN_DB}.pipeline.lock"
+        exit 1
+    fi
+
+    # ── 1. Create subset ──────────────────────────────────────────────────────
+    echo -e "\n${B}── Step 1/4  Build 1km subset around 방배/내방역 ──────────────────${NC}"
+    $PY scripts/create_subset.py --lat 37.492 --lng 126.989 --blocksize 1000 "$SUBSET_DB"
+
+    # ── 2. Copy to clean DB + start server ───────────────────────────────────
+    echo -e "\n${B}── Step 2/4  Migrate + detect chains ────────────────────────────${NC}"
+    cp -f "$SUBSET_DB" "$CLEAN_DB"
+    rm -f "${CLEAN_DB}-wal" "${CLEAN_DB}-shm"
+
+    # Stop any leftover test server
+    if [ -f "$PID_FILE" ]; then
+        OLD=$(cat "$PID_FILE" 2>/dev/null || true)
+        [ -n "$OLD" ] && kill "$OLD" 2>/dev/null || true
+        rm -f "$PID_FILE" "$SOCK"
+    fi
+
+    cd scraper
+    nohup $PY db_server.py \
+        --db "$CLEAN_DB" --socket "$SOCK" --pid-file "$PID_FILE" --replace \
+        > /tmp/naebang_db_server.log 2>&1 &
+    cd ..
+
+    # Wait for socket
+    for i in $(seq 1 20); do [ -S "$SOCK" ] && break; sleep 0.3; done
+    [ -S "$SOCK" ] || { echo "ERROR: test db_server did not start"; exit 1; }
+
+    $PY data-processing/01_migrate_db.py --db "$CLEAN_DB"
+    $PY data-processing/03_detect_chains.py --socket "$SOCK"
+
+    # ── 3. Normalize ──────────────────────────────────────────────────────────
+    echo -e "\n${B}── Step 3/4  Normalize (merge) ───────────────────────────────────${NC}"
+    $PY data-processing/04_normalize_pipeline.py \
+        --db "$CLEAN_DB" --socket "$SOCK" --englishify-db "$ENG_DB" --no-backup
+
+    # Stop test server
+    [ -f "$PID_FILE" ] && kill "$(cat "$PID_FILE")" 2>/dev/null || true
+    rm -f "$PID_FILE" "$SOCK"
+
+    # ── 4. Publish to history so the map can load it ─────────────────────────
+    SNAPSHOT="$(pwd)/data/seoul/history/clean_naebang_test.db"
+    sqlite3 "$CLEAN_DB" "PRAGMA wal_checkpoint(TRUNCATE);" 2>/dev/null || true
+    cp -f "$CLEAN_DB" "$SNAPSHOT"
+    rm -f "${SNAPSHOT}-wal" "${SNAPSHOT}-shm"
+
+    CAFE_COUNT=$(sqlite3 "$SNAPSHOT" "SELECT COUNT(*) FROM clean_cafes" 2>/dev/null || echo "?")
+    $PY scripts/write_snapshot_md.py "$(pwd)/data/seoul/history/clean_naebang_test.md" "$CAFE_COUNT"
+    echo -e "${B}Snapshot published → data/seoul/history/clean_naebang_test.db${NC} ($CAFE_COUNT cafes)"
+
+    # ── 5. Test ───────────────────────────────────────────────────────────────
+    echo -e "\n${B}── Step 5/5  Check merge quality ─────────────────────────────────${NC}"
+    $PY scripts/test_merge.py --db "$CLEAN_DB"
+
 # Detect chains from scraped_cafes name frequency; writes to cafe_chains on play DB.
 # Uses play DB if socket exists, otherwise starts it first.
 [group('Data Pipeline')]
@@ -585,6 +689,24 @@ merge-pipeline:
 
     PIPELINE_START=$(_t)
 
+    # ── Guard: refuse if play DB socket or pipeline lock already exists ───────
+    PLAY_SOCK=/tmp/workcafe_play_db.sock
+    LOCK_FILE=data/seoul/clean.db.pipeline.lock
+    if [ -S "$PLAY_SOCK" ]; then
+        echo -e "\n\033[1;31mERROR: Play DB socket already exists: $PLAY_SOCK\033[0m"
+        echo "       Another pipeline is likely running. Kill it first:"
+        echo "       kill \$(cat /tmp/workcafe_play_db.pid 2>/dev/null)"
+        echo "       rm -f $PLAY_SOCK"
+        exit 1
+    fi
+    if [ -f "$LOCK_FILE" ]; then
+        echo -e "\n\033[1;31mERROR: Pipeline lock exists: $LOCK_FILE\033[0m"
+        echo "       Contents: \$(cat $LOCK_FILE)"
+        echo "       If the previous run crashed, remove it manually:"
+        echo "       rm $LOCK_FILE"
+        exit 1
+    fi
+
     echo ""
     echo -e "${B}━━━ Step 1/6  Copy scraped.db → clean.db ━━━━━━━━━━━━━━━━━━${NC}"
     T=$(_t); just db-clean
@@ -637,3 +759,80 @@ merge-pipeline:
 
     echo ""
     echo -e "${G}Done.${NC}"
+
+# ── Image Tagging ─────────────────────────────────────────────────────────────
+
+# Wipe image_tags rows from a snapshot DB (never touches clean.db)
+# Usage: just clean-image-tags data/seoul/history/clean_tags_t25_n100_2026-04-23.db
+[group('Image Tagging')]
+clean-image-tags db:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Deleting all rows from image_tags in {{db}}..."
+    sqlite3 {{db}} "DELETE FROM image_tags;"
+    COUNT=$(sqlite3 {{db}} "SELECT COUNT(*) FROM image_tags;")
+    echo "Done. Rows remaining: $COUNT"
+
+# Create a snapshot from clean.db, tag it with CLIP, roll up to clean_cafes.tags.
+# clean.db is never modified.
+# n: number of clean cafes (integer or 'all')
+# threshold: min cosine similarity stored (e.g. 0.22 / 0.25 / 0.27)
+[group('Image Tagging')]
+tag-images n threshold:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PY="$(pwd)/venv/bin/python3"
+
+    echo "━━━ Creating snapshot (n={{n}}, threshold={{threshold}}) ━━━"
+    SNAPSHOT=$("$PY" scripts/create_tag_snapshot.py --n {{n}} --threshold {{threshold}} | tail -1)
+    echo "Snapshot: $SNAPSHOT"
+
+    echo ""
+    echo "━━━ Tagging images ━━━"
+    "$PY" scripts/tag_images_clip.py --n all --threshold {{threshold}} --db "$SNAPSHOT"
+
+    echo ""
+    echo "━━━ Rollup image_tags → clean_cafes.tags ━━━"
+    "$PY" scripts/tag_cafes_rollup.py --db "$SNAPSHOT"
+
+    echo ""
+    echo "Done: $SNAPSHOT"
+
+# Experiment 1 — threshold 0.22 (broad, captures most)
+[group('Image Tagging')]
+tag-images-experiment-1:
+    just tag-images 100 0.22
+
+# Experiment 2 — threshold 0.25 (balanced)
+[group('Image Tagging')]
+tag-images-experiment-2:
+    just tag-images 100 0.25
+
+# Experiment 3 — threshold 0.27 (strict, high confidence only)
+[group('Image Tagging')]
+tag-images-experiment-3:
+    just tag-images 100 0.27
+
+# Tag images with YOLOv8 OIV7 (600 Open Images classes, includes wall socket, chair, laptop…).
+# n: number of clean cafes (integer or 'all')
+# conf: min detection confidence (default 0.25)
+[group('Image Tagging')]
+tag-images-yolo n="100" conf="0.25":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PY="$(pwd)/venv/bin/python3"
+
+    echo "━━━ Creating YOLO snapshot (n={{n}}, conf={{conf}}) ━━━"
+    SNAPSHOT=$("$PY" scripts/create_tag_snapshot.py --n {{n}} --threshold {{conf}} | tail -1)
+    echo "Snapshot: $SNAPSHOT"
+
+    echo ""
+    echo "━━━ Tagging images with YOLOv8 OIV7 ━━━"
+    "$PY" scripts/tag_images_yolo.py --n all --conf {{conf}} --from-db "$SNAPSHOT"
+
+    echo ""
+    echo "━━━ Rollup image_tags → clean_cafes.tags ━━━"
+    "$PY" scripts/tag_cafes_rollup.py --db "$SNAPSHOT"
+
+    echo ""
+    echo "Done: $SNAPSHOT"
