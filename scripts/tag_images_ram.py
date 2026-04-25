@@ -19,12 +19,17 @@ from pathlib import Path
 DATA_DIR   = "data/seoul"
 BATCH_SIZE = 32
 
-# RAM+ weights — swin_base fits 4GB VRAM with room to spare (~1.5GB); swin_large needs ~2.5GB
+# RAM+ weights — only swin_large available (~2.3GB, fits 4GB VRAM when not running YOLO)
+# Regular RAM (less accurate) also available as fallback
 MODEL_URLS = {
-    "swin_base":  "https://huggingface.co/xinyu1205/recognize-anything-plus-model/resolve/main/ram_plus_swin_base_14m.pth",
-    "swin_large": "https://huggingface.co/xinyu1205/recognize-anything-plus-model/resolve/main/ram_plus_swin_large_14m.pth",
+    "swin_large":      "https://huggingface.co/xinyu1205/recognize-anything-plus-model/resolve/main/ram_plus_swin_large_14m.pth",
+    "ram_swin_large":  "https://huggingface.co/xinyu1205/recognize_anything_model/resolve/main/ram_swin_large_14m.pth",
 }
-DEFAULT_VIT = "swin_base"
+MODEL_FILES = {
+    "swin_large":     "ram_plus_swin_large_14m.pth",
+    "ram_swin_large": "ram_swin_large_14m.pth",
+}
+DEFAULT_VIT = "swin_large"
 
 # Tags to keep from RAM's 4585 classes (substring match, case-insensitive).
 # None = skip.  Add more as needed.
@@ -86,7 +91,7 @@ def _parse_args():
     p = argparse.ArgumentParser(description="RAM+ image tagger")
     p.add_argument("--from-db",  required=True, dest="db")
     p.add_argument("--n",        default="all",   help="Cafes to process (int or 'all')")
-    p.add_argument("--vit",      default=DEFAULT_VIT, choices=["swin_base", "swin_large"])
+    p.add_argument("--vit",      default=DEFAULT_VIT, choices=["swin_large", "ram_swin_large"])
     p.add_argument("--threshold",type=float, default=0.68, help="RAM confidence threshold (default 0.68)")
     p.add_argument("--rollup-every", type=int, default=500, dest="rollup_every")
     return p.parse_args()
@@ -182,15 +187,17 @@ def build_tag_filter(all_ram_tags: list[str]) -> dict[int, str]:
 
 
 def get_weights(vit: str) -> str:
-    fname = f"ram_plus_{vit}_14m.pth"
+    fname = MODEL_FILES[vit]
     if os.path.exists(fname):
         return fname
     url = MODEL_URLS[vit]
-    print(f"Downloading weights: {url}")
+    print(f"Downloading weights from {url} ...")
     import urllib.request
     def _progress(count, block, total):
-        pct = count * block / total * 100
-        print(f"  {pct:.1f}%", end="\r")
+        mb = count * block // 1024 // 1024
+        total_mb = total // 1024 // 1024
+        pct = min(100, count * block / total * 100)
+        print(f"  {pct:.1f}%  ({mb}/{total_mb} MB)", end="\r")
     urllib.request.urlretrieve(url, fname, _progress)
     print(f"\nSaved: {fname}")
     return fname
@@ -216,12 +223,13 @@ def run() -> None:
     print(f"Loading RAM+ ({args.vit}) from {weights}...")
 
     import warnings
+    vit_arg = "swin_l" if args.vit == "swin_large" else "swin_b"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         model = ram_plus(
             pretrained=weights,
             image_size=384,
-            vit=args.vit,
+            vit=vit_arg,
             threshold=args.threshold,
         )
     model.eval()
@@ -229,8 +237,8 @@ def run() -> None:
 
     transform = get_transform(image_size=384)
 
-    # Read RAM tag list from model
-    ram_tag_list = [t.strip() for t in open(model.tag_list).readlines()]
+    # model.tag_list is a numpy array of tag strings
+    ram_tag_list = [t.strip() for t in model.tag_list.tolist()]
     tag_filter = build_tag_filter(ram_tag_list)
     print(f"RAM tags: {len(ram_tag_list)} total, {len(tag_filter)} mapped to our vocab")
     print("Mapped classes:")
