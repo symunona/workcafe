@@ -65,11 +65,15 @@ def migrate(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_image_tags_tag   ON image_tags(tag);
         CREATE INDEX IF NOT EXISTS idx_image_tags_image ON image_tags(image_id);
     """)
-    # Idempotent: add boxes column to existing DBs
+    # Idempotent: add columns to existing DBs that predate them
     try:
         conn.execute("ALTER TABLE image_tags ADD COLUMN boxes TEXT")
     except sqlite3.OperationalError:
-        pass  # column already exists
+        pass
+    try:
+        conn.execute("ALTER TABLE clean_cafes ADD COLUMN tags TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
 
 

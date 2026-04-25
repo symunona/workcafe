@@ -72,10 +72,16 @@ def migrate(conn, db_path):
             providers       TEXT,
             source_ids      TEXT,
             name_embedding  BLOB,
+            tags            TEXT,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Backfill for DBs created before tags column was added
+    try:
+        conn.execute("ALTER TABLE clean_cafes ADD COLUMN tags TEXT")
+    except Exception:
+        pass
     print("  clean_cafes: ok")
 
     # Indexes for proximity queries

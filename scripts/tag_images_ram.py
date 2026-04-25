@@ -118,6 +118,10 @@ def migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE image_tags ADD COLUMN boxes TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        conn.execute("ALTER TABLE clean_cafes ADD COLUMN tags TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
 
 
