@@ -35,6 +35,14 @@ export function TagBrowserOverlay({ onClose }: Props) {
   thresholdRef.current = threshold
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
+  const aboveThreshold = images.filter(i => i.score >= threshold)
+  const belowThreshold = images.filter(i => i.score < threshold)
+  const displayImages = [...aboveThreshold, ...belowThreshold]
+
+  const closeLightbox = useCallback(() => setLightboxIndex(null), [])
+  const prevImage = useCallback(() => setLightboxIndex(i => i != null ? Math.max(0, i - 1) : null), [])
+  const nextImage = useCallback(() => setLightboxIndex(i => i != null ? Math.min(displayImages.length - 1, i + 1) : null), [displayImages.length])
+
   // Close on Escape / arrow nav
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -71,14 +79,6 @@ export function TagBrowserOverlay({ onClose }: Props) {
       .catch(() => setImages([]))
       .finally(() => setLoadingImages(false))
   }, [selectedTag, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const aboveThreshold = images.filter(i => i.score >= threshold)
-  const belowThreshold = images.filter(i => i.score < threshold)
-  const displayImages = [...aboveThreshold, ...belowThreshold]
-
-  const closeLightbox = useCallback(() => setLightboxIndex(null), [])
-  const prevImage = useCallback(() => setLightboxIndex(i => i != null ? Math.max(0, i - 1) : null), [])
-  const nextImage = useCallback(() => setLightboxIndex(i => i != null ? Math.min(displayImages.length - 1, i + 1) : null), [displayImages.length])
 
   // Find the threshold divider position in sorted-by-score list
   const thresholdInfo = THRESHOLDS.find(t => t.value === threshold)
@@ -171,7 +171,7 @@ export function TagBrowserOverlay({ onClose }: Props) {
               {aboveThreshold.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
                   {aboveThreshold.map((img, i) => (
-                    <ImageCard key={img.image_id} img={img} dimmed={false} threshold={threshold}
+                    <ImageCard key={img.image_id} img={img} dimmed={false}
                       onClick={() => setLightboxIndex(i)} />
                   ))}
                 </div>
@@ -195,7 +195,7 @@ export function TagBrowserOverlay({ onClose }: Props) {
               {belowThreshold.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {belowThreshold.map((img, i) => (
-                    <ImageCard key={img.image_id} img={img} dimmed threshold={threshold}
+                    <ImageCard key={img.image_id} img={img} dimmed
                       onClick={() => setLightboxIndex(aboveThreshold.length + i)} />
                   ))}
                 </div>
@@ -210,7 +210,7 @@ export function TagBrowserOverlay({ onClose }: Props) {
         <Lightbox
           images={displayImages}
           index={lightboxIndex}
-          threshold={threshold}
+
           onClose={closeLightbox}
           onPrev={prevImage}
           onNext={nextImage}
@@ -220,10 +220,9 @@ export function TagBrowserOverlay({ onClose }: Props) {
   )
 }
 
-function Lightbox({ images, index, threshold, onClose, onPrev, onNext }: {
+function Lightbox({ images, index, onClose, onPrev, onNext }: {
   images: TagImage[]
   index: number
-  threshold: number
   onClose: () => void
   onPrev: () => void
   onNext: () => void
@@ -290,7 +289,7 @@ function Lightbox({ images, index, threshold, onClose, onPrev, onNext }: {
   )
 }
 
-function ImageCard({ img, dimmed, onClick }: { img: TagImage; dimmed: boolean; threshold?: number; onClick?: () => void }) {
+function ImageCard({ img, dimmed, onClick }: { img: TagImage; dimmed: boolean; onClick?: () => void }) {
   const [error, setError] = useState(false)
   const scoreColor = img.score >= 0.27 ? '#a5d6a7' : img.score >= 0.25 ? '#ffcc80' : '#ef9a9a'
 

@@ -169,6 +169,8 @@ function MarkerLayer({ scraped_cafes, onSelect }: MarkerLayerProps) {
   return null
 }
 
+const IS_PUBLIC = import.meta.env.VITE_IS_PUBLIC === 'true'
+
 export default function CleanApp() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -512,12 +514,14 @@ export default function CleanApp() {
         >
           Filter {isFilterActive ? '●' : ''}
         </button>
-        <button
-          className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
-          onClick={() => setShowSettings(true)}
-        >
-          Scraper Status
-        </button>
+        {!IS_PUBLIC && (
+          <button
+            className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
+            onClick={() => setShowSettings(true)}
+          >
+            Scraper Status
+          </button>
+        )}
         <button
           className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
           onClick={() => setShowTagBrowser(true)}
@@ -696,7 +700,7 @@ export default function CleanApp() {
                         </button>
                         <button
                           onClick={() => toggleStarTag(tag)}
-                          className={`px-1 py-1.5 rounded-lg text-sm transition-colors flex-shrink-0 ${starred ? 'text-amber-400 hover:text-amber-500' : 'text-amber-200 hover:text-amber-400'}`}
+                          className={`px-1 py-1.5 rounded-lg text-sm transition-colors flex-shrink-0 ${starred ? 'text-amber-400 hover:text-amber-500' : 'text-[#444] hover:text-amber-400'}`}
                           title={starred ? 'Unstar' : 'Star'}
                         >
                           {starred ? '★' : '☆'}
@@ -779,13 +783,15 @@ export default function CleanApp() {
                 <span className="text-xl w-7">🏷️</span>
                 <span className="text-sm font-medium text-gray-700">Tag Browser</span>
               </button>
-              <button
-                onClick={() => { setShowMobileMenu(false); setShowSettings(true) }}
-                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
-              >
-                <span className="text-xl w-7">📊</span>
-                <span className="text-sm font-medium text-gray-700">Scraper Status</span>
-              </button>
+              {!IS_PUBLIC && (
+                <button
+                  onClick={() => { setShowMobileMenu(false); setShowSettings(true) }}
+                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
+                >
+                  <span className="text-xl w-7">📊</span>
+                  <span className="text-sm font-medium text-gray-700">Scraper Status</span>
+                </button>
+              )}
               <button
                 onClick={() => { setShowMobileMenu(false); setShowCustomWebsites(true) }}
                 className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
@@ -825,7 +831,7 @@ export default function CleanApp() {
         <CafeDetailsPage activeTags={filters.tags} />
       )}
 
-      {showSettings && (
+      {!IS_PUBLIC && showSettings && (
         <SettingsModal onClose={() => setShowSettings(false)} />
       )}
 

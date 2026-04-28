@@ -1,5 +1,35 @@
 default: start
 
+# ── Public / Production ───────────────────────────────────────────────────────
+
+# Build frontend with IS_PUBLIC=true (hides admin controls) → frontend/dist/
+[group('Public / Production')]
+build-public:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    WDIR="$(pwd)"
+    NODE_BIN="$HOME/.nvm/versions/node/v22.21.1/bin"
+    PNPM="$NODE_BIN/pnpm"
+    echo "Building public frontend (VITE_IS_PUBLIC=true)..."
+    cd "$WDIR/frontend"
+    VITE_IS_PUBLIC=true "$PNPM" build
+    echo "Built → $WDIR/frontend/dist"
+
+# Build + apply nginx config for static hosting (run once after setup-nginx)
+[group('Public / Production')]
+deploy-public: build-public
+    #!/usr/bin/env bash
+    set -euo pipefail
+    WDIR="$(pwd)"
+    echo "Applying nginx config..."
+    bash "$WDIR/scripts/setup_nginx.sh"
+    echo "Stopping frontend dev service (nginx serves static files now)..."
+    systemctl --user stop workcafe-frontend 2>/dev/null || true
+    systemctl --user disable workcafe-frontend 2>/dev/null || true
+    echo ""
+    echo "Public deployment done. Serving at https://workcafe.c.tmpx.space"
+    echo "API on :13854 (NOT publicly exposed — nginx proxies read-only routes only)"
+
 # ── Init / Setup ─────────────────────────────────────────────────────────────
 
 # Install all missing dependencies (safe to re-run)

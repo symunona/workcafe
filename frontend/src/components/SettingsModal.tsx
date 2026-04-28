@@ -52,6 +52,7 @@ interface ProviderMetrics {
   cafes_10plus: number
   cafes_50plus: number
   avg_images: number
+  has_website?: number
   total_images: number
 }
 
@@ -652,10 +653,10 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                             <td className="px-3 py-2 font-medium text-gray-800 capitalize">{p.provider}</td>
                             <td className="px-3 py-2 text-right text-gray-700">{p.total.toLocaleString()}</td>
                             <td className="px-3 py-2 text-right">
-                              {p.has_website > 0 ? (
+                              {(p.has_website ?? 0) > 0 ? (
                                 <>
-                                  <span className="text-emerald-600 font-medium">{p.has_website.toLocaleString()}</span>
-                                  <span className="text-gray-400 text-xs ml-1">({p.total > 0 ? Math.round(p.has_website / p.total * 100) : 0}%)</span>
+                                  <span className="text-emerald-600 font-medium">{(p.has_website ?? 0).toLocaleString()}</span>
+                                  <span className="text-gray-400 text-xs ml-1">({p.total > 0 ? Math.round((p.has_website ?? 0) / p.total * 100) : 0}%)</span>
                                 </>
                               ) : <span className="text-gray-300">—</span>}
                             </td>
