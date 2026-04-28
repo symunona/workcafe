@@ -77,13 +77,13 @@ export function CafeDetailsPage({ activeTags }: { activeTags?: Set<string> }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  if (loading) return <div className="fixed top-0 left-96 right-0 bottom-0 bg-white/95 backdrop-blur-sm z-[1000] p-8 text-gray-500 border-l">Loading...</div>
-  if (!cafe) return <div className="fixed top-0 left-96 right-0 bottom-0 bg-white/95 backdrop-blur-sm z-[1000] p-8 text-red-500 border-l">Cafe not found</div>
+  if (loading) return <div className="fixed inset-0 bg-white z-[1100] p-8 text-gray-500">Loading...</div>
+  if (!cafe) return <div className="fixed inset-0 bg-white z-[1100] p-8 text-red-500">Cafe not found</div>
 
   const activeImage = activeImageIndex !== null ? displayImages[activeImageIndex] : null
 
   return (
-    <div className="fixed top-0 left-96 right-0 bottom-0 bg-white/95 backdrop-blur-sm z-[1000] flex flex-col shadow-2xl border-l animate-in slide-in-from-right-8">
+    <div className="fixed inset-0 bg-white z-[1100] flex flex-col shadow-2xl animate-in slide-in-from-bottom-4">
       {/* Header */}
       <header className="p-4 shadow-sm flex items-center gap-4 bg-white sticky top-0 z-20">
         <button onClick={() => navigate(`/cafe/${cafe.id}`)} className="text-gray-500 hover:text-black">✕ Close</button>

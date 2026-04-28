@@ -313,60 +313,50 @@ export default function CleanApp() {
     ]
   }, [availableTags, starredTags, tagSearch])
 
+  const displayChains = useMemo(() => {
+    const search = tagSearch.toLowerCase()
+    if (!search) return chains
+    return chains.filter(c => (c.name_english || c.name).toLowerCase().includes(search))
+  }, [chains, tagSearch])
+
   const { center: initialCenter, zoom: initialZoom } = loadMapPos()
 
   const filterContent = (
     <div className="flex flex-col gap-4">
-      {/* Basic options */}
+      {/* Basic options — horizontal pill toggles */}
       <div>
         <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Options</div>
-        <div className="space-y-1">
-          <div className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-            <Checkbox
-              checked={filters.withImages}
-              onChange={v => setFilters(f => ({ ...f, withImages: v, multipleImages: v ? f.multipleImages : false }))}
-              label={<span className="text-sm">Has images</span>}
-            />
-          </div>
-          <div className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-            <Checkbox
-              checked={filters.multipleImages}
-              onChange={v => setFilters(f => ({ ...f, multipleImages: v, withImages: v ? true : f.withImages }))}
-              label={<span className="text-sm">Multiple images (2+)</span>}
-            />
-          </div>
-          <div className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-            <Checkbox
-              checked={filters.customWebsite}
-              onChange={v => setFilters(f => ({ ...f, customWebsite: v }))}
-              label={<span className="text-sm">Custom website 🌐</span>}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Providers */}
-      <div>
-        <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Provider</div>
-        <div className="space-y-1">
-          {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
-            <div key={p} className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-              <Checkbox
-                checked={filters.providers.has(p)}
-                onChange={v => setFilters(f => {
-                  const s = new Set(f.providers)
-                  v ? s.add(p) : s.delete(p)
-                  return { ...f, providers: s }
-                })}
-                label={
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: color }} />
-                    {p}
-                  </span>
-                }
-              />
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setFilters(f => ({ ...f, withImages: !f.withImages, multipleImages: f.withImages ? false : f.multipleImages }))}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+              filters.withImages
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+            }`}
+          >
+            Has images
+          </button>
+          <button
+            onClick={() => setFilters(f => ({ ...f, multipleImages: !f.multipleImages, withImages: !f.multipleImages ? true : f.withImages }))}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+              filters.multipleImages
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+            }`}
+          >
+            Multiple images (2+)
+          </button>
+          <button
+            onClick={() => setFilters(f => ({ ...f, customWebsite: !f.customWebsite }))}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+              filters.customWebsite
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+            }`}
+          >
+            Custom website 🌐
+          </button>
         </div>
       </div>
 
@@ -376,7 +366,7 @@ export default function CleanApp() {
           <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Tags</div>
           <input
             type="search"
-            placeholder="Search tags…"
+            placeholder="Search tags & chains…"
             value={tagSearch}
             onChange={e => setTagSearch(e.target.value)}
             className="w-full mb-2 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400"
@@ -423,7 +413,7 @@ export default function CleanApp() {
       <div>
         <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Chains</div>
         <div className="space-y-1.5">
-          {chains.map(c => {
+          {displayChains.map(c => {
             const chainColor = CHAIN_COLORS[c.name_english || c.name]
             return (
               <div key={c.id} className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
@@ -447,6 +437,31 @@ export default function CleanApp() {
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* Providers */}
+      <div>
+        <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Provider</div>
+        <div className="space-y-1">
+          {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
+            <div key={p} className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+              <Checkbox
+                checked={filters.providers.has(p)}
+                onChange={v => setFilters(f => {
+                  const s = new Set(f.providers)
+                  v ? s.add(p) : s.delete(p)
+                  return { ...f, providers: s }
+                })}
+                label={
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: color }} />
+                    {p}
+                  </span>
+                }
+              />
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -516,10 +531,12 @@ export default function CleanApp() {
       <div className="absolute top-2 right-2 z-[500] flex md:hidden items-center gap-2 pointer-events-auto">
         <button
           onClick={() => setShowFilters(true)}
-          className={`bg-white rounded-full shadow w-9 h-9 flex items-center justify-center text-base transition-colors ${isFilterActive ? 'ring-2 ring-blue-400 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+          className={`bg-white rounded-full shadow w-9 h-9 flex items-center justify-center transition-colors ${isFilterActive ? 'ring-2 ring-blue-400 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           title="Filters"
         >
-          {isFilterActive ? '⚙️' : '⚙'}
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591L15.25 12.5v6.25a.75.75 0 0 1-.75.75h-5a.75.75 0 0 1-.75-.75V12.5L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+          </svg>
         </button>
         <button
           onClick={() => setShowMobileMenu(true)}
@@ -574,46 +591,68 @@ export default function CleanApp() {
                 <h3 className="font-semibold text-base">Filters</h3>
                 <button className="text-gray-400 hover:text-gray-600 text-xl" onClick={() => setShowFilters(false)}>✕</button>
               </div>
-              <div className="mb-3 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-                <Checkbox
-                  checked={filters.withImages}
-                  onChange={v => setFilters(f => ({ ...f, withImages: v, multipleImages: v ? f.multipleImages : false }))}
-                  label={<span className="text-sm">Has images</span>}
-                />
+              {/* Options pill toggles */}
+              <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Options</div>
+              <div className="flex flex-col gap-1.5 mb-4">
+                <button
+                  onClick={() => setFilters(f => ({ ...f, withImages: !f.withImages, multipleImages: f.withImages ? false : f.multipleImages }))}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors text-left ${
+                    filters.withImages
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  Has images
+                </button>
+                <button
+                  onClick={() => setFilters(f => ({ ...f, multipleImages: !f.multipleImages, withImages: !f.multipleImages ? true : f.withImages }))}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors text-left ${
+                    filters.multipleImages
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  Multiple images (2+)
+                </button>
+                <button
+                  onClick={() => setFilters(f => ({ ...f, customWebsite: !f.customWebsite }))}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors text-left ${
+                    filters.customWebsite
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  Custom website 🌐
+                </button>
               </div>
-              <div className="mb-4 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-                <Checkbox
-                  checked={filters.multipleImages}
-                  onChange={v => setFilters(f => ({ ...f, multipleImages: v, withImages: v ? true : f.withImages }))}
-                  label={<span className="text-sm">Multiple images (2+)</span>}
-                />
+              {/* Chains */}
+              <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider mt-4">Chains</div>
+              <div className="space-y-1.5">
+                {displayChains.map(c => {
+                  const chainColor = CHAIN_COLORS[c.name_english || c.name]
+                  return (
+                    <div key={c.id} className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+                      <Checkbox
+                        checked={filters.chains.has(c.id)}
+                        onChange={v => setFilters(f => {
+                          const s = new Set(f.chains)
+                          v ? s.add(c.id) : s.delete(c.id)
+                          return { ...f, chains: s }
+                        })}
+                        label={
+                          <span className="flex items-center justify-between gap-2 text-sm w-full">
+                            <span className="flex items-center gap-2 truncate">
+                              {chainColor && <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: chainColor }} />}
+                              <span className="truncate" title={c.name_english || c.name}>{c.name_english || c.name}</span>
+                            </span>
+                            <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">{c.count}</span>
+                          </span>
+                        }
+                      />
+                    </div>
+                  )
+                })}
               </div>
-              <div className="mb-4 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-                <Checkbox
-                  checked={filters.customWebsite}
-                  onChange={v => setFilters(f => ({ ...f, customWebsite: v }))}
-                  label={<span className="text-sm">Custom website 🌐</span>}
-                />
-              </div>
-              <div className="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wider">Provider</div>
-              {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
-                <div key={p} className="mb-2 hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-                  <Checkbox
-                    checked={filters.providers.has(p)}
-                    onChange={v => setFilters(f => {
-                      const s = new Set(f.providers)
-                      v ? s.add(p) : s.delete(p)
-                      return { ...f, providers: s }
-                    })}
-                    label={
-                      <span className="flex items-center gap-2 text-sm">
-                        <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: color }} />
-                        {p}
-                      </span>
-                    }
-                  />
-                </div>
-              ))}
               <button className="mt-6 text-sm font-medium text-gray-400 hover:text-gray-800 transition-colors"
                 onClick={clearFilters}>
                 Clear all
@@ -626,7 +665,7 @@ export default function CleanApp() {
                 <div className="font-semibold mb-3 text-base">Tags</div>
                 <input
                   type="search"
-                  placeholder="Search tags…"
+                  placeholder="Search tags & chains…"
                   value={tagSearch}
                   onChange={e => setTagSearch(e.target.value)}
                   className="w-full mb-2 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400"
@@ -657,7 +696,7 @@ export default function CleanApp() {
                         </button>
                         <button
                           onClick={() => toggleStarTag(tag)}
-                          className={`px-1 py-1.5 rounded-lg text-sm transition-colors flex-shrink-0 ${starred ? 'text-amber-400 hover:text-amber-500' : 'text-gray-300 hover:text-amber-400'}`}
+                          className={`px-1 py-1.5 rounded-lg text-sm transition-colors flex-shrink-0 ${starred ? 'text-amber-400 hover:text-amber-500' : 'text-amber-200 hover:text-amber-400'}`}
                           title={starred ? 'Unstar' : 'Star'}
                         >
                           {starred ? '★' : '☆'}
@@ -669,34 +708,28 @@ export default function CleanApp() {
               </div>
             )}
 
-            {/* Column 3: Chains */}
+            {/* Column 3: Provider */}
             <div className="w-44 shrink-0">
-              <div className="font-semibold mb-4 text-base">Chains</div>
+              <div className="font-semibold mb-4 text-base">Provider</div>
               <div className="space-y-1.5">
-                {chains.map(c => {
-                  const chainColor = CHAIN_COLORS[c.name_english || c.name]
-                  return (
-                    <div key={c.id} className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
-                      <Checkbox
-                        checked={filters.chains.has(c.id)}
-                        onChange={v => setFilters(f => {
-                          const s = new Set(f.chains)
-                          v ? s.add(c.id) : s.delete(c.id)
-                          return { ...f, chains: s }
-                        })}
-                        label={
-                          <span className="flex items-center justify-between gap-2 text-sm w-full">
-                            <span className="flex items-center gap-2 truncate">
-                              {chainColor && <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: chainColor }} />}
-                              <span className="truncate" title={c.name_english || c.name}>{c.name_english || c.name}</span>
-                            </span>
-                            <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">{c.count}</span>
-                          </span>
-                        }
-                      />
-                    </div>
-                  )
-                })}
+                {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
+                  <div key={p} className="hover:bg-gray-50 p-1.5 -ml-1.5 rounded-lg transition-colors">
+                    <Checkbox
+                      checked={filters.providers.has(p)}
+                      onChange={v => setFilters(f => {
+                        const s = new Set(f.providers)
+                        v ? s.add(p) : s.delete(p)
+                        return { ...f, providers: s }
+                      })}
+                      label={
+                        <span className="flex items-center gap-2 text-sm">
+                          <span className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ background: color }} />
+                          {p}
+                        </span>
+                      }
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
