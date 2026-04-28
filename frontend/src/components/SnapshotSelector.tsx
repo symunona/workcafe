@@ -14,11 +14,11 @@ export function useSnapshot() {
     setSnapshotState(name)
   }
 
-  const apiUrl = (url: string) => {
+  const apiUrl = useCallback((url: string) => {
     if (!snapshot) return url
     const sep = url.includes('?') ? '&' : '?'
     return `${url}${sep}snapshot=${encodeURIComponent(snapshot)}`
-  }
+  }, [snapshot])
 
   return { snapshot, setSnapshot, apiUrl }
 }
