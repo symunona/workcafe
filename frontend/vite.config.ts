@@ -3,7 +3,13 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import fs from 'fs'
+import { execSync } from 'child_process'
 import type { Plugin } from 'vite'
+
+function getGitSHA() {
+  try { return execSync('git rev-parse --short HEAD', { cwd: path.resolve(__dirname, '..') }).toString().trim() }
+  catch { return 'dev' }
+}
 
 function localImagesPlugin(): Plugin {
   const dataDir = path.resolve(__dirname, '../data/seoul')
@@ -25,6 +31,10 @@ function localImagesPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __GIT_SHA__: JSON.stringify(getGitSHA()),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [react(), tailwindcss(), localImagesPlugin()],
   server: {
     host: true,

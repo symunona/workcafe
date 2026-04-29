@@ -1312,6 +1312,10 @@ func main() {
 			}
 		}
 
+		if q.Get("customWebsite") == "true" {
+			conditions = append(conditions, "cc.has_custom_website = 1")
+		}
+
 		where := ""
 		if len(conditions) > 0 {
 			where = "WHERE " + strings.Join(conditions, " AND ")
@@ -1527,6 +1531,125 @@ func main() {
 			"avg_lat": avgLat, "avg_lon": avgLon,
 			"providers": json.RawMessage(provJSON),
 			"sources": sources, "all_images": []interface{}{},
+		})
+	})
+
+	// ── GET /api/custom-websites ──────────────────────────────────────────────
+	mux.HandleFunc("/api/custom-websites", func(w http.ResponseWriter, r *http.Request) {
+		sdb := snapshots.dbForRequest(r, db)
+		rows, err := sdb.Query(`
+			SELECT cc.id, cc.name, COALESCE(cc.english_name,''), cc.avg_lat, cc.avg_lon,
+			       COALESCE(cc.address,''), cc.custom_website_url,
+			       (SELECT COUNT(*) FROM images i JOIN scraped_cafes c ON c.id = i.cafe_id
+			        WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0) as img_count
+			FROM clean_cafes cc
+			WHERE cc.has_custom_website = 1
+			ORDER BY cc.name`)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer rows.Close()
+
+		type CafeWithSite struct {
+			ID          string  `json:"id"`
+			Name        string  `json:"name"`
+			EnglishName string  `json:"english_name,omitempty"`
+			Lat         float64 `json:"lat"`
+			Lon         float64 `json:"lon"`
+			Address     string  `json:"address"`
+			WebsiteURL  string  `json:"website_url"`
+			ImageCount  int     `json:"image_count"`
+		}
+
+		result := make([]CafeWithSite, 0)
+		for rows.Next() {
+			var c CafeWithSite
+			if err := rows.Scan(&c.ID, &c.Name, &c.EnglishName, &c.Lat, &c.Lon, &c.Address, &c.WebsiteURL, &c.ImageCount); err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			result = append(result, c)
+		}
+
+		corsJSON(w)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"cafes": result,
+			"total": len(result),
+		})
+	})
+
+	// ── GET /api/heatmap ─────────────────────────────────────────────────────
+	mux.HandleFunc("/api/heatmap", func(w http.ResponseWriter, r *http.Request) {
+		sdb := snapshots.dbForRequest(r, db)
+		q := r.URL.Query()
+		var conditions []string
+		var args []interface{}
+
+		if minLat := q.Get("minLat"); minLat != "" {
+			conditions = append(conditions, "cc.avg_lat BETWEEN ? AND ? AND cc.avg_lon BETWEEN ? AND ?")
+			args = append(args, minLat, q.Get("maxLat"), q.Get("minLon"), q.Get("maxLon"))
+		}
+		if q.Get("withImages") == "true" {
+			conditions = append(conditions, `(SELECT COUNT(*) FROM images i JOIN scraped_cafes c ON c.id = i.cafe_id WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0) >= 1`)
+		}
+		if q.Get("multipleImages") == "true" {
+			conditions = append(conditions, `(SELECT COUNT(*) FROM images i JOIN scraped_cafes c ON c.id = i.cafe_id WHERE c.belongs_to_cafe_id = cc.id AND i.file_size > 0) >= 2`)
+		}
+		if providers := q.Get("providers"); providers != "" {
+			provList := strings.Split(providers, ",")
+			var provConds []string
+			for _, p := range provList {
+				args = append(args, "%\""+p+"\"%")
+				provConds = append(provConds, "cc.providers LIKE ?")
+			}
+			conditions = append(conditions, "("+strings.Join(provConds, " OR ")+")")
+		}
+		if chains := q.Get("chains"); chains != "" {
+			chainList := strings.Split(chains, ",")
+			var placeholders []string
+			for _, c := range chainList {
+				args = append(args, c)
+				placeholders = append(placeholders, "?")
+			}
+			conditions = append(conditions, "cc.chain_id IN ("+strings.Join(placeholders, ",")+")")
+		}
+		if tags := q.Get("tags"); tags != "" {
+			for _, tag := range strings.Split(tags, ",") {
+				args = append(args, "$."+strings.TrimSpace(tag))
+				conditions = append(conditions, "json_extract(cc.tags, ?) IS NOT NULL")
+			}
+		}
+		if q.Get("customWebsite") == "true" {
+			conditions = append(conditions, "cc.has_custom_website = 1")
+		}
+
+		where := ""
+		if len(conditions) > 0 {
+			where = "WHERE " + strings.Join(conditions, " AND ")
+		}
+
+		rows, err := sdb.Query("SELECT cc.avg_lat, cc.avg_lon FROM clean_cafes cc "+where, args...)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		defer rows.Close()
+
+		type Point = [2]float64
+		points := make([]Point, 0, 5000)
+		for rows.Next() {
+			var lat, lon float64
+			if err := rows.Scan(&lat, &lon); err != nil {
+				continue
+			}
+			points = append(points, Point{lat, lon})
+		}
+
+		corsJSON(w)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"points": points,
+			"total":  len(points),
 		})
 	})
 

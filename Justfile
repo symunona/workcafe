@@ -823,6 +823,15 @@ merge-pipeline:
 
 # ── Image Tagging ─────────────────────────────────────────────────────────────
 
+# Mark images missing from disk as file_size=-1 in clean.db so taggers/scrapers skip them.
+# Safe: no deletes, fully reversible by re-scraping + merge-pipeline.
+# Add --dry-run to preview without writing.
+[group('Image Tagging')]
+cleanup-ghost-images-clean-db *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    "$(pwd)/venv/bin/python3" scripts/cleanup_ghost_images_clean_db.py {{args}}
+
 # Wipe image_tags rows from a snapshot DB (never touches clean.db)
 # Usage: just clean-image-tags data/seoul/history/clean_tags_t25_n100_2026-04-23.db
 [group('Image Tagging')]

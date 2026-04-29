@@ -9,7 +9,10 @@ Config:
 """
 
 import argparse, os, sys, sqlite3, json, time
+from datetime import datetime, timezone
 from pathlib import Path
+
+TAGGER = "clip_v1"  # bump when TAGS list or scoring logic changes
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SCRAPED_DB   = "data/seoul/clean.db"
@@ -73,6 +76,11 @@ def migrate(conn: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_image_tags_tag ON image_tags(tag);
         CREATE INDEX IF NOT EXISTS idx_image_tags_image ON image_tags(image_id);
     """)
+    for col in ("boxes TEXT", "tagged_at TEXT", "tagger TEXT"):
+        try:
+            conn.execute(f"ALTER TABLE image_tags ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
     conn.commit()
 
 
@@ -169,16 +177,17 @@ def run():
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
             scores = (image_features @ text_features.T).cpu().numpy()  # (N, T)
 
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         rows = []
         for (image_id, _), score_row in zip(valid, scores):
             for tag_idx, score in enumerate(score_row):
                 if float(score) >= THRESHOLD:
-                    rows.append((image_id, TAGS[tag_idx], float(score)))
+                    rows.append((image_id, TAGS[tag_idx], float(score), now, TAGGER))
             tagged += 1
 
         if rows:
             conn.executemany(
-                "INSERT OR REPLACE INTO image_tags (image_id, tag, score) VALUES (?, ?, ?)",
+                "INSERT OR REPLACE INTO image_tags (image_id, tag, score, tagged_at, tagger) VALUES (?, ?, ?, ?, ?)",
                 rows
             )
             conn.commit()

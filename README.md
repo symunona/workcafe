@@ -82,6 +82,23 @@ pnpm dev  # Serves on :5550
 | `DB_PATH` | `../data/seoul/cafedata.db` | SQLite database path |
 | `DATA_DIR` | `../data/seoul` | Image assets directory |
 
+## Image Processing Versions
+
+Each tagger script has a `TAGGER` constant (e.g. `ram_plus_v2`). **Bump the version whenever you modify tag lists, scoring logic, or models** — this lets us identify which images need re-tagging after a change.
+
+| Tagger | Current Version | What changed |
+|--------|----------------|--------------|
+| `tag_images_ram.py` | `ram_plus_v3` | Added food/drink/amenity/pet/ambiance tags; fixed eggplant→plant bug; scene tags |
+| `tag_images_clip.py` | `clip_v1` | Initial version |
+| `tag_images_yolo.py` | `yolo_oiv7_v1` | Initial version |
+
+To find images tagged before a change (e.g. missing scene tags):
+```sql
+SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger = 'ram_plus_v1';
+-- NULL tagger = tagged before version tracking was added
+SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NULL;
+```
+
 ## Features
 
 - Multi-provider data aggregation (Naver, Google, OSM)

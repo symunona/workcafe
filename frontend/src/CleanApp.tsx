@@ -12,7 +12,10 @@ import { SettingsModal } from './components/SettingsModal'
 import { Checkbox } from './components/Checkbox'
 import { SnapshotSelector, useSnapshot } from './components/SnapshotSelector'
 import { TagBrowserOverlay } from './components/TagBrowserOverlay'
-import { CustomWebsitesModal } from './components/CustomWebsitesModal'
+import { AboutModal } from './components/AboutModal'
+
+declare const __GIT_SHA__: string
+declare const __BUILD_DATE__: string
 
 interface ViewportBounds {
   minLat: number; maxLat: number; minLon: number; maxLon: number
@@ -137,6 +140,11 @@ function MarkerLayer({ scraped_cafes, onSelect }: MarkerLayerProps) {
     if (!layerRef.current) {
       layerRef.current = L.layerGroup().addTo(map)
     }
+    return () => {
+      layerRef.current?.remove()
+      layerRef.current = null
+      markersRef.current.clear()
+    }
   }, [map])
 
   useEffect(() => {
@@ -169,7 +177,95 @@ function MarkerLayer({ scraped_cafes, onSelect }: MarkerLayerProps) {
   return null
 }
 
+const HEATMAP_PALETTE = (() => {
+  const p = new Uint8ClampedArray(256 * 4)
+  const stops = [
+    [0,   0,   0,   0  ],
+    [0,   0,   255, 120],
+    [0,   200, 255, 160],
+    [0,   255, 100, 190],
+    [255, 255, 0,   210],
+    [255, 120, 0,   230],
+    [255, 0,   0,   255],
+  ]
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255
+    const si = t * (stops.length - 1)
+    const lo = Math.floor(si)
+    const hi = Math.min(lo + 1, stops.length - 1)
+    const f = si - lo
+    for (let c = 0; c < 4; c++) {
+      p[i * 4 + c] = Math.round(stops[lo][c] + f * (stops[hi][c] - stops[lo][c]))
+    }
+  }
+  return p
+})()
+
+function HeatmapLayer({ points }: { points: [number, number][] }) {
+  const map = useMap()
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvas = document.createElement('canvas')
+    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:400;'
+    map.getContainer().appendChild(canvas)
+    canvasRef.current = canvas
+    return () => { canvas.remove(); canvasRef.current = null }
+  }, [map])
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const size = map.getSize()
+    canvas.width = size.x
+    canvas.height = size.y
+    const ctx = canvas.getContext('2d')!
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    const zoom = map.getZoom()
+    const r = Math.max(8, Math.min(50, zoom * 2.2))
+
+    // Pass 1: white intensity blobs on offscreen canvas
+    const off = document.createElement('canvas')
+    off.width = canvas.width
+    off.height = canvas.height
+    const offCtx = off.getContext('2d')!
+    for (const [lat, lon] of points) {
+      const pt = map.latLngToContainerPoint([lat, lon])
+      if (pt.x < -r || pt.x > canvas.width + r || pt.y < -r || pt.y > canvas.height + r) continue
+      const grad = offCtx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, r)
+      grad.addColorStop(0, 'rgba(255,255,255,0.08)')
+      grad.addColorStop(1, 'rgba(255,255,255,0)')
+      offCtx.fillStyle = grad
+      offCtx.beginPath()
+      offCtx.arc(pt.x, pt.y, r, 0, Math.PI * 2)
+      offCtx.fill()
+    }
+
+    // Pass 2: colorize using palette
+    const img = offCtx.getImageData(0, 0, off.width, off.height)
+    const d = img.data
+    for (let i = 0; i < d.length; i += 4) {
+      const v = d[i + 3] // alpha = accumulated intensity
+      d[i]   = HEATMAP_PALETTE[v * 4]
+      d[i+1] = HEATMAP_PALETTE[v * 4 + 1]
+      d[i+2] = HEATMAP_PALETTE[v * 4 + 2]
+      d[i+3] = HEATMAP_PALETTE[v * 4 + 3]
+    }
+    ctx.putImageData(img, 0, 0)
+  }, [map, points])
+
+  useEffect(() => {
+    draw()
+    map.on('move zoom moveend zoomend', draw)
+    return () => { map.off('move zoom moveend zoomend', draw) }
+  }, [map, draw])
+
+  return null
+}
+
 const IS_PUBLIC = import.meta.env.VITE_IS_PUBLIC === 'true'
+const IS_DEVMODE = import.meta.env.VITE_IS_DEVMODE === 'true'
 
 export default function CleanApp() {
   const { id } = useParams<{ id: string }>()
@@ -182,8 +278,8 @@ export default function CleanApp() {
   const [showFilters, setShowFilters] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showTagBrowser, setShowTagBrowser] = useState(false)
-  const [showCustomWebsites, setShowCustomWebsites] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showStats, setShowStats] = useState(false)
   const [chains, setChains] = useState<Chain[]>([])
   const [availableTags, setAvailableTags] = useState<TagCount[]>([])
   const [total, setTotal] = useState(0)
@@ -196,6 +292,11 @@ export default function CleanApp() {
       return raw ? new Set(JSON.parse(raw)) : new Set()
     } catch { return new Set() }
   })
+
+  const [showAbout, setShowAbout] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(false)
+  const [heatmapPoints, setHeatmapPoints] = useState<[number, number][]>([])
+  const heatmapAbortRef = useRef<AbortController | null>(null)
 
   const isMobile = useIsMobile()
   const selectedId = id || null
@@ -261,20 +362,56 @@ export default function CleanApp() {
     }
   }, [])
 
+  const fetchHeatmap = useCallback(async (bounds: ViewportBounds, f: Filters) => {
+    if (heatmapAbortRef.current) heatmapAbortRef.current.abort()
+    heatmapAbortRef.current = new AbortController()
+
+    const params = new URLSearchParams({
+      minLat: bounds.minLat.toString(),
+      maxLat: bounds.maxLat.toString(),
+      minLon: bounds.minLon.toString(),
+      maxLon: bounds.maxLon.toString(),
+    })
+    if (f.multipleImages) params.set('multipleImages', 'true')
+    else if (f.withImages) params.set('withImages', 'true')
+    if (f.providers.size > 0) params.set('providers', [...f.providers].join(','))
+    if (f.chains.size > 0) params.set('chains', [...f.chains].join(','))
+    if (f.tags.size > 0) params.set('tags', [...f.tags].join(','))
+    if (f.customWebsite) params.set('customWebsite', 'true')
+
+    setLoading(true)
+    try {
+      const res = await fetch(apiUrl(`/api/heatmap?${params}`), { signal: heatmapAbortRef.current.signal })
+      if (!res.ok) return
+      const data = await res.json()
+      setTotal(data.total ?? 0)
+      setHeatmapPoints(data.points ?? [])
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }, [apiUrl])
+
   const handleBoundsChange = useCallback((b: ViewportBounds) => {
     boundsRef.current = b
-    fetchCafes(b, filters)
-  }, [fetchCafes, filters])
+    if (showHeatmap) fetchHeatmap(b, filters)
+    else fetchCafes(b, filters)
+  }, [fetchCafes, fetchHeatmap, filters, showHeatmap])
 
   useEffect(() => {
     if (boundsRef.current) {
-      setCafeMap(new Map())
-      fetchCafes(boundsRef.current, filters)
+      if (showHeatmap) {
+        setHeatmapPoints([])
+        fetchHeatmap(boundsRef.current, filters)
+      } else {
+        setCafeMap(new Map())
+        fetchCafes(boundsRef.current, filters)
+      }
     }
-  }, [filters, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters, snapshot, showHeatmap]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = useCallback((cid: string) => navigate(`/cafe/${cid}`), [navigate])
-  const cafesInView = useMemo(() => cafeMap.size, [cafeMap])
 
   const handleGPSClick = useCallback(() => {
     if ('geolocation' in navigator) {
@@ -298,11 +435,39 @@ export default function CleanApp() {
     }
   }, [])
 
+  const [keywordSearch, setKeywordSearch] = useState('')
+
+  const filteredCafeMap = useMemo(() => {
+    if (!keywordSearch.trim()) return cafeMap
+    const q = keywordSearch.toLowerCase()
+    const result = new Map<string, CleanCafe>()
+    for (const [cid, cafe] of cafeMap) {
+      if (cafe.name.toLowerCase().includes(q) ||
+          cafe.english_name?.toLowerCase().includes(q) ||
+          cafe.address?.toLowerCase().includes(q)) {
+        result.set(cid, cafe)
+      }
+    }
+    return result
+  }, [cafeMap, keywordSearch])
+
   const clearFilters = useCallback(() => {
     setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set(), tags: new Set(), customWebsite: false })
+    setKeywordSearch('')
   }, [])
 
-  const isFilterActive = filters.withImages || filters.multipleImages || filters.providers.size > 0 || filters.tags.size > 0 || filters.customWebsite || filters.chains.size > 0
+  const activeFilterCount =
+    (filters.withImages ? 1 : 0) +
+    (filters.multipleImages ? 1 : 0) +
+    (filters.customWebsite ? 1 : 0) +
+    filters.providers.size +
+    filters.chains.size +
+    filters.tags.size +
+    (keywordSearch.trim() ? 1 : 0)
+
+  const isFilterActive = activeFilterCount > 0
+
+  const cafesInView = useMemo(() => filteredCafeMap.size, [filteredCafeMap])
 
   const displayTags = useMemo(() => {
     const search = tagSearch.toLowerCase()
@@ -325,6 +490,17 @@ export default function CleanApp() {
 
   const filterContent = (
     <div className="flex flex-col gap-4">
+      {/* Keyword search */}
+      <div>
+        <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Search</div>
+        <input
+          type="search"
+          placeholder="Name, address…"
+          value={keywordSearch}
+          onChange={e => setKeywordSearch(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400"
+        />
+      </div>
       {/* Basic options — horizontal pill toggles */}
       <div>
         <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Options</div>
@@ -486,61 +662,82 @@ export default function CleanApp() {
         <ViewportTracker onBoundsChange={handleBoundsChange} />
         <MapPositionSaver />
         <MapPanner target={mapTarget} />
-        <MarkerLayer scraped_cafes={cafeMap} onSelect={handleSelect} />
+        {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} />}
+        {showHeatmap && <HeatmapLayer points={heatmapPoints} />}
         <LocationDotLayer location={userLocation} />
         <ScaleControl position="bottomright" metric imperial={false} />
       </MapContainer>
 
-      {/* Top left: Logo */}
-      <div className="absolute top-2 left-2 z-[500] flex items-center gap-2 pointer-events-auto">
-        <div className="bg-white rounded-lg shadow px-3 py-1.5 text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-          ☕ Workcafe
-        </div>
-        {/* Desktop: Custom Sites button */}
+      {/* Top left: Logo — mobile only, opens About */}
+      <div className="absolute top-2 left-2 z-[1100] flex md:hidden items-center gap-2 pointer-events-auto">
         <button
-          className="hidden md:flex bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500 items-center gap-1.5"
-          onClick={() => setShowCustomWebsites(true)}
-          title="Cafes with custom websites"
+          onClick={() => setShowAbout(true)}
+          className="bg-white rounded-lg shadow px-3 py-1.5 text-base font-semibold text-gray-700 flex items-center gap-1.5 hover:bg-gray-50 transition-colors"
         >
-          🌐 <span className="hidden lg:inline">Custom Sites</span>
+          ☕ Workcafe Seoul
         </button>
       </div>
 
       {/* Top right: Desktop buttons */}
       <div className="absolute top-2 right-2 z-[500] hidden md:flex items-center gap-2 pointer-events-auto">
         <button
-          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${isFilterActive ? 'ring-2 ring-blue-400 text-blue-600' : 'text-gray-700'}`}
+          className={`relative bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${isFilterActive ? 'ring-2 ring-blue-400 text-blue-600' : 'text-gray-700'}`}
           onClick={() => setShowFilters(!showFilters)}
         >
-          Filter {isFilterActive ? '●' : ''}
+          Filter
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-blue-600 text-white text-[10px] rounded-full flex items-center justify-center font-bold px-1">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
-        {!IS_PUBLIC && (
-          <button
-            className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
-            onClick={() => setShowSettings(true)}
-          >
-            Scraper Status
-          </button>
-        )}
+        <button
+          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${showHeatmap ? 'ring-2 ring-orange-400 text-orange-600' : 'text-gray-500'}`}
+          onClick={() => setShowHeatmap(h => !h)}
+        >
+          Heatmap
+        </button>
         <button
           className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
-          onClick={() => setShowTagBrowser(true)}
+          onClick={() => setShowStats(true)}
         >
-          Tags
+          Stats
         </button>
-        <SnapshotSelector snapshot={snapshot} setSnapshot={setSnapshot} />
+        <button
+          className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
+          onClick={() => setShowAbout(true)}
+          title="About"
+        >
+          ℹ️
+        </button>
+        {!IS_PUBLIC && (
+          <>
+            <button
+              className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
+              onClick={() => setShowTagBrowser(true)}
+            >
+              Tags
+            </button>
+            <SnapshotSelector snapshot={snapshot} setSnapshot={setSnapshot} />
+          </>
+        )}
       </div>
 
       {/* Top right: Mobile Filter + Hamburger */}
       <div className="absolute top-2 right-2 z-[500] flex md:hidden items-center gap-2 pointer-events-auto">
         <button
           onClick={() => setShowFilters(true)}
-          className={`bg-white rounded-full shadow w-9 h-9 flex items-center justify-center transition-colors ${isFilterActive ? 'ring-2 ring-blue-400 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+          className={`relative bg-white rounded-full shadow w-9 h-9 flex items-center justify-center transition-colors ${isFilterActive ? 'ring-2 ring-blue-400 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           title="Filters"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591L15.25 12.5v6.25a.75.75 0 0 1-.75.75h-5a.75.75 0 0 1-.75-.75V12.5L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
           </svg>
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-blue-600 text-white text-[9px] rounded-full flex items-center justify-center font-bold px-0.5">
+              {activeFilterCount}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setShowMobileMenu(true)}
@@ -566,8 +763,8 @@ export default function CleanApp() {
         </button>
       </div>
 
-      {/* Bottom right: Cafe counts badge */}
-      <div className="absolute bottom-2 right-2 z-[500] pointer-events-none">
+      {/* Bottom right: Cafe counts badge — 10px higher, 90px from right edge */}
+      <div className="absolute bottom-[18px] right-[90px] z-[500] pointer-events-none">
         <div className="bg-white/90 rounded-lg shadow px-2 py-0.5 text-[11px] text-gray-500 font-medium">
           {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
         </div>
@@ -585,6 +782,15 @@ export default function CleanApp() {
         <div className="mt-1 pt-1 border-t text-gray-400">black ring = has images</div>
       </div>
 
+      {/* Bottom left: build info */}
+      <button
+        className="absolute bottom-2 left-2 z-[500] bg-white/80 rounded px-1.5 py-0.5 text-[10px] text-gray-400 font-mono hover:bg-white/95 transition-colors"
+        onClick={() => setShowAbout(true)}
+        title={`Built ${new Date(__BUILD_DATE__).toLocaleString()}`}
+      >
+        {__GIT_SHA__} · {new Date(__BUILD_DATE__).toLocaleDateString()}
+      </button>
+
       {/* Desktop filter panel */}
       {showFilters && !isMobile && (
         <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)', minWidth: 480 }}>
@@ -594,6 +800,16 @@ export default function CleanApp() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-base">Filters</h3>
                 <button className="text-gray-400 hover:text-gray-600 text-xl" onClick={() => setShowFilters(false)}>✕</button>
+              </div>
+              <div className="mb-4">
+                <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Search</div>
+                <input
+                  type="search"
+                  placeholder="Name, address…"
+                  value={keywordSearch}
+                  onChange={e => setKeywordSearch(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400"
+                />
               </div>
               {/* Options pill toggles */}
               <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Options</div>
@@ -772,40 +988,58 @@ export default function CleanApp() {
           <div className="flex-1 bg-black/30" onClick={() => setShowMobileMenu(false)} />
           <div className="bg-white w-72 h-full flex flex-col shadow-xl">
             <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-              <span className="font-semibold text-gray-800">☕ Workcafe</span>
+              <span className="font-semibold text-gray-800">☕ Workcafe Seoul</span>
               <button onClick={() => setShowMobileMenu(false)} className="text-gray-400 hover:text-gray-600 text-xl w-8 h-8 flex items-center justify-center">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto">
               <button
-                onClick={() => { setShowMobileMenu(false); setShowTagBrowser(true) }}
+                onClick={() => { setShowMobileMenu(false); setShowHeatmap(h => !h) }}
+                className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left ${showHeatmap ? 'bg-orange-50' : ''}`}
+              >
+                <span className="text-xl w-7">🌡️</span>
+                <span className={`text-sm font-medium ${showHeatmap ? 'text-orange-600' : 'text-gray-700'}`}>
+                  Heatmap {showHeatmap ? '(on)' : ''}
+                </span>
+              </button>
+              <button
+                onClick={() => { setShowMobileMenu(false); setShowStats(true) }}
                 className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
               >
-                <span className="text-xl w-7">🏷️</span>
-                <span className="text-sm font-medium text-gray-700">Tag Browser</span>
+                <span className="text-xl w-7">📊</span>
+                <span className="text-sm font-medium text-gray-700">Stats</span>
+              </button>
+              <button
+                onClick={() => { setShowMobileMenu(false); setShowAbout(true) }}
+                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
+              >
+                <span className="text-xl w-7">ℹ️</span>
+                <span className="text-sm font-medium text-gray-700">About</span>
               </button>
               {!IS_PUBLIC && (
-                <button
-                  onClick={() => { setShowMobileMenu(false); setShowSettings(true) }}
-                  className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
-                >
-                  <span className="text-xl w-7">📊</span>
-                  <span className="text-sm font-medium text-gray-700">Scraper Status</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => { setShowMobileMenu(false); setShowTagBrowser(true) }}
+                    className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
+                  >
+                    <span className="text-xl w-7">🏷️</span>
+                    <span className="text-sm font-medium text-gray-700">Tag Browser</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowMobileMenu(false); setShowSettings(true) }}
+                    className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
+                  >
+                    <span className="text-xl w-7">🔧</span>
+                    <span className="text-sm font-medium text-gray-700">Scraper Status</span>
+                  </button>
+                  <div className="px-5 py-4 border-b border-gray-100">
+                    <div className="flex items-center gap-4 mb-3">
+                      <span className="text-xl w-7">🕐</span>
+                      <span className="text-sm font-medium text-gray-700">DB Snapshot</span>
+                    </div>
+                    <SnapshotSelector snapshot={snapshot} setSnapshot={setSnapshot} />
+                  </div>
+                </>
               )}
-              <button
-                onClick={() => { setShowMobileMenu(false); setShowCustomWebsites(true) }}
-                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"
-              >
-                <span className="text-xl w-7">🌐</span>
-                <span className="text-sm font-medium text-gray-700">Custom Websites</span>
-              </button>
-              <div className="px-5 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-4 mb-3">
-                  <span className="text-xl w-7">🕐</span>
-                  <span className="text-sm font-medium text-gray-700">DB Snapshot</span>
-                </div>
-                <SnapshotSelector snapshot={snapshot} setSnapshot={setSnapshot} />
-              </div>
             </div>
             {/* Counts at bottom of menu */}
             <div className="px-5 py-3 border-t border-gray-100">
@@ -832,19 +1066,21 @@ export default function CleanApp() {
       )}
 
       {!IS_PUBLIC && showSettings && (
-        <SettingsModal onClose={() => setShowSettings(false)} />
+        <SettingsModal onClose={() => setShowSettings(false)} showToggles={IS_DEVMODE} />
+      )}
+
+      {showStats && (
+        <SettingsModal onClose={() => setShowStats(false)} showToggles={IS_DEVMODE} />
       )}
 
       {showTagBrowser && (
         <TagBrowserOverlay onClose={() => setShowTagBrowser(false)} />
       )}
 
-      {showCustomWebsites && (
-        <CustomWebsitesModal
-          onClose={() => setShowCustomWebsites(false)}
-          onSelectCafe={id => navigate(`/cafe/${id}`)}
-        />
+      {showAbout && (
+        <AboutModal onClose={() => setShowAbout(false)} />
       )}
+
     </div>
   )
 }

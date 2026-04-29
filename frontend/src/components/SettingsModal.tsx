@@ -161,6 +161,7 @@ function Spinner() {
 
 interface SettingsModalProps {
   onClose: () => void
+  showToggles?: boolean
 }
 
 const IMAGE_SCRAPERS = new Set(['kakao-images', 'naver-images', 'google-images'])
@@ -215,7 +216,7 @@ const SERVICE_TECH: Record<string, ServiceTech> = {
   },
 }
 
-export function SettingsModal({ onClose }: SettingsModalProps) {
+export function SettingsModal({ onClose, showToggles = false }: SettingsModalProps) {
   const [status, setStatus] = useState<StatusData | null>(null)
   const [watchdog, setWatchdog] = useState<WatchdogStatus | null>(null)
   const [loading, setLoading] = useState(true)
@@ -467,7 +468,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                     <div key={group.label}>
                       <div className="flex items-center justify-between mb-1.5 px-1">
                         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{group.label}</h3>
-                        {toggleableNames.length > 0 && (
+                        {showToggles && toggleableNames.length > 0 && (
                           <div className="flex gap-1">
                             {!allActive && (
                               <button
@@ -552,7 +553,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                                   )}
                                 </div>
                                 <span className="text-gray-300 text-xs shrink-0 select-none">{isExpanded ? '▲' : '▼'}</span>
-                                {!noToggle && (
+                                {showToggles && !noToggle && (
                                   <button
                                     disabled={isToggling}
                                     onClick={e => { e.stopPropagation(); toggle(svc.name, svc.active) }}

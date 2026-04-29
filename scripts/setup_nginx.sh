@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOMAIN="workcafe.c.tmpx.space"
+DOMAIN="workcafe.tmpx.space"
 WDIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$WDIR/frontend/dist"
 

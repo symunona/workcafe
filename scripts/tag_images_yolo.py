@@ -12,7 +12,10 @@ Or via Justfile:
 """
 
 import argparse, json, os, sqlite3, time
+from datetime import datetime, timezone
 from pathlib import Path
+
+TAGGER = "yolo_oiv7_v1"  # bump when TAG_MAP or model changes
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DATA_DIR   = "data/seoul"
@@ -65,11 +68,11 @@ def migrate(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_image_tags_tag   ON image_tags(tag);
         CREATE INDEX IF NOT EXISTS idx_image_tags_image ON image_tags(image_id);
     """)
-    # Idempotent: add columns to existing DBs that predate them
-    try:
-        conn.execute("ALTER TABLE image_tags ADD COLUMN boxes TEXT")
-    except sqlite3.OperationalError:
-        pass
+    for col in ("boxes TEXT", "tagged_at TEXT", "tagger TEXT"):
+        try:
+            conn.execute(f"ALTER TABLE image_tags ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
     try:
         conn.execute("ALTER TABLE clean_cafes ADD COLUMN tags TEXT")
     except sqlite3.OperationalError:
@@ -199,6 +202,7 @@ def run() -> None:
         times_per_img.extend([dt / len(pil_images)] * len(pil_images))
 
         rows: list[tuple] = []
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         for (image_id, img_w, img_h), result in zip(valid, results):
             # Group detections by our tag name
             tag_boxes: dict[str, list[list[float]]] = {}
@@ -219,14 +223,14 @@ def run() -> None:
                     tag_scores[tag_name] = max(tag_scores.get(tag_name, 0.0), conf_val)
 
             for tag_name, boxes in tag_boxes.items():
-                rows.append((image_id, tag_name, tag_scores[tag_name], json.dumps(boxes)))
+                rows.append((image_id, tag_name, tag_scores[tag_name], json.dumps(boxes), now, TAGGER))
                 tag_counts[tag_name] = tag_counts.get(tag_name, 0) + 1
 
             tagged += 1
 
         if rows:
             conn.executemany(
-                "INSERT OR REPLACE INTO image_tags (image_id, tag, score, boxes) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO image_tags (image_id, tag, score, boxes, tagged_at, tagger) VALUES (?, ?, ?, ?, ?, ?)",
                 rows,
             )
             conn.commit()

@@ -14,7 +14,10 @@ Or via Justfile:
 """
 
 import argparse, json, os, sqlite3, time
+from datetime import datetime, timezone
 from pathlib import Path
+
+TAGGER = "ram_plus_v3"  # bump when TAG_FILTER or scoring logic changes
 
 DATA_DIR   = "data/seoul"
 BATCH_SIZE = 8   # swin_large BERT head needs lots of memory; 8 fits 4GB VRAM
@@ -32,7 +35,8 @@ MODEL_FILES = {
 DEFAULT_VIT = "swin_large"
 
 # Tags to keep from RAM's 4585 classes (substring match, case-insensitive).
-# None = skip.  Add more as needed.
+# Order matters: exact matches checked first, then substring. Put specific before general.
+# None = skip explicitly (prevents substring fallthrough).
 TAG_FILTER: dict[str, str | None] = {
     # Seating
     "bar stool":      "bar stool",
@@ -59,31 +63,133 @@ TAG_FILTER: dict[str, str | None] = {
     "coffee table":   "coffee table",
     "table":          "table",
     # Power
-    "electric outlet":        "power outlet",
-    "power plugs and sockets":"power outlet",
-    "extension cord":         "extension cord",
-    "charger":                "charger",
-    "socket":                 "power outlet",
+    "electric outlet":         "power outlet",
+    "power plugs and sockets": "power outlet",
+    "extension cord":          "extension cord",
+    "charger":                 "charger",
+    "socket":                  "power outlet",
     # Devices
     "laptop":          "laptop",
     "laptop keyboard": "laptop",
     "notebook":        "laptop",
     "tablet computer": "tablet",
     "computer":        "computer",
-    # Space
-    "window":  "window",
+    # Space / windows
     "glass window": "window",
-    # Food / drink
-    "coffee":        "coffee",
-    "coffee cup":    "coffee",
-    "coffeepot":     "coffee",
-    "food":          "food",
-    "drink":         "drink",
-    # Misc cafe
-    "barista":        "barista",
+    "window":       "window",
+    # Food — specific before general to avoid wrong substring matches
+    "chocolate chip cookie": "cookie",
+    "birthday cake":  "cake",
+    "carrot cake":    "cake",
+    "cheesecake":     "cheesecake",
+    "fruit cake":     "cake",
+    "moon cake":      "cake",
+    "wedding cake":   "cake",
+    "cake":           "cake",
+    "egg tart":       "tart",
+    "tart":           "tart",
+    "croissant":      "croissant",
+    "bagel":          "bagel",
+    "banana bread":   "bread",
+    "cornbread":      "bread",
+    "pocket bread":   "bread",
+    "steamed bread":  "bread",
+    "bread":          "bread",
+    "waffle":         "waffle",
+    "pancake":        "pancake",
+    "french toast":   "toast",
+    "toast":          "toast",
+    "scone":          "scone",
+    "muffin":         "muffin",
+    "cupcake":        "cupcake",
+    "gingerbread":    "bread",
+    "pastry":         "pastry",
+    "ice cream cone": "ice cream",
+    "ice cream":      "ice cream",
+    "dessert":        "dessert",
+    "sandwich":       "sandwich",
+    "submarine sandwich": "sandwich",
+    "chicken salad":  "salad",
+    "fruit salad":    "salad",
+    "potato salad":   "salad",
+    "salad":          "salad",
+    "brunch":         "brunch",
+    "breakfast":      "breakfast",
+    "comfort food":   "food",
+    "fast food":      None,
+    "street food":    None,
+    "food":           "food",
+    # Drinks
+    "latte":          "latte",
+    "espresso":       "espresso",
+    "coffee cup":     "coffee",
+    "coffeepot":      "coffee",
+    "coffee":         "coffee",
+    "apple juice":    "juice",
+    "lemon juice":    "juice",
+    "orange juice":   "juice",
+    "juice":          "juice",
+    "beer glass":     "beer",
+    "beer bottle":    "beer",
+    "beer":           "beer",
+    "red wine":       "wine",
+    "white wine":     "wine",
+    "sparkling wine": "wine",
+    "wine glass":     "wine",
+    "wine":           "wine",
+    "drink":          "drink",
+    # Ambiance / space
+    "terrace":        "terrace",
+    "balcony":        "balcony",
+    "roof garden":    "rooftop",
+    "art gallery":    "art",
+    "art exhibition": "art",
+    "art studio":     "art",
+    "record player":  "vinyl",
+    "recording studio": None,
+    "record":         "vinyl",
+    "bookstore":      "bookstore",
+    "bookcase":       "bookshelf",
     "bookshelf":      "bookshelf",
-    "plant":          "plant",
+    # Plants — specific first to prevent eggplant/houseplant false matches
+    "eggplant":       None,
+    "pitcher plant":  None,
+    "plantation":     None,
+    "houseplant":     "plant",
     "indoor plant":   "plant",
+    "plant":          "plant",
+    # Amenities
+    "parking lot":    "parking",
+    "parking garage": "parking",
+    "parking":        "parking",
+    "restroom":       "restroom",
+    "toilet bowl":    None,
+    "toilet":         None,
+    # Pets
+    "french bulldog": "dog",
+    "bulldog":        "dog",
+    "persian cat":    "cat",
+    "street dog":     None,
+    "dog food":       None,
+    "cat food":       None,
+    "dog":            "dog",
+    "cat":            "cat",
+    # Activities
+    "board game":     "board game",
+    # Scene type
+    "interior":           "interior",
+    "outdoor":            "exterior",
+    "exterior":           "exterior",
+    "building exterior":  "building exterior",
+    "building":           "building exterior",
+    "facade":             "building exterior",
+    "street view":        "street view",
+    "street art":         None,
+    "street artist":      None,
+    "street":             "street view",
+    # Misc
+    "barista":        "barista",
+    "menu":           "menu visible",
 }
 
 
@@ -114,10 +220,11 @@ def migrate(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_image_tags_tag   ON image_tags(tag);
         CREATE INDEX IF NOT EXISTS idx_image_tags_image ON image_tags(image_id);
     """)
-    try:
-        conn.execute("ALTER TABLE image_tags ADD COLUMN boxes TEXT")
-    except sqlite3.OperationalError:
-        pass
+    for col in ("boxes TEXT", "tagged_at TEXT", "tagger TEXT"):
+        try:
+            conn.execute(f"ALTER TABLE image_tags ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass
     try:
         conn.execute("ALTER TABLE clean_cafes ADD COLUMN tags TEXT")
     except sqlite3.OperationalError:
@@ -126,28 +233,39 @@ def migrate(conn: sqlite3.Connection) -> None:
 
 
 def sample_images(conn: sqlite3.Connection, n_cafes: int | None) -> list[tuple]:
+    # Order: never-tagged first (priority=0), then old-tagger (priority=1).
+    # Images already tagged by current TAGGER are excluded entirely.
+    base_filter = "file_size > 0 AND local_path IS NOT NULL AND local_path != ''"
+    order = """
+        ORDER BY
+            CASE WHEN id NOT IN (SELECT DISTINCT image_id FROM image_tags) THEN 0 ELSE 1 END,
+            RANDOM()
+    """
+    exclude_current = f"id NOT IN (SELECT DISTINCT image_id FROM image_tags WHERE tagger = '{TAGGER}')"
     if n_cafes is None:
-        return conn.execute("""
+        return conn.execute(f"""
             SELECT id, cafe_id, local_path FROM images
-            WHERE file_size > 0 AND local_path IS NOT NULL AND local_path != ''
-            ORDER BY RANDOM()
+            WHERE {base_filter} AND {exclude_current}
+            {order}
         """).fetchall()
-    return conn.execute("""
+    return conn.execute(f"""
         SELECT i.id, i.cafe_id, i.local_path
         FROM images i
         JOIN (
             SELECT cafe_id FROM images
-            WHERE file_size > 0 AND local_path IS NOT NULL AND local_path != ''
+            WHERE {base_filter}
             GROUP BY cafe_id ORDER BY COUNT(*) DESC LIMIT ?
         ) top ON i.cafe_id = top.cafe_id
-        WHERE i.file_size > 0 AND i.local_path IS NOT NULL AND i.local_path != ''
-        ORDER BY RANDOM()
+        WHERE {base_filter} AND {exclude_current}
+        {order}
     """, (n_cafes,)).fetchall()
 
 
 def already_tagged(conn: sqlite3.Connection, image_id: int) -> bool:
+    # Only skip if tagged by the current tagger version — older versions get re-tagged
     return conn.execute(
-        "SELECT 1 FROM image_tags WHERE image_id = ? LIMIT 1", (image_id,)
+        "SELECT 1 FROM image_tags WHERE image_id = ? AND tagger = ? LIMIT 1",
+        (image_id, TAGGER)
     ).fetchone() is not None
 
 
@@ -257,36 +375,72 @@ def run() -> None:
     conn = sqlite3.connect(args.db)
     migrate(conn)
 
+    # ── Startup banner ────────────────────────────────────────────────────────
+    B = "\033[1m"; C = "\033[36m"; G = "\033[32m"; Y = "\033[33m"; R = "\033[31m"; NC = "\033[0m"
+    print(f"\n{B}{'━'*60}{NC}")
+    print(f"{B}{C}  RAM+ Image Tagger  {Y}{TAGGER}{NC}")
+    print(f"{B}{'━'*60}{NC}")
+    print(f"  Model     : {args.vit}")
+    print(f"  DB        : {args.db}")
+    print(f"  Threshold : {args.threshold}")
+    print(f"  Tags      : {len(set(v for v in TAG_FILTER.values() if v))} unique → {sorted(set(v for v in TAG_FILTER.values() if v))}")
+
+    history = conn.execute("""
+        SELECT tagger, COUNT(DISTINCT image_id) as images, COUNT(*) as tag_rows,
+               MIN(tagged_at) as first, MAX(tagged_at) as last
+        FROM image_tags
+        GROUP BY tagger ORDER BY first
+    """).fetchall()
+    if history:
+        print(f"\n{B}  Tagging history:{NC}")
+        for tagger, imgs, tag_rows, first, last in history:
+            label = f"{Y}{tagger}{NC}" if tagger else f"{R}(unknown version){NC}"
+            print(f"    {label:<40}  {imgs:>6} images  {tag_rows:>7} tag rows  {first or '?'} → {last or '?'}")
+    else:
+        print(f"\n  {Y}No existing tag data in this DB.{NC}")
+    print(f"{B}{'━'*60}{NC}\n")
+    # ─────────────────────────────────────────────────────────────────────────
+
     n_cafes = None if args.n == "all" else int(args.n)
     images = sample_images(conn, n_cafes)
-    total = len(images)
 
-    # Count already-tagged upfront so progress bar starts correctly
-    pre_tagged = conn.execute(
+    total_all      = conn.execute(
+        "SELECT COUNT(*) FROM images WHERE file_size > 0 AND local_path IS NOT NULL AND local_path != ''"
+    ).fetchone()[0]
+    tagged_any     = conn.execute(
         "SELECT COUNT(DISTINCT image_id) FROM image_tags"
     ).fetchone()[0]
-    remaining = total - pre_tagged
+    tagged_current = conn.execute(
+        "SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger = ?", (TAGGER,)
+    ).fetchone()[0]
+    never_tagged   = total_all - tagged_any
+    old_tagger     = tagged_any - tagged_current
+    queued         = len(images)
 
-    print(f"\nImages total:      {total}")
-    print(f"Already tagged:    {pre_tagged}  ({100*pre_tagged/total:.1f}%)")
-    print(f"Remaining:         {remaining}")
-    print(f"Confidence threshold: {args.threshold}")
+    def _pct(n): return f"{100*n/total_all:.1f}%" if total_all else "0%"
+
+    print(f"  {'Total on disk:':<28} {total_all:>8,}")
+    print(f"  {G}{'Never tagged:':<28}{NC} {never_tagged:>8,}  {G}{_pct(never_tagged)}{NC}")
+    print(f"  {Y}{'Tagged (older version):':<28}{NC} {old_tagger:>8,}  {Y}{_pct(old_tagger)}{NC}")
+    print(f"  {G}{'Done ({}):':<28}{NC} {tagged_current:>8,}  {G}{_pct(tagged_current)}{NC}".format(TAGGER))
+    print(f"  {'Queued this run:':<28} {queued:>8,}  ({_pct(never_tagged)} untagged + {_pct(old_tagger)} old)")
+
+    total = queued  # progress bar denominator
 
     def _bar(done_this_run: int, elapsed: float, bar_len: int = 30) -> str:
-        overall_done = pre_tagged + done_this_run
-        pct = overall_done / total if total > 0 else 0
+        pct = done_this_run / queued if queued > 0 else 0
         filled = int(bar_len * pct)
         bar = "█" * filled + "░" * (bar_len - filled)
         eta = ""
         if done_this_run > 0 and elapsed > 0:
             rate = done_this_run / elapsed
-            secs_left = (remaining - done_this_run) / rate
+            secs_left = (queued - done_this_run) / rate
             if secs_left > 0:
                 h, rem = divmod(int(secs_left), 3600)
                 m, s = divmod(rem, 60)
                 eta = f"  ETA {f'{h}h' if h else ''}{m}m{s:02d}s"
         rate_str = f"  {done_this_run/elapsed:.1f} img/s" if elapsed > 0 else ""
-        return f"[{bar}] {overall_done}/{total} ({pct*100:.1f}%){rate_str}{eta}"
+        return f"[{bar}] {done_this_run}/{queued} ({pct*100:.1f}%){rate_str}{eta}"
 
     skipped = tagged = failed = 0
     tag_counts: dict[str, int] = {}
@@ -329,6 +483,7 @@ def run() -> None:
         times_per_img.extend([dt / len(tensors)] * len(tensors))
 
         rows: list[tuple] = []
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         for image_id, tags_str in zip(valid, tag_output[0]):
             # tags_str is like "chair | table | window"
             raw_tags = [t.strip().lower() for t in tags_str.split("|") if t.strip()]
@@ -337,14 +492,14 @@ def run() -> None:
                 for pattern, mapped in TAG_FILTER.items():
                     if pattern.lower() == raw or pattern.lower() in raw:
                         if mapped is not None:
-                            rows.append((image_id, mapped, 1.0, None))
+                            rows.append((image_id, mapped, 1.0, None, now, TAGGER))
                             tag_counts[mapped] = tag_counts.get(mapped, 0) + 1
                         break
             tagged += 1
 
         if rows:
             conn.executemany(
-                "INSERT OR REPLACE INTO image_tags (image_id, tag, score, boxes) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO image_tags (image_id, tag, score, boxes, tagged_at, tagger) VALUES (?, ?, ?, ?, ?, ?)",
                 rows,
             )
             conn.commit()
