@@ -84,6 +84,16 @@ Image scrapers use Playwright (Chromium). Known failure modes:
 
 Watchdog (`watchdog.py`) auto-restarts image scrapers silent > 30 min. Check status at `/api/watchdog-status` or `data/watchdog-status.json`.
 
+## Data Safety — MANDATORY Before Any Mass Operation
+
+Before running any DELETE, bulk UPDATE, scrape-state reset, or bulk file removal:
+
+1. **Dry-run** — `SELECT COUNT(*)` or `find ... | wc -l` to show exact scope
+2. **Report** — tell the dev what will be affected (table, row count, file paths)
+3. **Wait for confirmation** — do not execute until the dev explicitly says yes
+
+No exceptions.
+
 ## Adding a New Scraper
 
 1. Place script in `places/` or `images/` depending on type.

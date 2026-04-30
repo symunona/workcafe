@@ -420,23 +420,8 @@ def process_one_page(dbc, session, cafe_id, provider_id, metadata, page, ua=None
         save_path = os.path.join(img_dir, fname)
         local_path = f"/images/kakao/{safe_id}/images/{fname}"
 
-        # File on disk but DB row missing — backfill
         if os.path.exists(save_path):
-            img_meta = extract_image_meta(open(save_path, 'rb').read())
-            insert_image_row(dbc, {
-                'cafe_id': cafe_id, 'provider': 'kakao',
-                'local_path': local_path, 'image_url': raw,
-                'gallery_url': f"https://place.map.kakao.com/{provider_id}#photo/{photo_id}",
-                'photo_id': photo_id, 'photo_type': ph.get('type', ''),
-                'tags': [ph.get('type')] if ph.get('type') else [],
-                'registered_at': ph.get('registered_at', ''),
-                **img_meta,
-            })
-            idx += 1
-            new_downloads += 1
-            if local_path not in all_local:
-                all_local.append(local_path)
-            continue
+            log.debug(f"    {fname} exists but no DB row — re-downloading to ensure correct association")
 
         try:
             check_disk_limit()

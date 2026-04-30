@@ -23,6 +23,24 @@
 
 ---
 
+## Data Safety — MANDATORY Before Any Mass Operation
+
+**Before executing any DELETE, UPDATE, or file removal affecting more than ~10 rows/files:**
+
+1. **Dry-run first** — run a `SELECT COUNT(*)` (or `find ... | wc -l`) showing exact scope
+2. **Report to dev** — state clearly: what will be deleted/changed, how many rows/files, which table/path
+3. **Wait for explicit confirmation** — do NOT proceed until the dev says yes
+
+Applies to:
+- `DELETE FROM` / bulk `UPDATE` on any DB table
+- `rm -rf` or bulk file deletion
+- Scrape-state resets (`UPDATE kakao_scrape_state ...`)
+- Any pipeline step that overwrites or drops data
+
+**No exceptions, even if the plan seems obviously correct.**
+
+---
+
 Do not sign the code in commits.
 
 Always read all the AGENT.md -s of the current folder before doing anything.
