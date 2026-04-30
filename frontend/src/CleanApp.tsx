@@ -201,7 +201,7 @@ const HEATMAP_PALETTE = (() => {
   return p
 })()
 
-function HeatmapLayer({ points }: { points: [number, number][] }) {
+function HeatmapLayer({ points, radiusMult }: { points: [number, number][]; radiusMult: number }) {
   const map = useMap()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -223,7 +223,7 @@ function HeatmapLayer({ points }: { points: [number, number][] }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const zoom = map.getZoom()
-    const r = Math.max(8, Math.min(50, zoom * 2.2))
+    const r = Math.max(3, Math.min(80, radiusMult * Math.pow(2, (zoom - 15) * 0.7)))
 
     // Pass 1: white intensity blobs on offscreen canvas
     const off = document.createElement('canvas')
@@ -253,7 +253,7 @@ function HeatmapLayer({ points }: { points: [number, number][] }) {
       d[i+3] = HEATMAP_PALETTE[v * 4 + 3]
     }
     ctx.putImageData(img, 0, 0)
-  }, [map, points])
+  }, [map, points, radiusMult])
 
   useEffect(() => {
     draw()
@@ -261,6 +261,85 @@ function HeatmapLayer({ points }: { points: [number, number][] }) {
     return () => { map.off('move zoom moveend zoomend', draw) }
   }, [map, draw])
 
+  return null
+}
+
+interface VisitEntry {
+  id: string
+  name: string
+  lat: number
+  lon: number
+  timestamp: number
+}
+
+const RECENTLY_KEY = 'workcafe_recently_visited'
+
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
+function useRecentlyVisited() {
+  const [visits, setVisits] = useState<VisitEntry[]>(() => {
+    try {
+      const raw = localStorage.getItem(RECENTLY_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
+  const addVisit = useCallback((entry: VisitEntry) => {
+    setVisits(prev => {
+      const next = [entry, ...prev.filter(v => v.id !== entry.id)].slice(0, 100)
+      localStorage.setItem(RECENTLY_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [])
+  const removeVisit = useCallback((id: string) => {
+    setVisits(prev => {
+      const next = prev.filter(v => v.id !== id)
+      localStorage.setItem(RECENTLY_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [])
+  return { visits, addVisit, removeVisit }
+}
+
+function RecentlyVisitedLayer({ visits, selectedId }: { visits: VisitEntry[]; selectedId: string | null }) {
+  const map = useMap()
+  const layerRef = useRef<L.LayerGroup | null>(null)
+
+  useEffect(() => {
+    if (!layerRef.current) layerRef.current = L.layerGroup().addTo(map)
+    const layer = layerRef.current
+    layer.clearLayers()
+    for (const v of visits) {
+      const isSel = v.id === selectedId
+      L.circleMarker([v.lat, v.lon], {
+        radius: isSel ? 14 : 9,
+        color: isSel ? '#ef4444' : '#f59e0b',
+        fillColor: 'transparent',
+        fillOpacity: 0,
+        weight: isSel ? 3 : 2,
+        interactive: false,
+      }).addTo(layer)
+    }
+  }, [map, visits, selectedId])
+
+  useEffect(() => () => { layerRef.current?.remove(); layerRef.current = null }, [map])
+
+  return null
+}
+
+function ScalePositioner() {
+  const map = useMap()
+  useEffect(() => {
+    const el = map.getContainer().querySelector('.leaflet-control-scale') as HTMLElement | null
+    if (el) el.style.marginRight = '68px'
+  }, [map])
   return null
 }
 
@@ -295,6 +374,10 @@ export default function CleanApp() {
 
   const [showAbout, setShowAbout] = useState(false)
   const [showHeatmap, setShowHeatmap] = useState(false)
+  const [heatmapRadius, setHeatmapRadius] = useState(13)
+  const [showRecently, setShowRecently] = useState(false)
+  const [onlyMostRecent, setOnlyMostRecent] = useState(false)
+  const { visits, addVisit, removeVisit } = useRecentlyVisited()
   const [heatmapPoints, setHeatmapPoints] = useState<[number, number][]>([])
   const heatmapAbortRef = useRef<AbortController | null>(null)
 
@@ -320,7 +403,11 @@ export default function CleanApp() {
     if (!selectedId) return
     fetch(apiUrl(`/api/clean_cafe?id=${encodeURIComponent(selectedId)}`))
       .then(r => r.json())
-      .then(data => { if (data?.lat && data?.lon) setMapTarget([data.lat, data.lon]) })
+      .then(data => {
+        const lat = data?.avg_lat ?? data?.lat
+        const lon = data?.avg_lon ?? data?.lon
+        if (lat && lon) setMapTarget([lat, lon])
+      })
       .catch(() => {})
   }, [selectedId, snapshot]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -411,7 +498,11 @@ export default function CleanApp() {
     }
   }, [filters, snapshot, showHeatmap]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelect = useCallback((cid: string) => navigate(`/cafe/${cid}`), [navigate])
+  const handleSelect = useCallback((cid: string) => {
+    const cafe = cafeMap.get(cid)
+    if (cafe) addVisit({ id: cid, name: cafe.name, lat: cafe.lat, lon: cafe.lon, timestamp: Date.now() })
+    navigate(`/cafe/${cid}`)
+  }, [navigate, cafeMap, addVisit])
 
   const handleGPSClick = useCallback(() => {
     if ('geolocation' in navigator) {
@@ -663,13 +754,15 @@ export default function CleanApp() {
         <MapPositionSaver />
         <MapPanner target={mapTarget} />
         {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} />}
-        {showHeatmap && <HeatmapLayer points={heatmapPoints} />}
+        {showHeatmap && <HeatmapLayer points={heatmapPoints} radiusMult={heatmapRadius / 10} />}
         <LocationDotLayer location={userLocation} />
         <ScaleControl position="bottomright" metric imperial={false} />
+        <ScalePositioner />
+        <RecentlyVisitedLayer visits={visits} selectedId={selectedId} />
       </MapContainer>
 
-      {/* Top left: Logo — mobile only, opens About */}
-      <div className="absolute top-2 left-2 z-[1100] flex md:hidden items-center gap-2 pointer-events-auto">
+      {/* Top left: Logo */}
+      <div className="absolute top-2 left-2 z-[1100] flex items-center gap-2 pointer-events-auto">
         <button
           onClick={() => setShowAbout(true)}
           className="bg-white rounded-lg shadow px-3 py-1.5 text-base font-semibold text-gray-700 flex items-center gap-1.5 hover:bg-gray-50 transition-colors"
@@ -681,7 +774,7 @@ export default function CleanApp() {
       {/* Top right: Desktop buttons */}
       <div className="absolute top-2 right-2 z-[500] hidden md:flex items-center gap-2 pointer-events-auto">
         <button
-          className={`relative bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${isFilterActive ? 'ring-2 ring-blue-400 text-blue-600' : 'text-gray-700'}`}
+          className={`relative rounded-lg shadow px-3 py-1.5 text-sm transition-colors ${showFilters ? 'bg-blue-600 text-white hover:bg-blue-700' : isFilterActive ? 'bg-white ring-2 ring-blue-400 text-blue-600 hover:bg-gray-50' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
           onClick={() => setShowFilters(!showFilters)}
         >
           Filter
@@ -696,6 +789,23 @@ export default function CleanApp() {
           onClick={() => setShowHeatmap(h => !h)}
         >
           Heatmap
+        </button>
+        {showHeatmap && (
+          <div className="bg-white rounded-lg shadow px-3 py-1.5 flex items-center gap-2">
+            <span className="text-xs text-orange-500 font-mono w-12 shrink-0">r={heatmapRadius}</span>
+            <input
+              type="range" min={4} max={500} value={heatmapRadius}
+              onChange={e => setHeatmapRadius(Number(e.target.value))}
+              className="w-20 accent-orange-500"
+            />
+          </div>
+        )}
+        <button
+          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${visits.length > 0 ? 'text-amber-600' : 'text-gray-400'}`}
+          onClick={() => setShowRecently(r => !r)}
+          title="Recently visited"
+        >
+          🕐 {visits.length > 0 ? visits.length : ''}
         </button>
         <button
           className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
@@ -763,8 +873,8 @@ export default function CleanApp() {
         </button>
       </div>
 
-      {/* Bottom right: Cafe counts badge — 10px higher, 90px from right edge */}
-      <div className="absolute bottom-[18px] right-[90px] z-[500] pointer-events-none">
+      {/* Bottom right: Cafe counts badge */}
+      <div className="absolute bottom-[18px] right-[10px] z-[500] pointer-events-none">
         <div className="bg-white/90 rounded-lg shadow px-2 py-0.5 text-[11px] text-gray-500 font-medium">
           {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
         </div>
@@ -791,7 +901,51 @@ export default function CleanApp() {
         {__GIT_SHA__} · {new Date(__BUILD_DATE__).toLocaleDateString()}
       </button>
 
+      {/* Desktop recently visited panel */}
+      {showRecently && !isMobile && (
+        <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl w-72 max-h-[70vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white">
+            <span className="font-semibold text-sm text-gray-800">Recently Visited</span>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                <input type="checkbox" checked={onlyMostRecent} onChange={e => setOnlyMostRecent(e.target.checked)} className="w-3 h-3" />
+                Only latest
+              </label>
+              <button onClick={() => setShowRecently(false)} className="text-gray-400 hover:text-gray-600 text-lg w-6 h-6 flex items-center justify-center">✕</button>
+            </div>
+          </div>
+          {visits.length === 0 ? (
+            <div className="px-4 py-6 text-xs text-gray-400 text-center">No visits yet. Click a cafe to track it.</div>
+          ) : (
+            <div>
+              {(onlyMostRecent ? visits.slice(0, 1) : visits).map(v => (
+                <div
+                  key={v.id}
+                  className={`flex items-center gap-1 border-b border-gray-50 ${v.id === selectedId ? 'bg-amber-50' : ''}`}
+                >
+                  <button
+                    onClick={() => { navigate(`/cafe/${v.id}`); setShowRecently(false) }}
+                    className="flex-1 flex items-center gap-3 px-4 py-2.5 hover:bg-black/5 text-left min-w-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-800 truncate">{v.name}</div>
+                      <div className="text-xs text-gray-400">{timeAgo(v.timestamp)}</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => removeVisit(v.id)}
+                    className="shrink-0 px-2 py-2 text-gray-300 hover:text-gray-600 text-sm"
+                    title="Remove from history"
+                  >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Desktop filter panel */}
+      {showFilters && !isMobile && <div className="fixed inset-0 z-[599]" onClick={() => setShowFilters(false)} />}
       {showFilters && !isMobile && (
         <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)', minWidth: 480 }}>
           <div className="p-6 flex gap-8">
@@ -1001,6 +1155,62 @@ export default function CleanApp() {
                   Heatmap {showHeatmap ? '(on)' : ''}
                 </span>
               </button>
+              {showHeatmap && (
+                <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-orange-50">
+                  <span className="text-xs text-gray-500 w-14 shrink-0">Radius</span>
+                  <input
+                    type="range" min={4} max={500} value={heatmapRadius}
+                    onChange={e => setHeatmapRadius(Number(e.target.value))}
+                    className="flex-1 accent-orange-500"
+                  />
+                  <span className="text-xs text-orange-600 w-5 text-right">{heatmapRadius}</span>
+                </div>
+              )}
+              {/* Recently visited section */}
+              <button
+                onClick={() => setShowRecently(r => !r)}
+                className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left ${showRecently ? 'bg-amber-50' : ''}`}
+              >
+                <span className="text-xl w-7">🕐</span>
+                <span className={`text-sm font-medium ${showRecently ? 'text-amber-600' : 'text-gray-700'}`}>
+                  Recently {visits.length > 0 ? `(${visits.length})` : ''}
+                </span>
+              </button>
+              {showRecently && (
+                <div className="border-b border-gray-100">
+                  <div className="flex items-center gap-2 px-5 py-2 bg-amber-50">
+                    <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+                      <input type="checkbox" checked={onlyMostRecent} onChange={e => setOnlyMostRecent(e.target.checked)} className="w-3 h-3" />
+                      Only latest
+                    </label>
+                  </div>
+                  {visits.length === 0 ? (
+                    <div className="px-5 py-3 text-xs text-gray-400">No visits yet.</div>
+                  ) : (
+                    (onlyMostRecent ? visits.slice(0, 1) : visits).map(v => (
+                      <div
+                        key={v.id}
+                        className={`flex items-center border-t border-gray-50 ${v.id === selectedId ? 'bg-amber-50' : ''}`}
+                      >
+                        <button
+                          onClick={() => { navigate(`/cafe/${v.id}`); setShowMobileMenu(false); setShowRecently(false) }}
+                          className="flex-1 flex items-center gap-3 px-5 py-2.5 hover:bg-black/5 text-left min-w-0"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-800 truncate">{v.name}</div>
+                            <div className="text-xs text-gray-400">{timeAgo(v.timestamp)}</div>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => removeVisit(v.id)}
+                          className="shrink-0 px-3 py-2 text-gray-300 hover:text-gray-600 text-sm"
+                          title="Remove"
+                        >✕</button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
               <button
                 onClick={() => { setShowMobileMenu(false); setShowStats(true) }}
                 className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left"

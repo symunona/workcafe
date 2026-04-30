@@ -1,8 +1,9 @@
 declare const __GIT_SHA__: string
 declare const __BUILD_DATE__: string
 
-const MERMAID_DEF = `flowchart LR
+const MERMAID_DEF = `flowchart TB
     subgraph SC[" Scrapers "]
+        direction LR
         N[Naver]
         K[Kakao]
         G[Google]
@@ -29,7 +30,7 @@ export function AboutModal({ onClose }: Props) {
   return (
     <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
