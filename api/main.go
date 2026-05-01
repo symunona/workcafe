@@ -283,58 +283,82 @@ var (
 
 const statusCacheTTL = 8 * time.Second
 
+// Tagger stats sub-cache — recomputed less often because COUNT(DISTINCT) over
+// 2M+ rows is expensive and tagging rate is ~1 img/s so 60s staleness is fine.
+var (
+	taggerCacheMu  sync.Mutex
+	taggerCached   taggerCacheEntry
+	taggerCachedAt time.Time
+)
+
+const taggerCacheTTL = 60 * time.Second
+
+type taggerCacheEntry struct {
+	OverallTaggedImages int
+	OverallImgsPerHour  float64
+	Taggers             []TaggerStat
+}
+
 func getDiskStats(dataDir string) DiskStats {
 	const ttl = 5 * time.Minute
 
 	diskCacheMu.Lock()
-	defer diskCacheMu.Unlock()
 	if time.Since(diskCachedAt) < ttl {
-		return diskCached
+		result := diskCached
+		diskCacheMu.Unlock()
+		return result
 	}
+	stale := diskCached
+	diskCacheMu.Unlock()
 
-	var stat syscall.Statfs_t
-	err := syscall.Statfs(dataDir, &stat)
-	if err != nil {
-		return diskCached
-	}
-
-	freeBytes := float64(stat.Bavail) * float64(stat.Bsize)
-	totalBytes := float64(stat.Blocks) * float64(stat.Bsize)
-	usedBytes := totalBytes - float64(stat.Bfree) * float64(stat.Bsize)
-
-	freeGB := freeBytes / (1024 * 1024 * 1024)
-	totalGB := totalBytes / (1024 * 1024 * 1024)
-	usedGB := usedBytes / (1024 * 1024 * 1024)
-
-	var usedPct float64
-	if totalGB > 0 {
-		usedPct = (usedGB / totalGB) * 100
-	}
-
-	var folderSize int64
-	filepath.WalkDir(dataDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
+	// Return stale cache immediately; refresh in background so WalkDir never blocks a request.
+	go func() {
+		var stat syscall.Statfs_t
+		if err := syscall.Statfs(dataDir, &stat); err != nil {
+			return
 		}
-		if !d.IsDir() {
-			info, err := d.Info()
-			if err == nil {
-				folderSize += info.Size()
+
+		freeBytes := float64(stat.Bavail) * float64(stat.Bsize)
+		totalBytes := float64(stat.Blocks) * float64(stat.Bsize)
+		usedBytes := totalBytes - float64(stat.Bfree)*float64(stat.Bsize)
+
+		freeGB := freeBytes / (1024 * 1024 * 1024)
+		totalGB := totalBytes / (1024 * 1024 * 1024)
+		usedGB := usedBytes / (1024 * 1024 * 1024)
+
+		var usedPct float64
+		if totalGB > 0 {
+			usedPct = (usedGB / totalGB) * 100
+		}
+
+		var folderSize int64
+		filepath.WalkDir(dataDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
 			}
-		}
-		return nil
-	})
-	folderSizeGB := float64(folderSize) / (1024 * 1024 * 1024)
+			if !d.IsDir() {
+				info, err := d.Info()
+				if err == nil {
+					folderSize += info.Size()
+				}
+			}
+			return nil
+		})
+		folderSizeGB := float64(folderSize) / (1024 * 1024 * 1024)
 
-	diskCached = DiskStats{
-		DataDirGB:    math_round2(usedGB),
-		FolderSizeGB: math_round2(folderSizeGB),
-		LimitGB:      math_round2(totalGB),
-		UsedPct:      math_round2(usedPct),
-		FreeGB:       math_round2(freeGB),
-	}
-	diskCachedAt = time.Now()
-	return diskCached
+		diskCacheMu.Lock()
+		diskCached = DiskStats{
+			DataDirGB:    math_round2(usedGB),
+			FolderSizeGB: math_round2(folderSizeGB),
+			LimitGB:      math_round2(totalGB),
+			UsedPct:      math_round2(usedPct),
+			FreeGB:       math_round2(freeGB),
+		}
+		diskCachedAt = time.Now()
+		diskCacheMu.Unlock()
+	}()
+
+	return stale
 }
 
 func math_round2(f float64) float64 {
@@ -507,8 +531,14 @@ func main() {
 		boxes    TEXT,
 		PRIMARY KEY (image_id, tag)
 	)`)
-	// Idempotent: add boxes column to DBs created before this schema version.
+	// Idempotent: add columns to DBs created before these schema versions.
 	db.Exec(`ALTER TABLE image_tags ADD COLUMN boxes TEXT`)
+	db.Exec(`ALTER TABLE image_tags ADD COLUMN tagged_at TEXT`)
+	db.Exec(`ALTER TABLE image_tags ADD COLUMN tagger TEXT`)
+	// Indexes for tagger stats queries (cover GROUP BY tagger, COUNT(DISTINCT image_id), tagged_at range).
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_image_tags_tagger        ON image_tags(tagger)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_image_tags_tagged_at     ON image_tags(tagged_at)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_image_tags_tagger_image  ON image_tags(tagger, image_id)`)
 
 	snapshots := newSnapshotCache(dataDir)
 
@@ -703,18 +733,22 @@ func main() {
 	// ── GET /api/status ───────────────────────────────────────────────────────
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
 		corsJSON(w)
+		// Hold mutex for the entire computation: concurrent requests serialize here,
+		// so the second caller waits and then gets a cache hit instead of recomputing.
 		statusCacheMu.Lock()
+		defer statusCacheMu.Unlock()
 		if time.Since(statusCachedAt) < statusCacheTTL && statusCacheBody != nil {
-			body := statusCacheBody
-			statusCacheMu.Unlock()
-			w.Write(body)
+			w.Write(statusCacheBody)
 			return
 		}
-		statusCacheMu.Unlock()
+
+		tTotal := time.Now()
+		t := time.Now()
 
 		resp := StatusResponse{}
 
 		resp.Services = getCachedServices()
+		log.Printf("[status] getCachedServices: %v", time.Since(t)); t = time.Now()
 
 		now := time.Now().UTC()
 		h1ago := now.Add(-1 * time.Hour).Format("2006-01-02 15:04:05")
@@ -723,6 +757,7 @@ func main() {
 		// Total counts — from live scraper DB
 		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&resp.TotalCafes)
 		rawDb.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&resp.TotalImages)
+		log.Printf("[status] total counts (scraped_cafes, images): %v", time.Since(t)); t = time.Now()
 
 		// Global time-window metrics — from live scraper DB
 		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h1ago).Scan(&resp.CafesLastHour)
@@ -732,6 +767,7 @@ func main() {
 		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h1ago).Scan(&resp.DownloadedLastHour)
 		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.Downloaded24h)
 		rawDb.QueryRow(`SELECT ROUND(COALESCE(SUM(file_size),0)/1024.0/1024.0, 1) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.MBPerDay)
+		log.Printf("[status] time-window metrics (7 queries): %v", time.Since(t)); t = time.Now()
 
 		// Last activity timestamps — from live scraper DB
 		var lastCafe, lastImage sql.NullString
@@ -743,6 +779,7 @@ func main() {
 		if lastImage.Valid {
 			resp.LastImageAt = lastImage.String
 		}
+		log.Printf("[status] last activity timestamps: %v", time.Since(t)); t = time.Now()
 
 		// Per-provider metrics — from live scraper DB
 		providerRows, err := rawDb.Query(`
@@ -764,6 +801,7 @@ func main() {
 				resp.PerProvider = append(resp.PerProvider, *pm)
 			}
 		}
+		log.Printf("[status] per-provider cafe metrics (json_extract): %v", time.Since(t)); t = time.Now()
 
 		// Per-provider image metrics — from live scraper DB
 		imgRows, err := rawDb.Query(`
@@ -791,6 +829,7 @@ func main() {
 				}
 			}
 		}
+		log.Printf("[status] per-provider image metrics: %v", time.Since(t)); t = time.Now()
 
 		// Per-provider image distribution — from live scraper DB
 		distRows, err := rawDb.Query(`
@@ -827,6 +866,7 @@ func main() {
 				}
 			}
 		}
+		log.Printf("[status] image distribution nested subquery: %v", time.Since(t)); t = time.Now()
 
 		// Hourly stats for the last 24 hours (overall)
 		hourlyMap := make(map[string]*HourlyStat)
@@ -866,6 +906,7 @@ func main() {
 				}
 			}
 		}
+		log.Printf("[status] hourly stats overall (2 queries): %v", time.Since(t)); t = time.Now()
 
 		// Rebuild HourlyStats from the updated map, preserving order
 		resp.HourlyStats = nil
@@ -876,7 +917,7 @@ func main() {
 
 		// Per-provider hourly stats
 		providerHourlyMap := make(map[string]map[string]*HourlyStat)
-		
+
 		// Initialize for all providers we know about
 		for _, pm := range resp.PerProvider {
 			provMap := make(map[string]*HourlyStat)
@@ -922,6 +963,7 @@ func main() {
 				}
 			}
 		}
+		log.Printf("[status] per-provider hourly stats (2 queries): %v", time.Since(t)); t = time.Now()
 
 		// Append provider specific stats to the main list
 		for _, pm := range resp.PerProvider {
@@ -935,53 +977,66 @@ func main() {
 
 		resp.Disk = getDiskStats(dataDir)
 		resp.DbQueue = getQueueStats(dataDir)
+		log.Printf("[status] getDiskStats + getQueueStats: %v", time.Since(t)); t = time.Now()
 
-		// Tagger stats — from clean.db image_tags
-		var totalDownloaded int
-		db.QueryRow(`SELECT COUNT(*) FROM images WHERE file_size > 0`).Scan(&totalDownloaded)
-		h1agoISO := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
+		// Tagger stats — from clean.db image_tags (60s sub-cache: COUNT(DISTINCT) is expensive)
+		taggerCacheMu.Lock()
+		if time.Since(taggerCachedAt) >= taggerCacheTTL {
+			var totalDownloaded int
+			db.QueryRow(`SELECT COUNT(*) FROM images WHERE file_size > 0`).Scan(&totalDownloaded)
+			h1agoISO := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
 
-		// Overall: distinct images with at least one tag (any tagger)
-		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL`).Scan(&resp.OverallTaggedImages)
-		var overallImgsLastHour int
-		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL AND tagged_at >= ?`, h1agoISO).Scan(&overallImgsLastHour)
-		resp.OverallImgsPerHour = float64(overallImgsLastHour)
+			var entry taggerCacheEntry
+			db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL`).Scan(&entry.OverallTaggedImages)
+			var overallImgsLastHour int
+			db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL AND tagged_at >= ?`, h1agoISO).Scan(&overallImgsLastHour)
+			entry.OverallImgsPerHour = float64(overallImgsLastHour)
 
-		taggerRows, err := db.Query(`
-			SELECT
-				COALESCE(tagger, '(untagged)') as tagger,
-				COUNT(DISTINCT image_id) as tagged,
-				MAX(tagged_at) as last_at,
-				SUM(CASE WHEN tagged_at >= ? THEN 1 ELSE 0 END) as tags_last_hour
-			FROM image_tags
-			GROUP BY tagger
-			ORDER BY last_at DESC
-		`, h1agoISO)
-		if err == nil {
-			defer taggerRows.Close()
-			for taggerRows.Next() {
-				var ts TaggerStat
-				var tagsLastHour int
-				taggerRows.Scan(&ts.Tagger, &ts.TaggedImages, &ts.LastTaggedAt, &tagsLastHour)
-				ts.TotalImages = totalDownloaded
-				if totalDownloaded > 0 {
-					ts.PctTagged = float64(ts.TaggedImages) * 100.0 / float64(totalDownloaded)
+			taggerRows, err := db.Query(`
+				SELECT
+					COALESCE(tagger, '(untagged)') as tagger,
+					COUNT(DISTINCT image_id) as tagged,
+					MAX(tagged_at) as last_at,
+					SUM(CASE WHEN tagged_at >= ? THEN 1 ELSE 0 END) as tags_last_hour
+				FROM image_tags
+				GROUP BY tagger
+				ORDER BY last_at DESC
+			`, h1agoISO)
+			if err == nil {
+				defer taggerRows.Close()
+				for taggerRows.Next() {
+					var ts TaggerStat
+					var tagsLastHour int
+					taggerRows.Scan(&ts.Tagger, &ts.TaggedImages, &ts.LastTaggedAt, &tagsLastHour)
+					ts.TotalImages = totalDownloaded
+					if totalDownloaded > 0 {
+						ts.PctTagged = float64(ts.TaggedImages) * 100.0 / float64(totalDownloaded)
+					}
+					ts.TagsPerHour = float64(tagsLastHour)
+					entry.Taggers = append(entry.Taggers, ts)
 				}
-				ts.TagsPerHour = float64(tagsLastHour)
-				resp.Taggers = append(resp.Taggers, ts)
 			}
+			taggerCached = entry
+			taggerCachedAt = time.Now()
+			log.Printf("[status] tagger stats recomputed (clean.db, 3 queries): %v", time.Since(t))
+		} else {
+			log.Printf("[status] tagger stats from sub-cache (age: %v)", time.Since(taggerCachedAt))
 		}
+		resp.OverallTaggedImages = taggerCached.OverallTaggedImages
+		resp.OverallImgsPerHour = taggerCached.OverallImgsPerHour
+		resp.Taggers = taggerCached.Taggers
+		taggerCacheMu.Unlock()
+		t = time.Now()
 
 		body, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		statusCacheMu.Lock()
 		statusCacheBody = body
 		statusCachedAt = time.Now()
-		statusCacheMu.Unlock()
 
+		log.Printf("[status] TOTAL elapsed: %v", time.Since(tTotal))
 		w.Write(body)
 	})
 

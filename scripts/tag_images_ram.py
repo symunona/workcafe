@@ -446,6 +446,7 @@ def run() -> None:
     tag_counts: dict[str, int] = {}
     t_start = time.perf_counter()
     times_per_img: list[float] = []
+    batches_since_checkpoint = 0
 
     for batch_start in range(0, total, BATCH_SIZE):
         batch = images[batch_start : batch_start + BATCH_SIZE]
@@ -503,6 +504,10 @@ def run() -> None:
                 rows,
             )
             conn.commit()
+            batches_since_checkpoint += 1
+            if batches_since_checkpoint >= 100:
+                conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+                batches_since_checkpoint = 0
 
         if args.rollup_every > 0 and tagged > 0 and tagged % args.rollup_every < BATCH_SIZE:
             rollup(conn)
