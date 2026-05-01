@@ -29,12 +29,14 @@ export function makePieIcon(
   chainName?: string,
   showSourceColors = true,
   showBrandColors = true,
+  showImageRing = false,
 ): L.DivIcon {
   const r = size / 2
   const cx = r
   const cy = r
   const outerR = r
-  const strokeAttr = hasImages ? `stroke="black" stroke-width="1.5"` : `stroke="none"`
+  const ringActive = hasImages && showImageRing
+  const strokeAttr = ringActive ? `stroke="black" stroke-width="1.5"` : `stroke="none"`
 
   if (!showSourceColors) {
     const chainColor = chainName ? CHAIN_COLORS[chainName] : undefined
@@ -69,7 +71,7 @@ export function makePieIcon(
 
   const chainColor = (showBrandColors && chainName) ? CHAIN_COLORS[chainName] : undefined
   const innerFill = chainColor || 'white'
-  const innerStroke = hasImages ? `stroke="black" stroke-width="1"` : `stroke="none"`
+  const innerStroke = ringActive ? `stroke="black" stroke-width="1"` : `stroke="none"`
   const innerCircle = `<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="${innerFill}" ${innerStroke} />`
 
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">

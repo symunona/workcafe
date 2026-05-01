@@ -40,6 +40,7 @@ interface MarkerLayerProps {
   onSelect: (id: string) => void
   showSourceColors: boolean
   showBrandColors: boolean
+  showImageRing: boolean
 }
 
 const STARRED_TAGS_KEY = 'workcafe_starred_tags'
@@ -133,11 +134,11 @@ function LocationDotLayer({ location }: { location: [number, number] | null }) {
   return null
 }
 
-function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColors }: MarkerLayerProps) {
+function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColors, showImageRing }: MarkerLayerProps) {
   const map = useMap()
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const layerRef = useRef<L.LayerGroup | null>(null)
-  const colorKeyRef = useRef(`${showSourceColors}-${showBrandColors}`)
+  const colorKeyRef = useRef(`${showSourceColors}-${showBrandColors}-${showImageRing}`)
 
   useEffect(() => {
     if (!layerRef.current) {
@@ -154,7 +155,7 @@ function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColor
     const layer = layerRef.current
     if (!layer) return
 
-    const newColorKey = `${showSourceColors}-${showBrandColors}`
+    const newColorKey = `${showSourceColors}-${showBrandColors}-${showImageRing}`
     const colorChanged = newColorKey !== colorKeyRef.current
     colorKeyRef.current = newColorKey
 
@@ -170,7 +171,7 @@ function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColor
       const providers = Array.isArray(cafe.providers)
         ? cafe.providers
         : (JSON.parse(cafe.providers as unknown as string ?? '[]') as string[])
-      const icon = makePieIcon(providers, 14, cafe.image_count > 0, cafe.chain_name_english || cafe.chain_name, showSourceColors, showBrandColors)
+      const icon = makePieIcon(providers, 14, cafe.image_count > 0, cafe.chain_name_english || cafe.chain_name, showSourceColors, showBrandColors, showImageRing)
       const marker = L.marker([cafe.lat, cafe.lon], { icon })
       marker.on('click', () => onSelect(cafe.id))
       marker.addTo(layer)
@@ -181,7 +182,7 @@ function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColor
       existing.get(id)?.remove()
       existing.delete(id)
     }
-  }, [scraped_cafes, onSelect, showSourceColors, showBrandColors])
+  }, [scraped_cafes, onSelect, showSourceColors, showBrandColors, showImageRing])
 
   return null
 }
@@ -399,6 +400,9 @@ export default function CleanApp() {
   const [showBrandColors, setShowBrandColors] = useState(() => {
     try { return JSON.parse(localStorage.getItem('wc_brand_colors') ?? 'false') } catch { return false }
   })
+  const [showImageRing, setShowImageRing] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wc_image_ring') ?? 'false') } catch { return false }
+  })
   const [showRecently, setShowRecently] = useState(false)
   const [onlyMostRecent, setOnlyMostRecent] = useState(false)
   const { visits, addVisit, removeVisit, clearVisits } = useRecentlyVisited()
@@ -409,6 +413,7 @@ export default function CleanApp() {
   useEffect(() => { localStorage.setItem('wc_heatmap_r', JSON.stringify(heatmapRadius)) }, [heatmapRadius])
   useEffect(() => { localStorage.setItem('wc_source_colors', JSON.stringify(showSourceColors)) }, [showSourceColors])
   useEffect(() => { localStorage.setItem('wc_brand_colors', JSON.stringify(showBrandColors)) }, [showBrandColors])
+  useEffect(() => { localStorage.setItem('wc_image_ring', JSON.stringify(showImageRing)) }, [showImageRing])
 
   const isMobile = useIsMobile()
   const selectedId = id || null
@@ -782,7 +787,7 @@ export default function CleanApp() {
         <ViewportTracker onBoundsChange={handleBoundsChange} />
         <MapPositionSaver />
         <MapPanner target={mapTarget} />
-        {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} showSourceColors={showSourceColors} showBrandColors={showBrandColors} />}
+        {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} showSourceColors={showSourceColors} showBrandColors={showBrandColors} showImageRing={showImageRing} />}
         {showHeatmap && <HeatmapLayer points={heatmapPoints} radiusMult={heatmapRadius / 10} />}
         <LocationDotLayer location={userLocation} />
         <ScaleControl position="bottomright" metric imperial={false} />
@@ -940,6 +945,11 @@ export default function CleanApp() {
             <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
               <span className="text-sm text-gray-700">🏷 Brand colors</span>
               <input type="checkbox" checked={showBrandColors} onChange={e => setShowBrandColors(e.target.checked)} className="w-4 h-4 accent-slate-500" />
+            </label>
+            {/* Image ring */}
+            <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
+              <span className="text-sm text-gray-700">📷 Ring if has photos</span>
+              <input type="checkbox" checked={showImageRing} onChange={e => setShowImageRing(e.target.checked)} className="w-4 h-4 accent-slate-500" />
             </label>
             {/* Provider legend — only when source colors on */}
             {showSourceColors && (
@@ -1236,6 +1246,10 @@ export default function CleanApp() {
                   <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
                     <span>🏷 Brand colors</span>
                     <input type="checkbox" checked={showBrandColors} onChange={e => setShowBrandColors(e.target.checked)} className="w-4 h-4 accent-slate-500" />
+                  </label>
+                  <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
+                    <span>📷 Ring if has photos</span>
+                    <input type="checkbox" checked={showImageRing} onChange={e => setShowImageRing(e.target.checked)} className="w-4 h-4 accent-slate-500" />
                   </label>
                   {showSourceColors && (
                     <div className="pt-1 border-t border-gray-200">
