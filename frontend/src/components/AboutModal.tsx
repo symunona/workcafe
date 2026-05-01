@@ -3,22 +3,45 @@ declare const __BUILD_DATE__: string
 
 const MERMAID_DEF = `flowchart TB
     subgraph SC[" Scrapers "]
-        direction LR
         N[Naver]
         K[Kakao]
         G[Google]
         O[OSM]
     end
-    SC --> DB[("scraped.db\\n~42k cafes")]
-    DB --> NM["Normalize &\\nDeduplicate"]
-    DB --> IMG["Image\\nDownloader"]
-    IMG --> AI["AI Taggers\\nRAM · CLIP · YOLO"]
-    NM --> CDB[("clean.db\\n~30k cafes")]
+    subgraph DL[" Image Downloaders "]
+        I1[Naver]
+        I2[Kakao]
+        I3[Google]
+    end
+    N & K & G & O --> DB[("scraped.db<br/>~42k cafes")]
+    DB --> NM["Normalize &<br/>Deduplicate"]
+    DB --> I1 & I2 & I3
+    I1 & I2 & I3 -.-> DB
+    I1 & I2 & I3 --> FS[("📁 Images<br/>on disk")]
+    FS --> AI["AI Taggers<br/>RAM · CLIP · YOLO"]
+    NM --> CDB[("clean.db<br/>~30k cafes")]
     AI --> CDB
-    CDB --> API["Go API\\n:13854"]
-    API --> FE["React\\nMap UI"]`
+    CDB --> API["Go API<br/>:13854"]
+    FS --> API
+    API --> FE["React<br/>Map UI"]
 
-const MERMAID_URL = `https://mermaid.ink/img/${btoa(unescape(encodeURIComponent(MERMAID_DEF)))}?theme=neutral`
+    classDef scraper fill:#22c55e,stroke:#15803d,color:#fff
+    classDef dl fill:#facc15,stroke:#ca8a04,color:#333
+    classDef db fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef fs fill:#0ea5e9,stroke:#0369a1,color:#fff
+    classDef proc fill:#f97316,stroke:#c2410c,color:#fff
+    classDef api fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    classDef ui fill:#ec4899,stroke:#be185d,color:#fff
+
+    class N,K,G,O scraper
+    class I1,I2,I3 dl
+    class DB,CDB db
+    class FS fs
+    class NM,AI proc
+    class API api
+    class FE ui`
+
+const MERMAID_URL = `https://mermaid.ink/img/${btoa(unescape(encodeURIComponent(MERMAID_DEF)))}`
 
 interface Props {
   onClose: () => void

@@ -1,5 +1,8 @@
 default: start
 
+# Build frontend (public mode, IS_PUBLIC=true) — alias for build-public
+build: build-public
+
 # ── Public / Production ───────────────────────────────────────────────────────
 
 # Build frontend with IS_PUBLIC=true (hides admin controls) → frontend/dist/

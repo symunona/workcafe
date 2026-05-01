@@ -13,5 +13,5 @@ body {
 
 .leaflet-bottom.leaflet-right .leaflet-control-scale {
   margin-right: 200px;
-  margin-bottom: 24px;
+  margin-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }

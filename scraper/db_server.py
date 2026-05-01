@@ -155,6 +155,7 @@ def main():
     parser.add_argument('--socket', default=DB_SOCKET_PATH, help='Unix socket path')
     parser.add_argument('--pid-file', default=DB_PID_FILE, help='PID file path')
     parser.add_argument('--replace', action='store_true',  help='Kill existing server if running')
+    parser.add_argument('--unsafe-any-db', action='store_true', dest='unsafe_any_db', help='Skip scraped.db path safety check')
     args = parser.parse_args()
 
     pid_file = args.pid_file
@@ -181,6 +182,20 @@ def main():
     _conn.execute('PRAGMA busy_timeout=60000')
     _conn.execute('PRAGMA synchronous=NORMAL')
     init_tables(_conn)
+
+    # Safety: only allow scraped.db (path must contain "scraped").
+    # Prevents accidental pointing at clean.db, which would corrupt scraper data.
+    db_basename = os.path.basename(args.db)
+    if 'scraped' not in db_basename and not getattr(args, 'unsafe_any_db', False):
+        log.error(
+            f"SAFETY CHECK FAILED: DB path '{args.db}' does not look like scraped.db "
+            f"(filename must contain 'scraped'). "
+            f"Pass --unsafe-any-db to override. Refusing to start."
+        )
+        _conn.close()
+        os.unlink(pid_file)
+        sys.exit(1)
+
     log.info(f"DB: {args.db}")
 
     if os.path.exists(args.socket):

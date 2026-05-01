@@ -56,6 +56,15 @@ interface ProviderMetrics {
   total_images: number
 }
 
+interface TaggerStat {
+  tagger: string
+  tagged_images: number
+  total_images: number
+  pct_tagged: number
+  tags_per_hour: number
+  last_tagged_at: string
+}
+
 interface DiskStats {
   data_dir_gb: number
   folder_size_gb: number
@@ -86,6 +95,9 @@ interface StatusData {
   db_queue: Record<string, QueueEntry>
   hourly_stats: HourlyStat[]
   mb_per_day: number
+  taggers?: TaggerStat[]
+  overall_tagged_images?: number
+  overall_imgs_per_hour?: number
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -721,6 +733,41 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               )}
 
 
+
+              {/* Image tagger progress */}
+              {(status.overall_tagged_images ?? 0) > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Image Tagging</h3>
+                  <div className="bg-gray-50 rounded-xl px-4 py-3 flex flex-col gap-1.5">
+                    {/* Overall row */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-800">Overall</span>
+                      <div className="flex items-center gap-3 text-xs">
+                        {(status.overall_imgs_per_hour ?? 0) > 0 && (
+                          <span className="text-violet-600 font-medium">{(status.overall_imgs_per_hour ?? 0).toLocaleString()} imgs/hr</span>
+                        )}
+                        <span className="text-gray-500">{(status.overall_tagged_images ?? 0).toLocaleString()} / {status.total_images.toLocaleString()}</span>
+                        <span className="font-semibold text-gray-700">
+                          {status.total_images > 0 ? ((status.overall_tagged_images ?? 0) / status.total_images * 100).toFixed(1) : '0'}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full bg-violet-500 transition-all"
+                        style={{ width: `${status.total_images > 0 ? Math.min((status.overall_tagged_images ?? 0) / status.total_images * 100, 100) : 0}%` }}
+                      />
+                    </div>
+                    {/* Active taggers detail */}
+                    {(status.taggers ?? []).filter(t => t.tagger !== '(untagged)' && t.tags_per_hour > 0).map(t => (
+                      <div key={t.tagger} className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-200/60 mt-0.5">
+                        <span className="font-mono text-gray-600">{t.tagger}</span>
+                        <span className="text-violet-500 font-medium">{t.tags_per_hour.toLocaleString()} tags/hr</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 rounded-xl px-4 py-3">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: healthColor(status.last_cafe_at || status.last_image_at, scraperActive) }} />

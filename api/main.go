@@ -80,10 +80,22 @@ type HourlyStat struct {
 	Provider string `json:"provider"`
 }
 
+type TaggerStat struct {
+	Tagger       string  `json:"tagger"`
+	TaggedImages int     `json:"tagged_images"`
+	TotalImages  int     `json:"total_images"`
+	PctTagged    float64 `json:"pct_tagged"`
+	TagsPerHour  float64 `json:"tags_per_hour"`
+	LastTaggedAt string  `json:"last_tagged_at"`
+}
+
 type StatusResponse struct {
 	Services          []ServiceStatus        `json:"services"`
 	PerProvider       []ProviderMetrics      `json:"per_provider"`
 	FinishedProviders []string               `json:"finished_providers"`
+	Taggers                []TaggerStat           `json:"taggers"`
+	OverallTaggedImages    int                    `json:"overall_tagged_images"`
+	OverallImgsPerHour     float64                `json:"overall_imgs_per_hour"`
 	TotalCafes             int                    `json:"total_cafes"`
 	TotalImages            int                    `json:"total_images"`
 	CafesLastHour          int                    `json:"cafes_last_hour"`
@@ -923,6 +935,42 @@ func main() {
 
 		resp.Disk = getDiskStats(dataDir)
 		resp.DbQueue = getQueueStats(dataDir)
+
+		// Tagger stats — from clean.db image_tags
+		var totalDownloaded int
+		db.QueryRow(`SELECT COUNT(*) FROM images WHERE file_size > 0`).Scan(&totalDownloaded)
+		h1agoISO := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
+
+		// Overall: distinct images with at least one tag (any tagger)
+		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL`).Scan(&resp.OverallTaggedImages)
+		var overallImgsLastHour int
+		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL AND tagged_at >= ?`, h1agoISO).Scan(&overallImgsLastHour)
+		resp.OverallImgsPerHour = float64(overallImgsLastHour)
+
+		taggerRows, err := db.Query(`
+			SELECT
+				COALESCE(tagger, '(untagged)') as tagger,
+				COUNT(DISTINCT image_id) as tagged,
+				MAX(tagged_at) as last_at,
+				SUM(CASE WHEN tagged_at >= ? THEN 1 ELSE 0 END) as tags_last_hour
+			FROM image_tags
+			GROUP BY tagger
+			ORDER BY last_at DESC
+		`, h1agoISO)
+		if err == nil {
+			defer taggerRows.Close()
+			for taggerRows.Next() {
+				var ts TaggerStat
+				var tagsLastHour int
+				taggerRows.Scan(&ts.Tagger, &ts.TaggedImages, &ts.LastTaggedAt, &tagsLastHour)
+				ts.TotalImages = totalDownloaded
+				if totalDownloaded > 0 {
+					ts.PctTagged = float64(ts.TaggedImages) * 100.0 / float64(totalDownloaded)
+				}
+				ts.TagsPerHour = float64(tagsLastHour)
+				resp.Taggers = append(resp.Taggers, ts)
+			}
+		}
 
 		body, err := json.Marshal(resp)
 		if err != nil {

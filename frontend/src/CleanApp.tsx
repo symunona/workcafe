@@ -305,7 +305,11 @@ function useRecentlyVisited() {
       return next
     })
   }, [])
-  return { visits, addVisit, removeVisit }
+  const clearVisits = useCallback(() => {
+    localStorage.removeItem(RECENTLY_KEY)
+    setVisits([])
+  }, [])
+  return { visits, addVisit, removeVisit, clearVisits }
 }
 
 function RecentlyVisitedLayer({ visits, selectedId }: { visits: VisitEntry[]; selectedId: string | null }) {
@@ -374,10 +378,10 @@ export default function CleanApp() {
 
   const [showAbout, setShowAbout] = useState(false)
   const [showHeatmap, setShowHeatmap] = useState(false)
-  const [heatmapRadius, setHeatmapRadius] = useState(13)
+  const [heatmapRadius, setHeatmapRadius] = useState(200)
   const [showRecently, setShowRecently] = useState(false)
   const [onlyMostRecent, setOnlyMostRecent] = useState(false)
-  const { visits, addVisit, removeVisit } = useRecentlyVisited()
+  const { visits, addVisit, removeVisit, clearVisits } = useRecentlyVisited()
   const [heatmapPoints, setHeatmapPoints] = useState<[number, number][]>([])
   const heatmapAbortRef = useRef<AbortController | null>(null)
 
@@ -859,7 +863,7 @@ export default function CleanApp() {
       </div>
 
       {/* Bottom right: Counts + GPS */}
-      <div className="absolute bottom-10 right-2 z-[500] flex flex-col items-end gap-2 pointer-events-auto">
+      <div className="absolute right-2 z-[500] flex flex-col items-end gap-2 pointer-events-auto" style={{ bottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
         <button
           onClick={handleGPSClick}
           disabled={isLocating}
@@ -874,14 +878,14 @@ export default function CleanApp() {
       </div>
 
       {/* Bottom right: Cafe counts badge */}
-      <div className="absolute bottom-[18px] right-[10px] z-[500] pointer-events-none">
+      <div className="absolute right-[10px] z-[500] pointer-events-none" style={{ bottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
         <div className="bg-white/90 rounded-lg shadow px-2 py-0.5 text-[11px] text-gray-500 font-medium">
           {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
         </div>
       </div>
 
       {/* Provider legend - desktop only */}
-      <div className="absolute bottom-10 left-2 z-[500] hidden md:block bg-white/90 rounded-lg shadow p-2 text-xs">
+      <div className="absolute left-2 z-[500] hidden md:block bg-white/90 rounded-lg shadow p-2 text-xs" style={{ bottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="text-gray-500 mb-1 font-medium">Providers</div>
         {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
           <div key={p} className="flex items-center gap-1.5 py-0.5">
@@ -894,7 +898,8 @@ export default function CleanApp() {
 
       {/* Bottom left: build info */}
       <button
-        className="absolute bottom-2 left-2 z-[500] bg-white/80 rounded px-1.5 py-0.5 text-[10px] text-gray-400 font-mono hover:bg-white/95 transition-colors"
+        className="absolute left-2 z-[500] bg-white/80 rounded px-1.5 py-0.5 text-[10px] text-gray-400 font-mono hover:bg-white/95 transition-colors"
+        style={{ bottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}
         onClick={() => setShowAbout(true)}
         title={`Built ${new Date(__BUILD_DATE__).toLocaleString()}`}
       >
@@ -911,6 +916,9 @@ export default function CleanApp() {
                 <input type="checkbox" checked={onlyMostRecent} onChange={e => setOnlyMostRecent(e.target.checked)} className="w-3 h-3" />
                 Only latest
               </label>
+              {visits.length > 0 && (
+                <button onClick={clearVisits} className="text-xs text-red-400 hover:text-red-600" title="Clear all history">Clear all</button>
+              )}
               <button onClick={() => setShowRecently(false)} className="text-gray-400 hover:text-gray-600 text-lg w-6 h-6 flex items-center justify-center">✕</button>
             </div>
           </div>
@@ -1178,11 +1186,14 @@ export default function CleanApp() {
               </button>
               {showRecently && (
                 <div className="border-b border-gray-100">
-                  <div className="flex items-center gap-2 px-5 py-2 bg-amber-50">
+                  <div className="flex items-center justify-between px-5 py-2 bg-amber-50">
                     <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
                       <input type="checkbox" checked={onlyMostRecent} onChange={e => setOnlyMostRecent(e.target.checked)} className="w-3 h-3" />
                       Only latest
                     </label>
+                    {visits.length > 0 && (
+                      <button onClick={clearVisits} className="text-xs text-red-400 hover:text-red-600">Clear all</button>
+                    )}
                   </div>
                   {visits.length === 0 ? (
                     <div className="px-5 py-3 text-xs text-gray-400">No visits yet.</div>
