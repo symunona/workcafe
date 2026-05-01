@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { useEffect, useRef, useState, useMemo, useCallback, type ReactNode } from 'react'
 import { MapContainer, TileLayer, useMapEvents, useMap, ScaleControl } from 'react-leaflet'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import L from 'leaflet'
@@ -360,6 +360,94 @@ function ScalePositioner() {
 const IS_PUBLIC = import.meta.env.VITE_IS_PUBLIC === 'true'
 const IS_DEVMODE = import.meta.env.VITE_IS_DEVMODE === 'true'
 
+function highlight(text: string, q: string): ReactNode {
+  if (!q) return text
+  const idx = text.toLowerCase().indexOf(q.toLowerCase())
+  if (idx < 0) return text
+  return (
+    <>{text.slice(0, idx)}<mark className="bg-yellow-200 rounded-sm not-italic px-0.5">{text.slice(idx, idx + q.length)}</mark>{text.slice(idx + q.length)}</>
+  )
+}
+
+interface SearchBarProps {
+  query: string
+  setQuery: (q: string) => void
+  results: CleanCafe[]
+  totalCount: number
+  onSelect: (cafe: CleanCafe) => void
+  className?: string
+}
+
+function SearchBar({ query, setQuery, results, totalCount, onSelect, className = '' }: SearchBarProps) {
+  const [focused, setFocused] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const show = focused && query.trim().length > 0
+
+  useEffect(() => {
+    if (!show) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setQuery(''); inputRef.current?.blur() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [show, setQuery])
+
+  return (
+    <div className={`relative ${className}`}>
+      <div className="relative">
+        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        </svg>
+        <input
+          ref={inputRef}
+          type="search"
+          placeholder="Search cafes…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          className="w-full pl-8 pr-7 py-1.5 text-sm bg-white rounded-lg shadow border border-transparent focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-100"
+        />
+        {query && (
+          <button onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-xl leading-none">×</button>
+        )}
+      </div>
+      {show && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl z-[700] overflow-hidden border border-gray-100">
+          <div className="px-3 py-2 text-xs bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+            <span className="font-semibold text-gray-500">
+              {totalCount === 0 ? 'No results' : `${totalCount}${totalCount >= 50 ? '+' : ''} cafe${totalCount !== 1 ? 's' : ''}`}
+            </span>
+            {totalCount > 0 && <span className="text-gray-300">↵ to navigate</span>}
+          </div>
+          <div className="max-h-72 overflow-y-auto divide-y divide-gray-50">
+            {results.map(cafe => (
+              <button
+                key={cafe.id}
+                onMouseDown={() => { onSelect(cafe); setFocused(false) }}
+                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors"
+              >
+                <div className="font-medium text-sm text-gray-900 truncate">{highlight(cafe.name, query)}</div>
+                {cafe.english_name && cafe.english_name !== cafe.name && (
+                  <div className="text-xs text-gray-500 truncate">{highlight(cafe.english_name, query)}</div>
+                )}
+                {cafe.address && (
+                  <div className="text-xs text-gray-400 truncate mt-0.5">{highlight(cafe.address, query)}</div>
+                )}
+              </button>
+            ))}
+            {totalCount > results.length && (
+              <div className="px-3 py-2 text-xs text-gray-400 italic bg-gray-50">
+                +{totalCount - results.length} more — refine search
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CleanApp() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -560,11 +648,11 @@ export default function CleanApp() {
     }
   }, [])
 
-  const [keywordSearch, setKeywordSearch] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const filteredCafeMap = useMemo(() => {
-    if (!keywordSearch.trim()) return cafeMap
-    const q = keywordSearch.toLowerCase()
+    if (!searchQuery.trim()) return cafeMap
+    const q = searchQuery.toLowerCase()
     const result = new Map<string, CleanCafe>()
     for (const [cid, cafe] of cafeMap) {
       if (cafe.name.toLowerCase().includes(q) ||
@@ -574,11 +662,19 @@ export default function CleanApp() {
       }
     }
     return result
-  }, [cafeMap, keywordSearch])
+  }, [cafeMap, searchQuery])
+
+  const searchResults = useMemo(() => [...filteredCafeMap.values()].slice(0, 8), [filteredCafeMap])
+
+  const handleSearchSelect = useCallback((cafe: CleanCafe) => {
+    setMapTarget([cafe.lat, cafe.lon])
+    navigate(`/cafe/${cafe.id}`)
+    setSearchQuery('')
+  }, [navigate])
 
   const clearFilters = useCallback(() => {
     setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set(), tags: new Set(), customWebsite: false })
-    setKeywordSearch('')
+    setSearchQuery('')
   }, [])
 
   const activeFilterCount =
@@ -587,8 +683,7 @@ export default function CleanApp() {
     (filters.customWebsite ? 1 : 0) +
     filters.providers.size +
     filters.chains.size +
-    filters.tags.size +
-    (keywordSearch.trim() ? 1 : 0)
+    filters.tags.size
 
   const isFilterActive = activeFilterCount > 0
 
@@ -615,17 +710,6 @@ export default function CleanApp() {
 
   const filterContent = (
     <div className="flex flex-col gap-4">
-      {/* Keyword search */}
-      <div>
-        <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Search</div>
-        <input
-          type="search"
-          placeholder="Name, address…"
-          value={keywordSearch}
-          onChange={e => setKeywordSearch(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400"
-        />
-      </div>
       {/* Basic options — horizontal pill toggles */}
       <div>
         <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Options</div>
@@ -795,14 +879,34 @@ export default function CleanApp() {
         <RecentlyVisitedLayer visits={visits} selectedId={selectedId} />
       </MapContainer>
 
-      {/* Top left: Logo */}
+      {/* Top left: Logo + Desktop search bar */}
       <div className="absolute top-2 left-2 z-[1100] flex items-center gap-2 pointer-events-auto">
         <button
           onClick={() => setShowAbout(true)}
-          className="bg-white rounded-lg shadow px-3 py-1.5 text-base font-semibold text-gray-700 flex items-center gap-1.5 hover:bg-gray-50 transition-colors"
+          className="bg-white rounded-lg shadow px-3 py-1.5 text-base font-semibold text-gray-700 flex items-center gap-1.5 hover:bg-gray-50 transition-colors shrink-0"
         >
           ☕ Workcafe Seoul
         </button>
+        <SearchBar
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          results={searchResults}
+          totalCount={filteredCafeMap.size}
+          onSelect={handleSearchSelect}
+          className="hidden md:block w-64"
+        />
+      </div>
+
+      {/* Mobile search bar */}
+      <div className="absolute left-2 right-2 z-[600] flex md:hidden pointer-events-auto" style={{ top: '52px' }}>
+        <SearchBar
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          results={searchResults}
+          totalCount={filteredCafeMap.size}
+          onSelect={handleSearchSelect}
+          className="w-full"
+        />
       </div>
 
       {/* Top right: Desktop buttons */}
@@ -1024,16 +1128,6 @@ export default function CleanApp() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-base">Filters</h3>
                 <button className="text-gray-400 hover:text-gray-600 text-xl" onClick={() => setShowFilters(false)}>✕</button>
-              </div>
-              <div className="mb-4">
-                <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Search</div>
-                <input
-                  type="search"
-                  placeholder="Name, address…"
-                  value={keywordSearch}
-                  onChange={e => setKeywordSearch(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-400"
-                />
               </div>
               {/* Options pill toggles */}
               <div className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Options</div>
