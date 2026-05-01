@@ -1,6 +1,8 @@
 import L from 'leaflet'
 import { PROVIDER_COLORS } from './utils'
 
+export const CAFE_BROWN = '#9B7653'
+
 export const CHAIN_COLORS: Record<string, string> = {
   "Starbucks": "#00704A",
   "Mega Coffee": "#FFC72C",
@@ -20,26 +22,32 @@ export const CHAIN_COLORS: Record<string, string> = {
   "Cafe Droptop": "#221E1F"
 }
 
-/**
- * Create a Leaflet DivIcon showing a pie-chart circle for multiple providers.
- * 1 provider: solid circle
- * 2+ providers: equal slices
- * Outer circle: Scraper colors
- * Inner circle: Chain color if available, else white. Black border if has images.
- */
-export function makePieIcon(providers: string[], size = 10, hasImages = false, chainName?: string): L.DivIcon {
-  const colors = providers.map(p => PROVIDER_COLORS[p] ?? '#6b7280')
-  
-  const chainColor = chainName ? CHAIN_COLORS[chainName] : undefined;
-  
+export function makePieIcon(
+  providers: string[],
+  size = 10,
+  hasImages = false,
+  chainName?: string,
+  showSourceColors = true,
+  showBrandColors = true,
+): L.DivIcon {
   const r = size / 2
   const cx = r
   const cy = r
-  
-  const outerR = r;
-  // Make the inner circle proportional to size, so the outer ring has a consistent visual thickness
-  const border = size > 12 ? 2.5 : 1.5;
-  const innerR = r - border;
+  const outerR = r
+  const strokeAttr = hasImages ? `stroke="black" stroke-width="1.5"` : `stroke="none"`
+
+  if (!showSourceColors) {
+    const chainColor = chainName ? CHAIN_COLORS[chainName] : undefined
+    const fill = (showBrandColors && chainColor) ? chainColor : CAFE_BROWN
+    const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${cx}" cy="${cy}" r="${outerR - 0.75}" fill="${fill}" ${strokeAttr} />
+    </svg>`
+    return L.divIcon({ html: svg, className: '', iconSize: [size, size], iconAnchor: [r, r] })
+  }
+
+  const colors = providers.map(p => PROVIDER_COLORS[p] ?? '#6b7280')
+  const border = size > 12 ? 2.5 : 1.5
+  const innerR = r - border
 
   let slices = ''
   if (colors.length === 1) {
@@ -59,21 +67,17 @@ export function makePieIcon(providers: string[], size = 10, hasImages = false, c
     }
   }
 
-  const innerFill = chainColor || "white";
-  const innerStroke = hasImages ? `stroke="black" stroke-width="1"` : `stroke="none"`;
-  const innerCircle = `<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="${innerFill}" ${innerStroke} />`;
+  const chainColor = (showBrandColors && chainName) ? CHAIN_COLORS[chainName] : undefined
+  const innerFill = chainColor || 'white'
+  const innerStroke = hasImages ? `stroke="black" stroke-width="1"` : `stroke="none"`
+  const innerCircle = `<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="${innerFill}" ${innerStroke} />`
 
   const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
     ${slices}
     ${innerCircle}
   </svg>`
 
-  return L.divIcon({
-    html: svg,
-    className: '',
-    iconSize: [size, size],
-    iconAnchor: [r, r],
-  })
+  return L.divIcon({ html: svg, className: '', iconSize: [size, size], iconAnchor: [r, r] })
 }
 
 export function cleanCafeImageCount(cafe: { image_count: number }): number {

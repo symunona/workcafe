@@ -38,6 +38,8 @@ interface TagCount {
 interface MarkerLayerProps {
   scraped_cafes: Map<string, CleanCafe>
   onSelect: (id: string) => void
+  showSourceColors: boolean
+  showBrandColors: boolean
 }
 
 const STARRED_TAGS_KEY = 'workcafe_starred_tags'
@@ -131,10 +133,11 @@ function LocationDotLayer({ location }: { location: [number, number] | null }) {
   return null
 }
 
-function MarkerLayer({ scraped_cafes, onSelect }: MarkerLayerProps) {
+function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColors }: MarkerLayerProps) {
   const map = useMap()
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const layerRef = useRef<L.LayerGroup | null>(null)
+  const colorKeyRef = useRef(`${showSourceColors}-${showBrandColors}`)
 
   useEffect(() => {
     if (!layerRef.current) {
@@ -151,17 +154,23 @@ function MarkerLayer({ scraped_cafes, onSelect }: MarkerLayerProps) {
     const layer = layerRef.current
     if (!layer) return
 
+    const newColorKey = `${showSourceColors}-${showBrandColors}`
+    const colorChanged = newColorKey !== colorKeyRef.current
+    colorKeyRef.current = newColorKey
+
     const existing = markersRef.current
     const toRemove = new Set(existing.keys())
 
     for (const cafe of scraped_cafes.values()) {
       toRemove.delete(cafe.id)
-      if (existing.has(cafe.id)) continue
+      if (existing.has(cafe.id) && !colorChanged) continue
+
+      existing.get(cafe.id)?.remove()
 
       const providers = Array.isArray(cafe.providers)
         ? cafe.providers
         : (JSON.parse(cafe.providers as unknown as string ?? '[]') as string[])
-      const icon = makePieIcon(providers, 14, cafe.image_count > 0, cafe.chain_name_english || cafe.chain_name)
+      const icon = makePieIcon(providers, 14, cafe.image_count > 0, cafe.chain_name_english || cafe.chain_name, showSourceColors, showBrandColors)
       const marker = L.marker([cafe.lat, cafe.lon], { icon })
       marker.on('click', () => onSelect(cafe.id))
       marker.addTo(layer)
@@ -172,7 +181,7 @@ function MarkerLayer({ scraped_cafes, onSelect }: MarkerLayerProps) {
       existing.get(id)?.remove()
       existing.delete(id)
     }
-  }, [scraped_cafes, onSelect])
+  }, [scraped_cafes, onSelect, showSourceColors, showBrandColors])
 
   return null
 }
@@ -377,13 +386,29 @@ export default function CleanApp() {
   })
 
   const [showAbout, setShowAbout] = useState(false)
-  const [showHeatmap, setShowHeatmap] = useState(false)
-  const [heatmapRadius, setHeatmapRadius] = useState(200)
+  const [showMapSettings, setShowMapSettings] = useState(false)
+  const [showHeatmap, setShowHeatmap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wc_heatmap') ?? 'false') } catch { return false }
+  })
+  const [heatmapRadius, setHeatmapRadius] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wc_heatmap_r') ?? '200') } catch { return 200 }
+  })
+  const [showSourceColors, setShowSourceColors] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wc_source_colors') ?? 'false') } catch { return false }
+  })
+  const [showBrandColors, setShowBrandColors] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wc_brand_colors') ?? 'false') } catch { return false }
+  })
   const [showRecently, setShowRecently] = useState(false)
   const [onlyMostRecent, setOnlyMostRecent] = useState(false)
   const { visits, addVisit, removeVisit, clearVisits } = useRecentlyVisited()
   const [heatmapPoints, setHeatmapPoints] = useState<[number, number][]>([])
   const heatmapAbortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => { localStorage.setItem('wc_heatmap', JSON.stringify(showHeatmap)) }, [showHeatmap])
+  useEffect(() => { localStorage.setItem('wc_heatmap_r', JSON.stringify(heatmapRadius)) }, [heatmapRadius])
+  useEffect(() => { localStorage.setItem('wc_source_colors', JSON.stringify(showSourceColors)) }, [showSourceColors])
+  useEffect(() => { localStorage.setItem('wc_brand_colors', JSON.stringify(showBrandColors)) }, [showBrandColors])
 
   const isMobile = useIsMobile()
   const selectedId = id || null
@@ -757,7 +782,7 @@ export default function CleanApp() {
         <ViewportTracker onBoundsChange={handleBoundsChange} />
         <MapPositionSaver />
         <MapPanner target={mapTarget} />
-        {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} />}
+        {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} showSourceColors={showSourceColors} showBrandColors={showBrandColors} />}
         {showHeatmap && <HeatmapLayer points={heatmapPoints} radiusMult={heatmapRadius / 10} />}
         <LocationDotLayer location={userLocation} />
         <ScaleControl position="bottomright" metric imperial={false} />
@@ -789,21 +814,11 @@ export default function CleanApp() {
           )}
         </button>
         <button
-          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${showHeatmap ? 'ring-2 ring-orange-400 text-orange-600' : 'text-gray-500'}`}
-          onClick={() => setShowHeatmap(h => !h)}
+          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${showMapSettings ? 'ring-2 ring-slate-400 text-slate-700' : (showHeatmap || showSourceColors || showBrandColors) ? 'ring-2 ring-slate-300 text-slate-600' : 'text-gray-500'}`}
+          onClick={() => setShowMapSettings(v => !v)}
         >
-          Heatmap
+          Map
         </button>
-        {showHeatmap && (
-          <div className="bg-white rounded-lg shadow px-3 py-1.5 flex items-center gap-2">
-            <span className="text-xs text-orange-500 font-mono w-12 shrink-0">r={heatmapRadius}</span>
-            <input
-              type="range" min={4} max={500} value={heatmapRadius}
-              onChange={e => setHeatmapRadius(Number(e.target.value))}
-              className="w-20 accent-orange-500"
-            />
-          </div>
-        )}
         <button
           className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${visits.length > 0 ? 'text-amber-600' : 'text-gray-400'}`}
           onClick={() => setShowRecently(r => !r)}
@@ -884,18 +899,6 @@ export default function CleanApp() {
         </div>
       </div>
 
-      {/* Provider legend - desktop only */}
-      <div className="absolute left-2 z-[500] hidden md:block bg-white/90 rounded-lg shadow p-2 text-xs" style={{ bottom: 'calc(2.5rem + env(safe-area-inset-bottom, 0px))' }}>
-        <div className="text-gray-500 mb-1 font-medium">Providers</div>
-        {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
-          <div key={p} className="flex items-center gap-1.5 py-0.5">
-            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-            <span className="text-gray-600">{p}</span>
-          </div>
-        ))}
-        <div className="mt-1 pt-1 border-t text-gray-400">black ring = has images</div>
-      </div>
-
       {/* Bottom left: build info */}
       <button
         className="absolute left-2 z-[500] bg-white/80 rounded px-1.5 py-0.5 text-[10px] text-gray-400 font-mono hover:bg-white/95 transition-colors"
@@ -905,6 +908,55 @@ export default function CleanApp() {
       >
         {__GIT_SHA__} · {new Date(__BUILD_DATE__).toLocaleDateString()}
       </button>
+
+      {/* Desktop Map Settings panel */}
+      {showMapSettings && !isMobile && <div className="fixed inset-0 z-[599]" onClick={() => setShowMapSettings(false)} />}
+      {showMapSettings && !isMobile && (
+        <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl w-64">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <span className="font-semibold text-sm text-gray-800">Map Settings</span>
+            <button onClick={() => setShowMapSettings(false)} className="text-gray-400 hover:text-gray-600 text-lg w-6 h-6 flex items-center justify-center">✕</button>
+          </div>
+          <div className="p-3 flex flex-col gap-1">
+            {/* Heatmap */}
+            <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
+              <span className="text-sm text-gray-700">🌡️ Heatmap</span>
+              <input type="checkbox" checked={showHeatmap} onChange={e => setShowHeatmap(e.target.checked)} className="w-4 h-4 accent-orange-500" />
+            </label>
+            {showHeatmap && (
+              <div className="flex items-center gap-2 px-2 pb-1">
+                <span className="text-xs text-gray-400 w-5 shrink-0">r</span>
+                <input type="range" min={4} max={500} value={heatmapRadius} onChange={e => setHeatmapRadius(Number(e.target.value))} className="flex-1 accent-orange-500" />
+                <span className="text-xs text-orange-500 font-mono w-8 text-right">{heatmapRadius}</span>
+              </div>
+            )}
+            <div className="border-t border-gray-100 my-1" />
+            {/* Source colors */}
+            <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
+              <span className="text-sm text-gray-700">🗺 Source colors</span>
+              <input type="checkbox" checked={showSourceColors} onChange={e => setShowSourceColors(e.target.checked)} className="w-4 h-4 accent-slate-500" />
+            </label>
+            {/* Brand colors */}
+            <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
+              <span className="text-sm text-gray-700">🏷 Brand colors</span>
+              <input type="checkbox" checked={showBrandColors} onChange={e => setShowBrandColors(e.target.checked)} className="w-4 h-4 accent-slate-500" />
+            </label>
+            {/* Provider legend — only when source colors on */}
+            {showSourceColors && (
+              <div className="mt-2 pt-2 border-t border-gray-100">
+                <div className="text-xs text-gray-400 font-medium px-2 mb-1">Scraper sources</div>
+                {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
+                  <div key={p} className="flex items-center gap-2 px-2 py-0.5">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                    <span className="text-xs text-gray-600">{p}</span>
+                  </div>
+                ))}
+                <div className="px-2 mt-1 text-[10px] text-gray-400">black ring = has images</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Desktop recently visited panel */}
       {showRecently && !isMobile && (
@@ -1154,24 +1206,47 @@ export default function CleanApp() {
               <button onClick={() => setShowMobileMenu(false)} className="text-gray-400 hover:text-gray-600 text-xl w-8 h-8 flex items-center justify-center">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto">
+              {/* Map Settings section */}
               <button
-                onClick={() => { setShowMobileMenu(false); setShowHeatmap(h => !h) }}
-                className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left ${showHeatmap ? 'bg-orange-50' : ''}`}
+                onClick={() => setShowMapSettings(v => !v)}
+                className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left ${showMapSettings ? 'bg-slate-50' : ''}`}
               >
-                <span className="text-xl w-7">🌡️</span>
-                <span className={`text-sm font-medium ${showHeatmap ? 'text-orange-600' : 'text-gray-700'}`}>
-                  Heatmap {showHeatmap ? '(on)' : ''}
+                <span className="text-xl w-7">🗺</span>
+                <span className={`text-sm font-medium ${showMapSettings ? 'text-slate-700' : 'text-gray-700'}`}>
+                  Map {(showHeatmap || showSourceColors || showBrandColors) ? '●' : ''}
                 </span>
               </button>
-              {showHeatmap && (
-                <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-orange-50">
-                  <span className="text-xs text-gray-500 w-14 shrink-0">Radius</span>
-                  <input
-                    type="range" min={4} max={500} value={heatmapRadius}
-                    onChange={e => setHeatmapRadius(Number(e.target.value))}
-                    className="flex-1 accent-orange-500"
-                  />
-                  <span className="text-xs text-orange-600 w-5 text-right">{heatmapRadius}</span>
+              {showMapSettings && (
+                <div className="border-b border-gray-100 bg-slate-50 px-5 py-3 flex flex-col gap-2">
+                  <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
+                    <span>🌡️ Heatmap</span>
+                    <input type="checkbox" checked={showHeatmap} onChange={e => setShowHeatmap(e.target.checked)} className="w-4 h-4 accent-orange-500" />
+                  </label>
+                  {showHeatmap && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400 w-5">r</span>
+                      <input type="range" min={4} max={500} value={heatmapRadius} onChange={e => setHeatmapRadius(Number(e.target.value))} className="flex-1 accent-orange-500" />
+                      <span className="text-xs text-orange-500 font-mono w-8 text-right">{heatmapRadius}</span>
+                    </div>
+                  )}
+                  <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
+                    <span>🗺 Source colors</span>
+                    <input type="checkbox" checked={showSourceColors} onChange={e => setShowSourceColors(e.target.checked)} className="w-4 h-4 accent-slate-500" />
+                  </label>
+                  <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
+                    <span>🏷 Brand colors</span>
+                    <input type="checkbox" checked={showBrandColors} onChange={e => setShowBrandColors(e.target.checked)} className="w-4 h-4 accent-slate-500" />
+                  </label>
+                  {showSourceColors && (
+                    <div className="pt-1 border-t border-gray-200">
+                      {Object.entries(PROVIDER_COLORS).map(([p, color]) => (
+                        <div key={p} className="flex items-center gap-2 py-0.5">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                          <span className="text-xs text-gray-600">{p}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {/* Recently visited section */}
