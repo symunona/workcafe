@@ -994,11 +994,12 @@ func main() {
 
 			taggerRows, err := db.Query(`
 				SELECT
-					COALESCE(tagger, '(untagged)') as tagger,
+					tagger,
 					COUNT(DISTINCT image_id) as tagged,
 					MAX(tagged_at) as last_at,
 					SUM(CASE WHEN tagged_at >= ? THEN 1 ELSE 0 END) as tags_last_hour
 				FROM image_tags
+				WHERE tagger IS NOT NULL
 				GROUP BY tagger
 				ORDER BY last_at DESC
 			`, h1agoISO)
