@@ -667,10 +667,11 @@ export default function CleanApp() {
   const searchResults = useMemo(() => [...filteredCafeMap.values()].slice(0, 8), [filteredCafeMap])
 
   const handleSearchSelect = useCallback((cafe: CleanCafe) => {
+    addVisit({ id: cafe.id, name: cafe.name, lat: cafe.lat, lon: cafe.lon, timestamp: Date.now() })
     setMapTarget([cafe.lat, cafe.lon])
     navigate(`/cafe/${cafe.id}`)
     setSearchQuery('')
-  }, [navigate])
+  }, [navigate, addVisit])
 
   const clearFilters = useCallback(() => {
     setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set(), tags: new Set(), customWebsite: false })
@@ -1003,7 +1004,13 @@ export default function CleanApp() {
 
       {/* Bottom right: Cafe counts badge */}
       <div className="absolute right-[10px] z-[500] pointer-events-none" style={{ bottom: 'calc(18px + env(safe-area-inset-bottom, 0px))' }}>
-        <div className="bg-white/90 rounded-lg shadow px-2 py-0.5 text-[11px] text-gray-500 font-medium">
+        <div className="bg-white/95 rounded-xl shadow px-3 py-1.5 text-sm text-gray-600 font-medium flex items-center gap-2">
+          {loading && (
+            <svg className="w-3.5 h-3.5 animate-spin text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
           {loading ? '…' : `${cafesInView.toLocaleString()} / ${total.toLocaleString()}`}
         </div>
       </div>
