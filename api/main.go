@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Cafe struct {
@@ -404,7 +404,7 @@ func (sc *snapshotCache) get(name string) (*sql.DB, error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf("snapshot not found: %s", name)
 	}
-	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)")
+	db, err := sql.Open("sqlite3", "file:"+path+"?_busy_timeout=5000")
 	if err != nil {
 		return nil, err
 	}
@@ -509,14 +509,14 @@ func main() {
 
 	// clean.db — normalized cafe + image data, served to frontend
 	// _pragma=journal_mode(WAL): join existing WAL; _pragma=busy_timeout(5000): wait up to 5s on lock
-	db, err := sql.Open("sqlite", "file:"+dbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)")
+	db, err := sql.Open("sqlite3", "file:"+dbPath+"?_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
 	// scraped.db — live scraper output; used only for real-time metrics in /api/status
-	rawDb, err := sql.Open("sqlite", "file:"+rawDbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)")
+	rawDb, err := sql.Open("sqlite3", "file:"+rawDbPath+"?_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL")
 	if err != nil {
 		log.Fatal(err)
 	}
