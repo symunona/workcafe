@@ -80,20 +80,11 @@ type HourlyStat struct {
 	Provider string `json:"provider"`
 }
 
-type TaggerStat struct {
-	Tagger       string  `json:"tagger"`
-	TaggedImages int     `json:"tagged_images"`
-	TotalImages  int     `json:"total_images"`
-	PctTagged    float64 `json:"pct_tagged"`
-	TagsPerHour  float64 `json:"tags_per_hour"`
-	LastTaggedAt string  `json:"last_tagged_at"`
-}
 
 type StatusResponse struct {
 	Services          []ServiceStatus        `json:"services"`
 	PerProvider       []ProviderMetrics      `json:"per_provider"`
 	FinishedProviders []string               `json:"finished_providers"`
-	Taggers                []TaggerStat           `json:"taggers"`
 	OverallTaggedImages    int                    `json:"overall_tagged_images"`
 	OverallImgsPerHour     float64                `json:"overall_imgs_per_hour"`
 	TotalCafes             int                    `json:"total_cafes"`
@@ -283,21 +274,6 @@ var (
 
 const statusCacheTTL = 8 * time.Second
 
-// Tagger stats sub-cache — recomputed less often because COUNT(DISTINCT) over
-// 2M+ rows is expensive and tagging rate is ~1 img/s so 60s staleness is fine.
-var (
-	taggerCacheMu  sync.Mutex
-	taggerCached   taggerCacheEntry
-	taggerCachedAt time.Time
-)
-
-const taggerCacheTTL = 60 * time.Second
-
-type taggerCacheEntry struct {
-	OverallTaggedImages int
-	OverallImgsPerHour  float64
-	Taggers             []TaggerStat
-}
 
 func getDiskStats(dataDir string) DiskStats {
 	const ttl = 5 * time.Minute
@@ -979,55 +955,14 @@ func main() {
 		resp.DbQueue = getQueueStats(dataDir)
 		log.Printf("[status] getDiskStats + getQueueStats: %v", time.Since(t)); t = time.Now()
 
-		// Tagger stats — from clean.db image_tags (60s sub-cache: COUNT(DISTINCT) is expensive)
-		taggerCacheMu.Lock()
-		if time.Since(taggerCachedAt) >= taggerCacheTTL {
-			var totalDownloaded int
-			db.QueryRow(`SELECT COUNT(*) FROM images WHERE file_size > 0`).Scan(&totalDownloaded)
-			h1agoISO := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
-
-			var entry taggerCacheEntry
-			db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL`).Scan(&entry.OverallTaggedImages)
-			var overallImgsLastHour int
-			db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL AND tagged_at >= ?`, h1agoISO).Scan(&overallImgsLastHour)
-			entry.OverallImgsPerHour = float64(overallImgsLastHour)
-
-			taggerRows, err := db.Query(`
-				SELECT
-					tagger,
-					COUNT(DISTINCT image_id) as tagged,
-					MAX(tagged_at) as last_at,
-					SUM(CASE WHEN tagged_at >= ? THEN 1 ELSE 0 END) as tags_last_hour
-				FROM image_tags
-				WHERE tagger IS NOT NULL
-				GROUP BY tagger
-				ORDER BY last_at DESC
-			`, h1agoISO)
-			if err == nil {
-				defer taggerRows.Close()
-				for taggerRows.Next() {
-					var ts TaggerStat
-					var tagsLastHour int
-					taggerRows.Scan(&ts.Tagger, &ts.TaggedImages, &ts.LastTaggedAt, &tagsLastHour)
-					ts.TotalImages = totalDownloaded
-					if totalDownloaded > 0 {
-						ts.PctTagged = float64(ts.TaggedImages) * 100.0 / float64(totalDownloaded)
-					}
-					ts.TagsPerHour = float64(tagsLastHour)
-					entry.Taggers = append(entry.Taggers, ts)
-				}
-			}
-			taggerCached = entry
-			taggerCachedAt = time.Now()
-			log.Printf("[status] tagger stats recomputed (clean.db, 3 queries): %v", time.Since(t))
-		} else {
-			log.Printf("[status] tagger stats from sub-cache (age: %v)", time.Since(taggerCachedAt))
-		}
-		resp.OverallTaggedImages = taggerCached.OverallTaggedImages
-		resp.OverallImgsPerHour = taggerCached.OverallImgsPerHour
-		resp.Taggers = taggerCached.Taggers
-		taggerCacheMu.Unlock()
-		t = time.Now()
+		// Tagger stats — from clean.db image_tags
+		// COUNT(DISTINCT) over named taggers only (~874k rows); no GROUP BY needed.
+		h1agoISO := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
+		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL`).Scan(&resp.OverallTaggedImages)
+		var imgsLastHour int
+		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL AND tagged_at >= ?`, h1agoISO).Scan(&imgsLastHour)
+		resp.OverallImgsPerHour = float64(imgsLastHour)
+		log.Printf("[status] tagger stats (clean.db, 2 queries): %v", time.Since(t)); t = time.Now()
 
 		body, err := json.Marshal(resp)
 		if err != nil {
