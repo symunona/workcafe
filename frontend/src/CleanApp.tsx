@@ -85,7 +85,25 @@ const MAP_POS_KEY = 'workcafe_map_pos'
 const DEFAULT_CENTER: [number, number] = [37.4919824, 126.9907758]
 const DEFAULT_ZOOM = 15
 
+function parseHashPos(): { center: [number, number]; zoom: number } | null {
+  try {
+    const parts = window.location.hash.slice(1).split('/')
+    if (parts.length >= 3) {
+      const zoom = parseInt(parts[0])
+      const lat = parseFloat(parts[1])
+      const lon = parseFloat(parts[2])
+      if (!isNaN(zoom) && !isNaN(lat) && !isNaN(lon) &&
+          lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 &&
+          zoom >= 1 && zoom <= 20)
+        return { center: [lat, lon], zoom }
+    }
+  } catch {}
+  return null
+}
+
 function loadMapPos(): { center: [number, number]; zoom: number } {
+  const fromHash = parseHashPos()
+  if (fromHash) return fromHash
   try {
     const raw = localStorage.getItem(MAP_POS_KEY)
     if (raw) {
@@ -102,6 +120,8 @@ function MapPositionSaver() {
       const c = e.target.getCenter()
       const zoom = e.target.getZoom()
       localStorage.setItem(MAP_POS_KEY, JSON.stringify({ lat: c.lat, lng: c.lng, zoom }))
+      const hash = `#${zoom}/${c.lat.toFixed(5)}/${c.lng.toFixed(5)}`
+      history.replaceState(null, '', window.location.pathname + window.location.search + hash)
     },
   })
   return null
