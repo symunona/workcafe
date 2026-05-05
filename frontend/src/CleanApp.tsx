@@ -5,7 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { CleanCafe, Chain } from './types'
 import { PROVIDER_COLORS } from './utils'
-import { makePieIcon, CHAIN_COLORS } from './utils_clean'
+import { makePieIcon, makeStarIcon, CHAIN_COLORS, CAFE_BROWN_HIGHLIGHT } from './utils_clean'
 import { CleanCafeDetailsPane } from './components/CleanCafeDetailsPane'
 import { CafeDetailsPage } from './components/CafeDetailsPage'
 import { SettingsModal } from './components/SettingsModal'
@@ -13,6 +13,7 @@ import { Checkbox } from './components/Checkbox'
 import { SnapshotSelector, useSnapshot } from './components/SnapshotSelector'
 import { TagBrowserOverlay } from './components/TagBrowserOverlay'
 import { AboutModal } from './components/AboutModal'
+import { SeoulSubwayLayer } from './components/SeoulSubwayLayer'
 
 declare const __GIT_SHA__: string
 declare const __BUILD_DATE__: string
@@ -41,6 +42,7 @@ interface MarkerLayerProps {
   showSourceColors: boolean
   showBrandColors: boolean
   showImageRing: boolean
+  favoriteIds: Set<string>
 }
 
 const STARRED_TAGS_KEY = 'workcafe_starred_tags'
@@ -134,11 +136,11 @@ function LocationDotLayer({ location }: { location: [number, number] | null }) {
   return null
 }
 
-function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColors, showImageRing }: MarkerLayerProps) {
+function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColors, showImageRing, favoriteIds }: MarkerLayerProps) {
   const map = useMap()
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const layerRef = useRef<L.LayerGroup | null>(null)
-  const colorKeyRef = useRef(`${showSourceColors}-${showBrandColors}-${showImageRing}`)
+  const colorKeyRef = useRef(`${showSourceColors}-${showBrandColors}-${showImageRing}-`)
 
   useEffect(() => {
     if (!layerRef.current) {
@@ -155,7 +157,8 @@ function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColor
     const layer = layerRef.current
     if (!layer) return
 
-    const newColorKey = `${showSourceColors}-${showBrandColors}-${showImageRing}`
+    const favKey = [...favoriteIds].sort().join(',')
+    const newColorKey = `${showSourceColors}-${showBrandColors}-${showImageRing}-${favKey}`
     const colorChanged = newColorKey !== colorKeyRef.current
     colorKeyRef.current = newColorKey
 
@@ -168,10 +171,14 @@ function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColor
 
       existing.get(cafe.id)?.remove()
 
+      const isFav = favoriteIds.has(cafe.id)
       const providers = Array.isArray(cafe.providers)
         ? cafe.providers
         : (JSON.parse(cafe.providers as unknown as string ?? '[]') as string[])
-      const icon = makePieIcon(providers, 14, cafe.image_count > 0, cafe.chain_name_english || cafe.chain_name, showSourceColors, showBrandColors, showImageRing)
+      const chainName = cafe.chain_name_english || cafe.chain_name
+      const icon = isFav
+        ? makeStarIcon(18, (chainName && CHAIN_COLORS[chainName]) || CAFE_BROWN_HIGHLIGHT)
+        : makePieIcon(providers, 14, cafe.image_count > 0, chainName, showSourceColors, showBrandColors, showImageRing)
       const marker = L.marker([cafe.lat, cafe.lon], { icon })
       marker.on('click', () => onSelect(cafe.id))
       marker.addTo(layer)
@@ -182,7 +189,7 @@ function MarkerLayer({ scraped_cafes, onSelect, showSourceColors, showBrandColor
       existing.get(id)?.remove()
       existing.delete(id)
     }
-  }, [scraped_cafes, onSelect, showSourceColors, showBrandColors, showImageRing])
+  }, [scraped_cafes, onSelect, showSourceColors, showBrandColors, showImageRing, favoriteIds])
 
   return null
 }
@@ -283,6 +290,40 @@ interface VisitEntry {
 }
 
 const RECENTLY_KEY = 'workcafe_recently_visited'
+const FAVORITES_KEY = 'workcafe_favorites'
+
+interface FavoriteEntry {
+  id: string
+  name: string
+  lat: number
+  lon: number
+  timestamp: number
+}
+
+function useFavorites() {
+  const [favorites, setFavorites] = useState<FavoriteEntry[]>(() => {
+    try {
+      const raw = localStorage.getItem(FAVORITES_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
+  const favoriteIds = useMemo(() => new Set(favorites.map(f => f.id)), [favorites])
+  const toggleFavorite = useCallback((entry: Omit<FavoriteEntry, 'timestamp'>) => {
+    setFavorites(prev => {
+      const exists = prev.some(f => f.id === entry.id)
+      const next = exists
+        ? prev.filter(f => f.id !== entry.id)
+        : [{ ...entry, timestamp: Date.now() }, ...prev]
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [])
+  const clearFavorites = useCallback(() => {
+    localStorage.removeItem(FAVORITES_KEY)
+    setFavorites([])
+  }, [])
+  return { favorites, favoriteIds, toggleFavorite, clearFavorites }
+}
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts
@@ -322,7 +363,7 @@ function useRecentlyVisited() {
   return { visits, addVisit, removeVisit, clearVisits }
 }
 
-function RecentlyVisitedLayer({ visits, selectedId }: { visits: VisitEntry[]; selectedId: string | null }) {
+function RecentlyVisitedLayer({ visits, selectedId, visibleIds }: { visits: VisitEntry[]; selectedId: string | null; visibleIds: Set<string> }) {
   const map = useMap()
   const layerRef = useRef<L.LayerGroup | null>(null)
 
@@ -330,7 +371,7 @@ function RecentlyVisitedLayer({ visits, selectedId }: { visits: VisitEntry[]; se
     if (!layerRef.current) layerRef.current = L.layerGroup().addTo(map)
     const layer = layerRef.current
     layer.clearLayers()
-    for (const v of visits) {
+    for (const v of visits.filter(v => visibleIds.has(v.id))) {
       const isSel = v.id === selectedId
       L.circleMarker([v.lat, v.lon], {
         radius: isSel ? 14 : 9,
@@ -341,7 +382,7 @@ function RecentlyVisitedLayer({ visits, selectedId }: { visits: VisitEntry[]; se
         interactive: false,
       }).addTo(layer)
     }
-  }, [map, visits, selectedId])
+  }, [map, visits, selectedId, visibleIds])
 
   useEffect(() => () => { layerRef.current?.remove(); layerRef.current = null }, [map])
 
@@ -476,6 +517,14 @@ export default function CleanApp() {
 
   const [showAbout, setShowAbout] = useState(false)
   const [showMapSettings, setShowMapSettings] = useState(false)
+  const [showLayers, setShowLayers] = useState(false)
+  const [showTransitLayer, setShowTransitLayer] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wc_transit_layer') ?? 'false') } catch { return false }
+  })
+  const [showSubwayLayer, setShowSubwayLayer] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('wc_subway_layer') ?? 'false') } catch { return false }
+  })
+  const [subwayLoading, setSubwayLoading] = useState(false)
   const [showHeatmap, setShowHeatmap] = useState(() => {
     try { return JSON.parse(localStorage.getItem('wc_heatmap') ?? 'false') } catch { return false }
   })
@@ -494,6 +543,9 @@ export default function CleanApp() {
   const [showRecently, setShowRecently] = useState(false)
   const [onlyMostRecent, setOnlyMostRecent] = useState(false)
   const { visits, addVisit, removeVisit, clearVisits } = useRecentlyVisited()
+  const { favorites, favoriteIds, toggleFavorite, clearFavorites } = useFavorites()
+  const [showFavorites, setShowFavorites] = useState(false)
+  const [onlyFavorites, setOnlyFavorites] = useState(false)
   const [heatmapPoints, setHeatmapPoints] = useState<[number, number][]>([])
   const heatmapAbortRef = useRef<AbortController | null>(null)
 
@@ -502,6 +554,8 @@ export default function CleanApp() {
   useEffect(() => { localStorage.setItem('wc_source_colors', JSON.stringify(showSourceColors)) }, [showSourceColors])
   useEffect(() => { localStorage.setItem('wc_brand_colors', JSON.stringify(showBrandColors)) }, [showBrandColors])
   useEffect(() => { localStorage.setItem('wc_image_ring', JSON.stringify(showImageRing)) }, [showImageRing])
+  useEffect(() => { localStorage.setItem('wc_transit_layer', JSON.stringify(showTransitLayer)) }, [showTransitLayer])
+  useEffect(() => { localStorage.setItem('wc_subway_layer', JSON.stringify(showSubwayLayer)) }, [showSubwayLayer])
 
   const isMobile = useIsMobile()
   const selectedId = id || null
@@ -651,20 +705,31 @@ export default function CleanApp() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredCafeMap = useMemo(() => {
-    if (!searchQuery.trim()) return cafeMap
-    const q = searchQuery.toLowerCase()
-    const result = new Map<string, CleanCafe>()
-    for (const [cid, cafe] of cafeMap) {
-      if (cafe.name.toLowerCase().includes(q) ||
-          cafe.english_name?.toLowerCase().includes(q) ||
-          cafe.address?.toLowerCase().includes(q)) {
-        result.set(cid, cafe)
+    let map = cafeMap
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const result = new Map<string, CleanCafe>()
+      for (const [cid, cafe] of cafeMap) {
+        if (cafe.name.toLowerCase().includes(q) ||
+            cafe.english_name?.toLowerCase().includes(q) ||
+            cafe.address?.toLowerCase().includes(q)) {
+          result.set(cid, cafe)
+        }
       }
+      map = result
     }
-    return result
-  }, [cafeMap, searchQuery])
+    if (onlyFavorites) {
+      const result = new Map<string, CleanCafe>()
+      for (const [cid, cafe] of map) {
+        if (favoriteIds.has(cid)) result.set(cid, cafe)
+      }
+      return result
+    }
+    return map
+  }, [cafeMap, searchQuery, onlyFavorites, favoriteIds])
 
   const searchResults = useMemo(() => [...filteredCafeMap.values()].slice(0, 8), [filteredCafeMap])
+  const filteredCafeIds = useMemo(() => new Set(filteredCafeMap.keys()), [filteredCafeMap])
 
   const handleSearchSelect = useCallback((cafe: CleanCafe) => {
     addVisit({ id: cafe.id, name: cafe.name, lat: cafe.lat, lon: cafe.lon, timestamp: Date.now() })
@@ -676,12 +741,14 @@ export default function CleanApp() {
   const clearFilters = useCallback(() => {
     setFilters({ withImages: false, multipleImages: false, providers: new Set(), chains: new Set(), tags: new Set(), customWebsite: false })
     setSearchQuery('')
+    setOnlyFavorites(false)
   }, [])
 
   const activeFilterCount =
     (filters.withImages ? 1 : 0) +
     (filters.multipleImages ? 1 : 0) +
     (filters.customWebsite ? 1 : 0) +
+    (onlyFavorites ? 1 : 0) +
     filters.providers.size +
     filters.chains.size +
     filters.tags.size
@@ -744,6 +811,16 @@ export default function CleanApp() {
             }`}
           >
             Custom website 🌐
+          </button>
+          <button
+            onClick={() => setOnlyFavorites(f => !f)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+              onlyFavorites
+                ? 'bg-amber-500 text-white border-amber-500'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-amber-400'
+            }`}
+          >
+            ⭐ Favorites{favorites.length > 0 ? ` (${favorites.length})` : ''}
           </button>
         </div>
       </div>
@@ -869,15 +946,25 @@ export default function CleanApp() {
           subdomains="abcd"
           maxZoom={20}
         />
+        {showTransitLayer && (
+          <TileLayer
+            attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Style: &copy; <a href="https://www.OpenRailwayMap.org">OpenRailwayMap</a> (CC-BY-SA)'
+            url="https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png"
+            subdomains="abcd"
+            maxZoom={19}
+            opacity={0.7}
+          />
+        )}
+        {showSubwayLayer && <SeoulSubwayLayer onLoading={setSubwayLoading} />}
         <ViewportTracker onBoundsChange={handleBoundsChange} />
         <MapPositionSaver />
         <MapPanner target={mapTarget} />
-        {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} showSourceColors={showSourceColors} showBrandColors={showBrandColors} showImageRing={showImageRing} />}
+        {!showHeatmap && <MarkerLayer scraped_cafes={filteredCafeMap} onSelect={handleSelect} showSourceColors={showSourceColors} showBrandColors={showBrandColors} showImageRing={showImageRing} favoriteIds={favoriteIds} />}
         {showHeatmap && <HeatmapLayer points={heatmapPoints} radiusMult={heatmapRadius / 10} />}
         <LocationDotLayer location={userLocation} />
         <ScaleControl position="bottomright" metric imperial={false} />
         <ScalePositioner />
-        <RecentlyVisitedLayer visits={visits} selectedId={selectedId} />
+        <RecentlyVisitedLayer visits={visits} selectedId={selectedId} visibleIds={filteredCafeIds} />
       </MapContainer>
 
       {/* Top left: Logo + Desktop search bar */}
@@ -930,11 +1017,25 @@ export default function CleanApp() {
           Map
         </button>
         <button
+          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${showLayers ? 'ring-2 ring-indigo-400 text-indigo-700' : (showTransitLayer || showSubwayLayer) ? 'ring-2 ring-indigo-200 text-indigo-500' : 'text-gray-500'}`}
+          onClick={() => setShowLayers(v => !v)}
+          title="Overlay layers"
+        >
+          🚇 Layers
+        </button>
+        <button
           className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${visits.length > 0 ? 'text-amber-600' : 'text-gray-400'}`}
           onClick={() => setShowRecently(r => !r)}
           title="Recently visited"
         >
           🕐 {visits.length > 0 ? visits.length : ''}
+        </button>
+        <button
+          className={`bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors ${showFavorites ? 'ring-2 ring-amber-400' : ''} ${favorites.length > 0 ? 'text-amber-500' : 'text-gray-400'}`}
+          onClick={() => setShowFavorites(r => !r)}
+          title="Favorites"
+        >
+          ⭐ {favorites.length > 0 ? favorites.length : ''}
         </button>
         <button
           className="bg-white rounded-lg shadow px-3 py-1.5 text-sm hover:bg-gray-50 text-gray-500"
@@ -1079,6 +1180,36 @@ export default function CleanApp() {
         </div>
       )}
 
+      {/* Desktop Layers panel */}
+      {showLayers && !isMobile && <div className="fixed inset-0 z-[599]" onClick={() => setShowLayers(false)} />}
+      {showLayers && !isMobile && (
+        <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl w-64">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <span className="font-semibold text-sm text-gray-800">Overlay Layers</span>
+            <button onClick={() => setShowLayers(false)} className="text-gray-400 hover:text-gray-600 text-lg w-6 h-6 flex items-center justify-center">✕</button>
+          </div>
+          <div className="p-3 flex flex-col gap-1">
+            <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
+              <div>
+                <div className="text-sm text-gray-700">🚇 Subway / Railway</div>
+                <div className="text-[10px] text-gray-400">OpenRailwayMap · OSM data</div>
+              </div>
+              <input type="checkbox" checked={showTransitLayer} onChange={e => setShowTransitLayer(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+            </label>
+            <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
+              <div>
+                <div className="text-sm text-gray-700">
+                  🗺 Seoul Metro (colored)
+                  {showSubwayLayer && subwayLoading && <span className="ml-1 text-[10px] text-indigo-400 animate-pulse">loading…</span>}
+                </div>
+                <div className="text-[10px] text-gray-400">OpenStreetMap · Overpass API</div>
+              </div>
+              <input type="checkbox" checked={showSubwayLayer} onChange={e => setShowSubwayLayer(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+            </label>
+          </div>
+        </div>
+      )}
+
       {/* Desktop recently visited panel */}
       {showRecently && !isMobile && (
         <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl w-72 max-h-[70vh] overflow-y-auto">
@@ -1118,6 +1249,47 @@ export default function CleanApp() {
                     className="shrink-0 px-2 py-2 text-gray-300 hover:text-gray-600 text-sm"
                     title="Remove from history"
                   >✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Desktop favorites panel */}
+      {showFavorites && !isMobile && (
+        <div className="absolute top-14 right-3 z-[600] bg-white rounded-xl shadow-2xl w-72 max-h-[70vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white">
+            <span className="font-semibold text-sm text-gray-800">⭐ Favorites</span>
+            <div className="flex items-center gap-3">
+              {favorites.length > 0 && (
+                <button onClick={clearFavorites} className="text-xs text-red-400 hover:text-red-600" title="Clear all favorites">Clear all</button>
+              )}
+              <button onClick={() => setShowFavorites(false)} className="text-gray-400 hover:text-gray-600 text-lg w-6 h-6 flex items-center justify-center">✕</button>
+            </div>
+          </div>
+          {favorites.length === 0 ? (
+            <div className="px-4 py-6 text-xs text-gray-400 text-center">No favorites yet. Open a cafe and click ☆ to favorite it.</div>
+          ) : (
+            <div>
+              {favorites.map(f => (
+                <div
+                  key={f.id}
+                  className={`flex items-center gap-1 border-b border-gray-50 ${f.id === selectedId ? 'bg-amber-50' : ''}`}
+                >
+                  <button
+                    onClick={() => { navigate(`/cafe/${f.id}`); setShowFavorites(false) }}
+                    className="flex-1 flex items-center gap-3 px-4 py-2.5 hover:bg-black/5 text-left min-w-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-800 truncate">{f.name}</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => toggleFavorite({ id: f.id, name: f.name, lat: f.lat, lon: f.lon })}
+                    className="shrink-0 px-2 py-2 text-amber-400 hover:text-gray-400 text-sm"
+                    title="Remove from favorites"
+                  >⭐</button>
                 </div>
               ))}
             </div>
@@ -1168,6 +1340,16 @@ export default function CleanApp() {
                   }`}
                 >
                   Custom website 🌐
+                </button>
+                <button
+                  onClick={() => setOnlyFavorites(f => !f)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors text-left ${
+                    onlyFavorites
+                      ? 'bg-amber-500 text-white border-amber-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-amber-400'
+                  }`}
+                >
+                  ⭐ Favorites{favorites.length > 0 ? ` (${favorites.length})` : ''}
                 </button>
               </div>
               {/* Chains */}
@@ -1364,6 +1546,37 @@ export default function CleanApp() {
                   )}
                 </div>
               )}
+              {/* Layers section */}
+              <button
+                onClick={() => setShowLayers(v => !v)}
+                className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left ${showLayers ? 'bg-indigo-50' : ''}`}
+              >
+                <span className="text-xl w-7">🚇</span>
+                <span className={`text-sm font-medium ${showLayers ? 'text-indigo-700' : 'text-gray-700'}`}>
+                  Layers {(showTransitLayer || showSubwayLayer) ? '●' : ''}
+                </span>
+              </button>
+              {showLayers && (
+                <div className="border-b border-gray-100 bg-indigo-50 px-5 py-3 flex flex-col gap-2">
+                  <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
+                    <div>
+                      <div>🚇 Subway / Railway</div>
+                      <div className="text-[10px] text-gray-400">OpenRailwayMap · OSM data</div>
+                    </div>
+                    <input type="checkbox" checked={showTransitLayer} onChange={e => setShowTransitLayer(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+                  </label>
+                  <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
+                    <div>
+                      <div>
+                        🗺 Seoul Metro (colored)
+                        {showSubwayLayer && subwayLoading && <span className="ml-1 text-[10px] text-indigo-400 animate-pulse">loading…</span>}
+                      </div>
+                      <div className="text-[10px] text-gray-400">OpenStreetMap · Overpass API</div>
+                    </div>
+                    <input type="checkbox" checked={showSubwayLayer} onChange={e => setShowSubwayLayer(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
+                  </label>
+                </div>
+              )}
               {/* Recently visited section */}
               <button
                 onClick={() => setShowRecently(r => !r)}
@@ -1407,6 +1620,50 @@ export default function CleanApp() {
                           className="shrink-0 px-3 py-2 text-gray-300 hover:text-gray-600 text-sm"
                           title="Remove"
                         >✕</button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+              {/* Favorites section */}
+              <button
+                onClick={() => setShowFavorites(r => !r)}
+                className={`w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 border-b border-gray-100 text-left ${showFavorites ? 'bg-amber-50' : ''}`}
+              >
+                <span className="text-xl w-7">⭐</span>
+                <span className={`text-sm font-medium ${showFavorites ? 'text-amber-600' : 'text-gray-700'}`}>
+                  Favorites {favorites.length > 0 ? `(${favorites.length})` : ''}
+                </span>
+              </button>
+              {showFavorites && (
+                <div className="border-b border-gray-100">
+                  <div className="flex items-center justify-between px-5 py-2 bg-amber-50">
+                    <span className="text-xs text-gray-500">Saved cafes</span>
+                    {favorites.length > 0 && (
+                      <button onClick={clearFavorites} className="text-xs text-red-400 hover:text-red-600">Clear all</button>
+                    )}
+                  </div>
+                  {favorites.length === 0 ? (
+                    <div className="px-5 py-3 text-xs text-gray-400">No favorites yet.</div>
+                  ) : (
+                    favorites.map(f => (
+                      <div
+                        key={f.id}
+                        className={`flex items-center border-t border-gray-50 ${f.id === selectedId ? 'bg-amber-50' : ''}`}
+                      >
+                        <button
+                          onClick={() => { navigate(`/cafe/${f.id}`); setShowMobileMenu(false); setShowFavorites(false) }}
+                          className="flex-1 flex items-center gap-3 px-5 py-2.5 hover:bg-black/5 text-left min-w-0"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-800 truncate">{f.name}</div>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => toggleFavorite({ id: f.id, name: f.name, lat: f.lat, lon: f.lon })}
+                          className="shrink-0 px-3 py-2 text-amber-400 hover:text-gray-400 text-sm"
+                          title="Remove"
+                        >⭐</button>
                       </div>
                     ))
                   )}
@@ -1469,6 +1726,8 @@ export default function CleanApp() {
           activeTags={filters.tags}
           starredTags={starredTags}
           isMobile={isMobile}
+          isFavorite={favoriteIds.has(selectedId)}
+          onToggleFavorite={toggleFavorite}
         />
       )}
 
