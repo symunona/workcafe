@@ -55,8 +55,8 @@ DESKTOP_UAS = [
 
 CAPTCHA_SIGNALS = [b'captcha', b'robot', b'bot detection', b'unusual traffic',
                    b'blocked', b'challenge', b'access denied',
-                   b'\xec\xb0\xa8\xeb\‹¨',  # Korean "차단" (blocked)
-                   b'\xeb\ณด\xec\•\x88',    # Korean "보안" (security)
+                   '자단'.encode(),  # Korean "차단" (blocked)
+                   '보안'.encode(),  # Korean "보안" (security)
                    ]
 
 logging.basicConfig(
