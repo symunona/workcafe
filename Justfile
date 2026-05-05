@@ -672,6 +672,7 @@ englishify:
 link-images:
     #!/usr/bin/env bash
     source venv/bin/activate
+    [ -S /tmp/workcafe_play_db.sock ] || bash scripts/start_play_db.sh
     python3 data-processing/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
 
 # Dedup raw scraped_cafes in scraped.db (same provider+location: keep latest).

@@ -120,6 +120,7 @@ TAG_FILTER: dict[str, str | None] = {
     "street food":    None,
     "food":           "food",
     # Drinks
+    "platter":        None,   # blocks "latte" in "platter" false positive
     "latte":          "latte",
     "espresso":       "espresso",
     "coffee cup":     "coffee",
@@ -172,15 +173,17 @@ TAG_FILTER: dict[str, str | None] = {
     "street dog":     None,
     "dog food":       None,
     "cat food":       None,
+    "catch":          None,   # blocks "cat" in "catch" false positive
+    "scatter":        None,   # blocks "cat" in "scatter" false positive
     "dog":            "dog",
     "cat":            "cat",
     # Activities
     "board game":     "board game",
     # Scene type
     "interior":           "interior",
+    "building exterior":  "building exterior",  # must precede "exterior"
     "outdoor":            "exterior",
     "exterior":           "exterior",
-    "building exterior":  "building exterior",
     "building":           "building exterior",
     "facade":             "building exterior",
     "street view":        "street view",
