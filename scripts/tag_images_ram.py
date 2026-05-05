@@ -247,6 +247,10 @@ def _write_with_retry(conn: sqlite3.Connection, fn) -> None:
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower():
                 raise
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             print(f"\n{Y}WARNING: DB locked — {e}. Attempt {attempt}/{DB_WRITE_RETRIES}. Retrying in {DB_WRITE_PAUSE}s...{NC}", flush=True)
             time.sleep(DB_WRITE_PAUSE)
     raise sqlite3.OperationalError(f"DB still locked after {DB_WRITE_RETRIES} retries ({DB_WRITE_PAUSE}s each)")
