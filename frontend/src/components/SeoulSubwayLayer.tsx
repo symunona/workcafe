@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { GeoJSON } from 'react-leaflet'
+import { GeoJSON, CircleMarker, Tooltip } from 'react-leaflet'
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
-const CACHE_KEY = 'wc_seoul_subway_gj_v1'
+const CACHE_KEY = 'wc_seoul_subway_v2'
 
+// Fetch route relations (line geometry) + station nodes in one request
 const QUERY = `[out:json][timeout:60][bbox:37.41,126.73,37.72,127.18];
-relation["route"="subway"];
+(
+  relation["route"="subway"];
+  node["railway"="station"]["subway"="yes"];
+);
 out geom;`
 
 const LINE_COLORS: Record<string, string> = {
@@ -16,32 +20,55 @@ const LINE_COLORS: Record<string, string> = {
   'S': '#77C4A3',
 }
 
-function buildGeoJSON(data: any): any {
+interface Station {
+  lat: number
+  lon: number
+  name: string
+  nameEn: string
+}
+
+interface SubwayData {
+  lines: any
+  stations: Station[]
+}
+
+function buildData(raw: any): SubwayData {
   const features: any[] = []
-  for (const el of data.elements ?? []) {
-    if (el.type !== 'relation') continue
-    const ref = el.tags?.ref || ''
-    const color = el.tags?.colour || el.tags?.color || LINE_COLORS[ref] || '#888'
-    const name = el.tags?.['name:en'] || el.tags?.name || ''
-    const coords: [number, number][][] = []
-    for (const m of el.members ?? []) {
-      if (m.type === 'way' && Array.isArray(m.geometry) && m.geometry.length > 1) {
-        coords.push(m.geometry.map((p: { lon: number; lat: number }) => [p.lon, p.lat]))
+  const stations: Station[] = []
+
+  for (const el of raw.elements ?? []) {
+    if (el.type === 'relation') {
+      const ref = el.tags?.ref || ''
+      const color = el.tags?.colour || el.tags?.color || LINE_COLORS[ref] || '#888'
+      const name = el.tags?.['name:en'] || el.tags?.name || ''
+      const coords: [number, number][][] = []
+      for (const m of el.members ?? []) {
+        if (m.type === 'way' && Array.isArray(m.geometry) && m.geometry.length > 1) {
+          coords.push(m.geometry.map((p: { lon: number; lat: number }) => [p.lon, p.lat]))
+        }
       }
-    }
-    if (coords.length) {
-      features.push({
-        type: 'Feature',
-        properties: { name, color },
-        geometry: { type: 'MultiLineString', coordinates: coords },
+      if (coords.length) {
+        features.push({
+          type: 'Feature',
+          properties: { name, color },
+          geometry: { type: 'MultiLineString', coordinates: coords },
+        })
+      }
+    } else if (el.type === 'node' && el.tags?.railway === 'station') {
+      stations.push({
+        lat: el.lat,
+        lon: el.lon,
+        name: el.tags.name || '',
+        nameEn: el.tags['name:en'] || el.tags.name || '',
       })
     }
   }
-  return { type: 'FeatureCollection', features }
+
+  return { lines: { type: 'FeatureCollection', features }, stations }
 }
 
 export function SeoulSubwayLayer({ onLoading }: { onLoading?: (v: boolean) => void }) {
-  const [data, setData] = useState<any | null>(null)
+  const [data, setData] = useState<SubwayData | null>(null)
   const onLoadingRef = useRef(onLoading)
   onLoadingRef.current = onLoading
 
@@ -59,9 +86,9 @@ export function SeoulSubwayLayer({ onLoading }: { onLoading?: (v: boolean) => vo
       .then(r => r.json())
       .then(raw => {
         if (!alive) return
-        const gj = buildGeoJSON(raw)
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(gj))
-        setData(gj)
+        const d = buildData(raw)
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(d))
+        setData(d)
       })
       .catch(() => {})
       .finally(() => { if (alive) onLoadingRef.current?.(false) })
@@ -70,14 +97,28 @@ export function SeoulSubwayLayer({ onLoading }: { onLoading?: (v: boolean) => vo
 
   if (!data) return null
   return (
-    <GeoJSON
-      key={data.features?.length ?? 0}
-      data={data}
-      style={(feature: any) => ({
-        color: feature?.properties?.color ?? '#666',
-        weight: 3.5,
-        opacity: 0.85,
-      })}
-    />
+    <>
+      <GeoJSON
+        key={data.lines.features?.length ?? 0}
+        data={data.lines}
+        style={(feature: any) => ({
+          color: feature?.properties?.color ?? '#666',
+          weight: 3,
+          opacity: 0.55,
+        })}
+      />
+      {data.stations.map((s, i) => (
+        <CircleMarker
+          key={i}
+          center={[s.lat, s.lon]}
+          radius={5}
+          pathOptions={{ color: '#333', weight: 1.5, fillColor: '#fff', fillOpacity: 1 }}
+        >
+          <Tooltip direction="top" offset={[0, -6]}>
+            <span style={{ fontSize: 12 }}>{s.nameEn || s.name}</span>
+          </Tooltip>
+        </CircleMarker>
+      ))}
+    </>
   )
 }
