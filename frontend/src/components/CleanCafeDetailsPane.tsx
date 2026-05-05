@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { CleanCafe, ImageInfo, SourceCafe } from '../types'
 import { PROVIDER_COLORS } from '../utils'
@@ -10,6 +10,8 @@ interface Props {
   activeTags?: Set<string>
   starredTags?: Set<string>
   isMobile?: boolean
+  isFavorite?: boolean
+  onToggleFavorite?: (entry: { id: string; name: string; lat: number; lon: number }) => void
 }
 
 const PROVIDER_MAP_URL: Record<string, (lat: number, lon: number, name: string, src?: SourceCafe) => string> = {
@@ -24,7 +26,24 @@ const PROVIDER_LABEL: Record<string, string> = {
   google: 'Google Maps',
 }
 
-export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags, isMobile }: Props) {
+const FAV_PHOTOS_KEY = 'wc_fav_photos'
+
+function useFavoritePhotos() {
+  const [favIds, setFavIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(FAV_PHOTOS_KEY) ?? '[]')) } catch { return new Set() }
+  })
+  const toggle = useCallback((id: string) => {
+    setFavIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      localStorage.setItem(FAV_PHOTOS_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }, [])
+  return { favIds, toggle }
+}
+
+export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags, isMobile, isFavorite, onToggleFavorite }: Props) {
   const [cafe, setCafe] = useState<CleanCafe | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -33,6 +52,7 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const navigate = useNavigate()
   const { snapshot, apiUrl } = useSnapshot()
+  const { favIds: favPhotoIds, toggle: toggleFavPhoto } = useFavoritePhotos()
 
   useEffect(() => {
     setLoading(true)
@@ -84,10 +104,12 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
     return [...allImages.filter(img => img.tags?.length), ...allImages.filter(img => !img.tags?.length)]
   }, [allImages, activeTags, starredTags])
 
-  const displayImages = useMemo(() =>
-    tagFilter ? sortedImages.filter(img => img.tags?.some(t => t.tag === tagFilter)) : sortedImages,
-    [sortedImages, tagFilter]
-  )
+  const displayImages = useMemo(() => {
+    const imgs = tagFilter ? sortedImages.filter(img => img.tags?.some(t => t.tag === tagFilter)) : sortedImages
+    const favs = imgs.filter(img => favPhotoIds.has(String(img.id)))
+    const rest = imgs.filter(img => !favPhotoIds.has(String(img.id)))
+    return [...favs, ...rest]
+  }, [sortedImages, tagFilter, favPhotoIds])
 
   const imageCountByProvider = useMemo(() => {
     const counts = new Map<string, number>()
@@ -164,6 +186,17 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
             )}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+            {onToggleFavorite && (
+              <button
+                onClick={() => onToggleFavorite({ id: cafe.id, name: cafe.english_name || cafe.name, lat: cafe.lat, lon: cafe.lon })}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${isFavorite ? 'text-amber-400 hover:text-amber-500 hover:bg-amber-50' : 'text-gray-300 hover:text-amber-400 hover:bg-amber-50'}`}
+                title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+                </svg>
+              </button>
+            )}
             <button
               onClick={() => navigate(`/cafe/${cafe.id}?source=all`)}
               className="text-gray-400 hover:text-blue-600 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 transition-colors"
@@ -262,7 +295,7 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
               )}
               <div className="grid grid-cols-2 gap-px bg-gray-100">
                 {displayImages.map((img, i) => (
-                  <ImageTile key={img.id} img={img} activeTags={activeTags} starredTags={starredTags} onClick={() => setLightboxIndex(i)} />
+                  <ImageTile key={img.id} img={img} activeTags={activeTags} starredTags={starredTags} isFav={favPhotoIds.has(String(img.id))} onToggleFav={() => toggleFavPhoto(String(img.id))} onClick={() => setLightboxIndex(i)} />
                 ))}
               </div>
               <div className="px-3 py-2 text-xs text-gray-400 text-right">
@@ -280,16 +313,20 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
           onClose={() => setLightboxIndex(null)}
           onPrev={() => setLightboxIndex(i => i !== null ? Math.max(0, i - 1) : null)}
           onNext={() => setLightboxIndex(i => i !== null ? Math.min(displayImages.length - 1, i + 1) : null)}
+          favPhotoIds={favPhotoIds}
+          onToggleFavPhoto={toggleFavPhoto}
         />
       )}
     </>
   )
 }
 
-function ImageTile({ img, activeTags, starredTags, onClick }: {
+function ImageTile({ img, activeTags, starredTags, isFav, onToggleFav, onClick }: {
   img: ImageInfo
   activeTags?: Set<string>
   starredTags?: Set<string>
+  isFav?: boolean
+  onToggleFav?: () => void
   onClick: () => void
 }) {
   const [error, setError] = useState(false)
@@ -300,7 +337,6 @@ function ImageTile({ img, activeTags, starredTags, onClick }: {
   if (error) return <div className="aspect-video bg-gray-50" />
 
   const hitTags = img.tags?.filter(t => activeTags?.has(t.tag) || starredTags?.has(t.tag)) ?? []
-
   const providerColor = PROVIDER_COLORS[img.provider] ?? '#6b7280'
 
   return (
@@ -314,6 +350,14 @@ function ImageTile({ img, activeTags, starredTags, onClick }: {
         borderWidth: '0 10px 10px 0',
         borderColor: `transparent ${providerColor} transparent transparent`,
       }} />
+      {/* Fav star — top-left, visible when faved or on hover */}
+      <button
+        className={`absolute top-1 left-1 text-sm leading-none transition-opacity ${isFav ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}`}
+        onClick={e => { e.stopPropagation(); onToggleFav?.() }}
+        title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+      >
+        {isFav ? '★' : '☆'}
+      </button>
       {hitTags.length > 0 && (
         <div className="absolute bottom-1 left-1 flex flex-wrap gap-0.5 max-w-[90%]">
           {hitTags.slice(0, 3).map(t => (
@@ -328,12 +372,14 @@ function ImageTile({ img, activeTags, starredTags, onClick }: {
   )
 }
 
-function ImageLightbox({ images, index, onClose, onPrev, onNext }: {
+function ImageLightbox({ images, index, onClose, onPrev, onNext, favPhotoIds, onToggleFavPhoto }: {
   images: ImageInfo[]
   index: number
   onClose: () => void
   onPrev: () => void
   onNext: () => void
+  favPhotoIds?: Set<string>
+  onToggleFavPhoto?: (id: string) => void
 }) {
   const img = images[index]
   const [scale, setScale] = useState(1)
@@ -393,6 +439,18 @@ function ImageLightbox({ images, index, onClose, onPrev, onNext }: {
         </div>
         <div className="flex items-center gap-3 shrink-0 pointer-events-auto">
           <span className="text-white/40 text-xs font-mono">{index + 1}/{images.length}</span>
+          {onToggleFavPhoto && (() => {
+            const isFav = favPhotoIds?.has(String(img.id))
+            return (
+              <button
+                onClick={() => onToggleFavPhoto(String(img.id))}
+                className={`text-xl transition-colors ${isFav ? 'text-amber-400' : 'text-white/40 hover:text-white/80'}`}
+                title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                {isFav ? '★' : '☆'}
+              </button>
+            )
+          })()}
           <button onClick={onClose} className="text-white/70 hover:text-white text-xl">✕</button>
         </div>
       </div>
