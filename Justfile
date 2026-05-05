@@ -675,6 +675,19 @@ link-images:
     [ -S /tmp/workcafe_play_db.sock ] || bash scripts/start_play_db.sh
     python3 data-processing/06_update_image_links.py --socket /tmp/workcafe_play_db.sock
 
+# Re-download images with file_size=-1 (failed downloads from old scrapers, clean.db only).
+# Run per-provider. Safe to restart — skips files already on disk.
+[group('Data Pipeline')]
+redownload-failed provider="kakao":
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    case "{{provider}}" in
+      kakao)  python3 scripts/redownload_kakao_images.py ;;
+      naver)  python3 scripts/redownload_naver_images.py ;;
+      google) python3 scripts/redownload_google_images.py ;;
+      *) echo "Unknown provider: {{provider}}. Use kakao, naver, or google." && exit 1 ;;
+    esac
+
 # Dedup raw scraped_cafes in scraped.db (same provider+location: keep latest).
 # Manual only — mutates live scraped.db.
 [group('Data Pipeline')]
