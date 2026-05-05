@@ -85,14 +85,20 @@ def local_to_disk(local_path: str) -> str:
     return os.path.join(DATA_DIR, local_path.removeprefix("/images").lstrip("/"))
 
 
-def db_execute(conn: sqlite3.Connection, sql: str, params: tuple) -> bool:
+def db_execute_commit(conn: sqlite3.Connection, sql: str, params: tuple) -> bool:
+    """Execute + commit atomically, retrying on lock errors."""
     for attempt in range(DB_WRITE_RETRIES):
         try:
             conn.execute(sql, params)
+            conn.commit()
             return True
         except sqlite3.OperationalError as e:
-            if 'locked' in str(e) and attempt < DB_WRITE_RETRIES - 1:
+            if 'locked' in str(e).lower() and attempt < DB_WRITE_RETRIES - 1:
                 log.warning(f"DB locked, retry {attempt+1}/{DB_WRITE_RETRIES} in {DB_WRITE_PAUSE}s")
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
                 time.sleep(DB_WRITE_PAUSE)
             else:
                 log.error(f"DB write failed after {attempt+1} attempts: {e}")
@@ -131,9 +137,7 @@ def run():
         if os.path.exists(disk_path) and os.path.getsize(disk_path) > 0:
             if not args.dry_run:
                 size = os.path.getsize(disk_path)
-                db_execute(conn, "UPDATE images SET file_size = ? WHERE id = ? AND file_size = -1", (size, image_id))
-                if i % 500 == 0:
-                    conn.commit()
+                db_execute_commit(conn, "UPDATE images SET file_size = ? WHERE id = ? AND file_size = -1", (size, image_id))
             skipped += 1
             continue
 
@@ -161,10 +165,8 @@ def run():
                     time.sleep(backoff)
                     continue
 
-                if resp.status_code == 403:
-                    log.warning(f"403 Forbidden id={image_id} attempt={attempt+1} | url={image_url[:80]}")
-                    # Google 403 on CDN = URL expired; no point retrying same URL
-                    log.error(f"GIVE UP (403 = likely expired URL) id={image_id} | url={image_url[:80]}")
+                if resp.status_code in (403, 404):
+                    log.warning(f"HTTP {resp.status_code} id={image_id} — expired URL, giving up | url={image_url[:80]}")
                     break
 
                 if is_captcha(resp):
@@ -210,11 +212,10 @@ def run():
         try:
             actual_path, meta = save_image(data, disk_path)
             saved_local = "/images" + actual_path.removeprefix(DATA_DIR)
-            db_execute(conn, """
+            db_execute_commit(conn, """
                 UPDATE images SET file_size = ?, width = ?, height = ?, local_path = ?
                 WHERE id = ? AND file_size = -1
             """, (meta['file_size'], meta['width'], meta['height'], saved_local, image_id))
-            conn.commit()  # commit immediately — minimise write-lock hold time vs tagger
             ok += 1
         except OSError as e:
             log.error(f"save_image failed id={image_id}: {e} | disk_path={disk_path}")

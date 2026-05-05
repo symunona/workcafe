@@ -19,8 +19,10 @@ from pathlib import Path
 
 TAGGER = "ram_plus_v3"  # bump when TAG_FILTER or scoring logic changes
 
-DATA_DIR   = "data/seoul"
-BATCH_SIZE = 8   # swin_large BERT head needs lots of memory; 8 fits 4GB VRAM
+DATA_DIR        = "data/seoul"
+BATCH_SIZE      = 8   # swin_large BERT head needs lots of memory; 8 fits 4GB VRAM
+DB_WRITE_RETRIES = 10
+DB_WRITE_PAUSE   = 30  # seconds between retries on DB lock
 
 # RAM+ weights — only swin_large available (~2.3GB, fits 4GB VRAM when not running YOLO)
 # Regular RAM (less accurate) also available as fallback
@@ -235,6 +237,21 @@ def migrate(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _write_with_retry(conn: sqlite3.Connection, fn) -> None:
+    """Run fn(conn) with up to DB_WRITE_RETRIES retries on SQLite lock errors."""
+    Y = "\033[33m"; NC = "\033[0m"
+    for attempt in range(1, DB_WRITE_RETRIES + 1):
+        try:
+            fn(conn)
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower():
+                raise
+            print(f"\n{Y}WARNING: DB locked — {e}. Attempt {attempt}/{DB_WRITE_RETRIES}. Retrying in {DB_WRITE_PAUSE}s...{NC}", flush=True)
+            time.sleep(DB_WRITE_PAUSE)
+    raise sqlite3.OperationalError(f"DB still locked after {DB_WRITE_RETRIES} retries ({DB_WRITE_PAUSE}s each)")
+
+
 def sample_images(conn: sqlite3.Connection, n_cafes: int | None) -> list[tuple]:
     # Order: never-tagged first (priority=0), then old-tagger (priority=1).
     # Images already tagged by current TAGGER are excluded entirely.
@@ -284,12 +301,12 @@ def rollup(conn: sqlite3.Connection) -> None:
     cafe_tags: dict[str, dict[str, int]] = {}
     for cafe_id, tag, cnt in rows:
         cafe_tags.setdefault(cafe_id, {})[tag] = cnt
-    conn.executemany(
-        "UPDATE clean_cafes SET tags = ? WHERE id = ?",
-        [(json.dumps(dict(sorted(t.items(), key=lambda x: -x[1]))), cid)
-         for cid, t in cafe_tags.items()]
-    )
-    conn.commit()
+    update_rows = [(json.dumps(dict(sorted(t.items(), key=lambda x: -x[1]))), cid)
+                   for cid, t in cafe_tags.items()]
+    _write_with_retry(conn, lambda c: (
+        c.executemany("UPDATE clean_cafes SET tags = ? WHERE id = ?", update_rows),
+        c.commit(),
+    ))
 
 
 def build_tag_filter(all_ram_tags: list[str]) -> dict[int, str]:
@@ -375,7 +392,7 @@ def run() -> None:
             print(f"  {ram_tag_list[idx]!r:35s} → {name!r}")
             seen.add(name)
 
-    conn = sqlite3.connect(args.db)
+    conn = sqlite3.connect(args.db, timeout=120)
     migrate(conn)
 
     # ── Startup banner ────────────────────────────────────────────────────────
@@ -502,11 +519,13 @@ def run() -> None:
             tagged += 1
 
         if rows:
-            conn.executemany(
-                "INSERT OR REPLACE INTO image_tags (image_id, tag, score, boxes, tagged_at, tagger) VALUES (?, ?, ?, ?, ?, ?)",
-                rows,
-            )
-            conn.commit()
+            _write_with_retry(conn, lambda c: (
+                c.executemany(
+                    "INSERT OR REPLACE INTO image_tags (image_id, tag, score, boxes, tagged_at, tagger) VALUES (?, ?, ?, ?, ?, ?)",
+                    rows,
+                ),
+                c.commit(),
+            ))
             batches_since_checkpoint += 1
             if batches_since_checkpoint >= 100:
                 conn.execute("PRAGMA wal_checkpoint(PASSIVE)")

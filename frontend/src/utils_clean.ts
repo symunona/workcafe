@@ -82,6 +82,28 @@ export function makePieIcon(
   return L.divIcon({ html: svg, className: '', iconSize: [size, size], iconAnchor: [r, r] })
 }
 
+function starPoints(cx: number, cy: number, outerR: number, innerR: number): string {
+  const pts: string[] = []
+  for (let i = 0; i < 10; i++) {
+    const angle = (i * Math.PI / 5) - Math.PI / 2
+    const r = i % 2 === 0 ? outerR : innerR
+    pts.push(`${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`)
+  }
+  return pts.join(' ')
+}
+
+export const CAFE_BROWN_HIGHLIGHT = '#C4956A'
+
+export function makeStarIcon(size = 18, fill = CAFE_BROWN_HIGHLIGHT): L.DivIcon {
+  const cx = size / 2
+  const cy = size / 2
+  const points = starPoints(cx, cy, size / 2 - 0.5, (size / 2 - 0.5) * 0.42)
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="${points}" fill="${fill}" stroke="rgba(0,0,0,0.35)" stroke-width="0.8" />
+  </svg>`
+  return L.divIcon({ html: svg, className: '', iconSize: [size, size], iconAnchor: [cx, cy] })
+}
+
 export function cleanCafeImageCount(cafe: { image_count: number }): number {
   return cafe.image_count ?? 0
 }
