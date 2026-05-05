@@ -128,7 +128,7 @@ def run():
 
     log.info(f"=== redownload_kakao_images START {'[dry-run]' if args.dry_run else ''} ===")
 
-    conn = sqlite3.connect(CLEAN_DB)
+    conn = sqlite3.connect(CLEAN_DB, timeout=60)
     lim = f"LIMIT {args.limit}" if args.limit else ""
     rows = conn.execute(f"""
         SELECT id, image_url, local_path
@@ -231,13 +231,13 @@ def run():
                 UPDATE images SET file_size = ?, width = ?, height = ?, local_path = ?
                 WHERE id = ? AND file_size = -1
             """, (meta['file_size'], meta['width'], meta['height'], saved_local, image_id))
+            conn.commit()  # commit immediately — minimise write-lock hold time vs tagger
             ok += 1
         except OSError as e:
             log.error(f"save_image failed id={image_id}: {e} | disk_path={disk_path}")
             failed += 1
 
         if i % 200 == 0:
-            conn.commit()
             log.info(f"Progress [{i}/{total}] ok={ok} skip={skipped} fail={failed} captcha={captchas} rl={rate_limit_hits}")
 
         time.sleep(DELAY)
