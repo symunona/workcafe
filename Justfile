@@ -498,6 +498,24 @@ scrape-one provider="kakao" max_steps="100" region="seoul":
     esac
     WORKCAFE_REGION={{region}} PYTHONPATH=scraper/lib python "$script" --max-steps {{max_steps}}
 
+# Scrape photos for a random sample of one region's kakao cafes (focused). Usage: just scrape-region-images busan 6
+# Targets cafes by region bbox via --cafe-id, so it ignores the global random queue.
+# After it finishes, run `just merge-pipeline` (or the merge daemon) to surface images on the map.
+[group('Scrapers')]
+scrape-region-images region="busan" n="6":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source venv/bin/activate
+    export PYTHONPATH=scraper/lib
+    read LATMIN LATMAX LONMIN LONMAX < <(python -c "import sys,math; sys.path.insert(0,'scraper/lib'); import utils; lat,lon=utils.REGIONS['{{region}}']; r=utils.region_radius_km('{{region}}'); dlat=r/110.574; dlon=r/(111.320*math.cos(math.radians(lat))); print(lat-dlat,lat+dlat,lon-dlon,lon+dlon)")
+    IDS=$(sqlite3 data/seoul/scraped.db "SELECT id FROM scraped_cafes WHERE provider='kakao' AND lat BETWEEN $LATMIN AND $LATMAX AND lon BETWEEN $LONMIN AND $LONMAX ORDER BY RANDOM() LIMIT {{n}}")
+    [ -z "$IDS" ] && { echo "No kakao cafes in {{region}} yet — scrape places first: just scrape-one kakao 25 {{region}}"; exit 0; }
+    for id in $IDS; do
+        echo "── images for $id ──"
+        timeout 120 python scraper/images/scraper_kakao_images_v3.py --cafe-id "$id" 2>&1 | tail -3
+    done
+    echo "Done. Surface on map: just merge-pipeline (or let the merge daemon sync+link)."
+
 # Backup all DBs (online, consistent) → data/seoul/backups/<label>-<date>/. Usage: just backup-dbs [label]
 [group('Data Pipeline')]
 backup-dbs label="manual":

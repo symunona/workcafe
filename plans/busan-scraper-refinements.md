@@ -3,8 +3,11 @@
 > Ultra caveman log. Append as work go. Newest decisions bottom.
 > Numbered checkpoints: `busan-scraper-refinements-00.md` (region+sample), `-01.md` (safety+cleaner+push), `-02.md` (UI funnel).
 
-## STATUS @ 2026-06-23 00:24 — DENSE SUMMARY
-- **DONE def (user):** cafes pop up on UI on refresh w/ correct data. **MET** ✓ — 90 busan clean_cafes, translated, `/api/clean_cafes` busan bbox returns all 90 w/ correct lat/lon. Refresh map over Busan → they appear.
+## STATUS @ 2026-06-23 00:47 — DENSE SUMMARY
+- **SUCCESS (latest, user):** busan cafes have sample PICS on UI. **MET** ✓ — 6 cafes / 590 photos scraped+linked; browser-verified 고니스커피 detail pane shows 5 real photos (`tmp/busan_PICS.png`). Browser test now works (sandbox-off + started vite :5550).
+- **Prior DONE:** cafes pop up on map w/ correct data. **MET** ✓ — 90 busan clean_cafes, translated, `/api/clean_cafes` returns all 90.
+- **Images = separate scraper.** `kakao-images` (state table, random queue) was inactive → 0 busan imgs. Focused tool added: `just scrape-region-images busan N`. Link needs `06_link` (merge_daemon does it).
+- Checkpoints: -00 region+sample, -01 safety+push, -02 funnel, -03 merge-live, -04 images+browser.
 - **Region:** busan added, grid offset (+204,-239), config `data/regions.json`, Seoul untouched. ✓ live-verified.
 - **Scrape:** sample = 90 busan cafes, coords dead-on, names good. Resumable via progress table. ✓
 - **Merge fix:** kakao-first KILLED → all providers spatial-merge densest-first (streaming-safe). ✓ compiles.
