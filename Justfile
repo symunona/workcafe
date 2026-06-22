@@ -483,9 +483,10 @@ watchdog-reset name:
 
 # ── Scrapers ─────────────────────────────────────────────────────────────────
 
-# Run a specific scraper. Usage: just scrape-one [provider] [max_steps]
+# Run a specific scraper. Usage: just scrape-one [provider] [max_steps] [region]
+# region selects the spiral center: seoul (default) or busan.
 [group('Scrapers')]
-scrape-one provider="kakao" max_steps="100":
+scrape-one provider="kakao" max_steps="100" region="seoul":
     #!/usr/bin/env bash
     source venv/bin/activate
     case "{{provider}}" in
@@ -495,7 +496,37 @@ scrape-one provider="kakao" max_steps="100":
         osm)    script=scraper/places/scraper_osm.py ;;
         *) echo "Unknown provider: {{provider}}. Use: kakao, google, naver, osm"; exit 1 ;;
     esac
-    PYTHONPATH=scraper/lib python "$script" --max-steps {{max_steps}}
+    WORKCAFE_REGION={{region}} PYTHONPATH=scraper/lib python "$script" --max-steps {{max_steps}}
+
+# Backup all DBs (online, consistent) → data/seoul/backups/<label>-<date>/. Usage: just backup-dbs [label]
+[group('Data Pipeline')]
+backup-dbs label="manual":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BK="data/seoul/backups/{{label}}-$(date +%Y-%m-%d)"
+    mkdir -p "$BK"
+    for db in scraped clean englishify; do
+        [ -f "data/seoul/$db.db" ] || continue
+        echo "Backing up $db.db ..."
+        sqlite3 "data/seoul/$db.db" ".backup '$BK/$db.db'"
+    done
+    ls -lh "$BK"
+    echo "Backed up → $BK"
+
+# Delete ONE region from the DBs (Seoul refused). Dry-run unless confirm=yes. Usage: just clean-region busan [yes]
+[group('Data Pipeline')]
+clean-region region confirm="no":
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    FLAG=""; [ "{{confirm}}" = "yes" ] && FLAG="--confirm"
+    python data-processing/clean_region.py --region {{region}} $FLAG
+
+# Run the streaming merge daemon in the foreground (Ctrl+C to stop). Usage: just merge-daemon
+[group('Data Pipeline')]
+merge-daemon:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    PYTHONPATH=scraper/lib python data-processing/merge_daemon.py
 
 # Download images (v3, with full metadata). Usage: just images [cafe_id]
 [group('Scrapers')]
@@ -538,6 +569,15 @@ normalize limit="0":
     else
         python3 data-processing/04_normalize_pipeline.py --socket "$PLAY_SOCK" --englishify-db "$ENG_DB" --limit {{limit}}
     fi
+
+# Overwrite clean_cafes.english_name with Google's native English name where Google
+# already scraped a Latin-script name (beats LLM translations like Dahan-Gang).
+# Dry-run by default. Pass --apply to commit. Safe: only touches english_name column.
+[group('Data Pipeline')]
+fix-google-english-names *args:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 scripts/fix_google_english_names.py {{args}}
 
 # Create a spatial subset of scraped.db for fast pipeline testing.
 # Extracts scraped_cafes within a blocksize×blocksize meter square around center.
@@ -925,14 +965,22 @@ tag-images-yolo n="100" conf="0.25":
     echo "Done: $SNAPSHOT"
 
 # Tag all images in clean.db with RAM+ (continuous — skips already-tagged, safe to restart)
+# Runs in tmux session "image-pipeline". Skips if already running.
 [group('Data Pipeline')]
 image-pipeline vit="swin_large":
     #!/usr/bin/env bash
     set -euo pipefail
+    SESSION="image-pipeline"
+    if pgrep -f "tag_images_ram.py" > /dev/null; then
+        echo "image-pipeline already running (PID $(pgrep -f tag_images_ram.py | head -1)). Attach with: tmux attach -t $SESSION"
+        exit 0
+    fi
     PY="$(pwd)/venv/bin/python3"
-    echo "━━━ RAM+ image-pipeline on clean.db ({{vit}}) ━━━"
-    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
-        "$PY" scripts/tag_images_ram.py --n all --vit {{vit}} --from-db data/seoul/clean.db
+    WDIR="$(pwd)"
+    CMD="cd '$WDIR' && source venv/bin/activate && echo '━━━ RAM+ image-pipeline on clean.db ({{vit}}) ━━━' && PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True '$PY' scripts/tag_images_ram.py --n all --vit {{vit}} --from-db data/seoul/clean.db"
+    tmux new-session -d -s "$SESSION" -x 220 -y 50 2>/dev/null || tmux new-window -t "$SESSION"
+    tmux send-keys -t "$SESSION" "$CMD" Enter
+    echo "Started in tmux session '$SESSION'. Attach with: tmux attach -t $SESSION"
 
 # Tag images with RAM+ on a snapshot (for experiments — does not touch clean.db)
 [group('Data Pipeline')]

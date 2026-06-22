@@ -243,7 +243,14 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
     conn.commit()
     
     matched_id = None
-    if cafe["provider"] != "kakao":
+    # Spatial merge runs for EVERY provider. Kakao used to be insert-only here,
+    # which assumed kakao was always processed first and formed the anchor set.
+    # Streaming / multi-region (Busan) can't guarantee that arrival order, so
+    # kakao must also merge into existing clean_cafes — otherwise a google/naver
+    # cafe seen first creates an anchor and the later kakao row duplicates it.
+    # The same-provider guard below (`if cafe["provider"] in providers`) still
+    # prevents two cafes of one provider from collapsing together.
+    if True:
         nearby = find_clean_cafes_nearby(conn, lat, lon, MERGE_RADIUS_MAX)
         llm_candidates = []
 
@@ -525,19 +532,25 @@ def main():
 
     print("\nLoading scraped_cafes into memory...")
 
-    # ── Pass 1: Kakao (insert-only, no spatial lookup — fast) ─────────────────
-    print("\n━━━ Pass 1/2  Kakao (insert-only) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    kakao_rows = fetch_rows("kakao")
-    d1, c1, m1 = run_pass("Kakao", kakao_rows, all_created, all_merged)
+    # Process providers densest-first (no kakao-first assumption). The densest
+    # provider seeds the most anchors, so providers processed later have the best
+    # chance of finding an existing clean_cafe to merge into. Density is computed
+    # per run from the pending set, so whichever provider dominates a region
+    # (kakao in Seoul, possibly naver in Busan) leads automatically.
+    pc_q = "SELECT provider, COUNT(*) FROM scraped_cafes WHERE belongs_to_cafe_id IS NULL"
+    pc_params: list = []
+    if args.provider:
+        pc_q += " AND provider = ?"
+        pc_params.append(args.provider)
+    pc_q += " GROUP BY provider ORDER BY COUNT(*) DESC"
+    prov_counts = dbc.fetchall(pc_q, tuple(pc_params))
 
-    # ── Pass 2: Non-kakao (spatial merge — slower, accurate ETA) ─────────────
-    print("\n━━━ Pass 2/2  Non-kakao (spatial merge) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    other_rows = fetch_rows("kakao", exclude=True)
-    d2, c2, m2 = run_pass("Non-kakao", other_rows, all_created, all_merged)
-
-    done    = d1 + d2
-    created = c1 + c2
-    merged  = m1 + m2
+    done = created = merged = 0
+    for i, (prov, cnt) in enumerate(prov_counts, 1):
+        print(f"\n━━━ Pass {i}/{len(prov_counts)}  {prov} ({cnt} pending) ━━━━━━━━━━━━━━━━━━━━━━━━")
+        rows = fetch_rows(prov)
+        d, c, m = run_pass(prov, rows, all_created, all_merged)
+        done += d; created += c; merged += m
 
     elapsed_total = 0  # individual passes track their own elapsed
     print(f"\n\nTotal: processed={done}  new={created}  merged={merged}")
