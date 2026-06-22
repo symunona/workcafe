@@ -3,6 +3,10 @@
 > Ultra caveman log. Append as work go. Newest decisions bottom.
 > Numbered checkpoints: `busan-scraper-refinements-00.md` (region+sample), `-01.md` (safety+cleaner+push), `-02.md` (UI funnel).
 
+## STATUS @ 2026-06-23 01:34 — DENSE SUMMARY (iter 2)
+- **Busan now: 248 clean_cafes, 18 with photos (1,239 imgs).** Map dense, browser-verified. Iteration 2 (places 25 cells → merge → 12 img cafes → link) ran in background ~24 min. Checkpoint -05.
+- Full loop proven + repeatable: scrape-one busan → merge chain → scrape-region-images busan → clean_region wipe (Seoul safe).
+
 ## STATUS @ 2026-06-23 00:47 — DENSE SUMMARY
 - **SUCCESS (latest, user):** busan cafes have sample PICS on UI. **MET** ✓ — 6 cafes / 590 photos scraped+linked; browser-verified 고니스커피 detail pane shows 5 real photos (`tmp/busan_PICS.png`). Browser test now works (sandbox-off + started vite :5550).
 - **Prior DONE:** cafes pop up on map w/ correct data. **MET** ✓ — 90 busan clean_cafes, translated, `/api/clean_cafes` returns all 90.
