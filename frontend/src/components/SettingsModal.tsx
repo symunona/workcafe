@@ -89,6 +89,10 @@ interface StatusData {
   mb_per_day: number
   overall_tagged_images?: number
   overall_imgs_per_hour?: number
+  funnel_merge_queue?: number
+  funnel_merged_cafes?: number
+  funnel_images_total?: number
+  funnel_images_downloaded?: number
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -403,6 +407,42 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
                   </div>
                 ))}
               </div>
+
+              {/* Pipeline funnel: scrape → merge → images → tag */}
+              {(() => {
+                const raw = status.total_cafes
+                const mq = status.funnel_merge_queue ?? 0
+                const merged = status.funnel_merged_cafes ?? 0
+                const imgTotal = status.funnel_images_total ?? status.total_images
+                const dl = status.funnel_images_downloaded ?? 0
+                const tagged = status.overall_tagged_images ?? 0
+                const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : '—')
+                const stages = [
+                  { label: 'Raw scraped', value: raw, sub: 'cafes', cls: 'bg-gray-50' },
+                  { label: 'Merge queue', value: mq, sub: 'pending', cls: mq > 0 ? 'bg-amber-50' : 'bg-gray-50' },
+                  { label: 'Merged', value: merged, sub: 'clean cafes', cls: 'bg-emerald-50' },
+                  { label: 'Images', value: imgTotal, sub: 'refs', cls: 'bg-gray-50' },
+                  { label: 'Downloaded', value: dl, sub: `${pct(dl, imgTotal)} of refs`, cls: 'bg-sky-50' },
+                  { label: 'Processed', value: tagged, sub: `${pct(tagged, imgTotal)} tagged`, cls: 'bg-emerald-50' },
+                ]
+                return (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Pipeline</h3>
+                    <div className="bg-white border border-gray-100 rounded-xl p-3 flex flex-wrap items-stretch gap-0">
+                      {stages.map((s, i) => (
+                        <div key={s.label} className="flex items-stretch flex-1 min-w-[92px]">
+                          {i > 0 && <div className="self-center text-gray-300 px-1 select-none">→</div>}
+                          <div className={`flex-1 rounded-lg px-2.5 py-2 flex flex-col gap-0.5 ${s.cls}`}>
+                            <span className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">{s.label}</span>
+                            <span className="text-lg font-bold text-gray-900 leading-tight">{s.value.toLocaleString()}</span>
+                            <span className="text-[10px] text-gray-400">{s.sub}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Hourly chart */}
               {chartData.length > 0 && (

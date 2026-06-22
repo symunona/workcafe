@@ -89,6 +89,13 @@ type StatusResponse struct {
 	OverallImgsPerHour     float64                `json:"overall_imgs_per_hour"`
 	TotalCafes             int                    `json:"total_cafes"`
 	TotalImages            int                    `json:"total_images"`
+	// Pipeline funnel: raw scrape → merge → image download → tag.
+	// Image stages all read clean.db (the store the tagger + frontend use), so the
+	// total ≥ downloaded ≥ processed invariant holds (scraped.db is trimmed/deduped).
+	MergeQueue             int                    `json:"funnel_merge_queue"`       // raw cafes not yet merged
+	MergedCafes            int                    `json:"funnel_merged_cafes"`      // dedup'd clean_cafes
+	ImagesTotal            int                    `json:"funnel_images_total"`      // image rows in clean.db
+	ImagesDownloaded       int                    `json:"funnel_images_downloaded"` // clean.db images with bytes on disk
 	CafesLastHour          int                    `json:"cafes_last_hour"`
 	Cafes24h               int                    `json:"cafes_24h"`
 	ImagesLastHour         int                    `json:"images_last_hour"`
@@ -390,6 +397,7 @@ func (sc *snapshotCache) get(name string) (*sql.DB, error) {
 	db.Exec(`ALTER TABLE images ADD COLUMN width INTEGER`)
 	db.Exec(`ALTER TABLE images ADD COLUMN height INTEGER`)
 	db.Exec(`ALTER TABLE images ADD COLUMN scraped_at TEXT`)
+	db.Exec(`ALTER TABLE images ADD COLUMN tagged_at TEXT`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS cafe_chains (id TEXT PRIMARY KEY, name TEXT, name_english TEXT, count INTEGER)`)
 	db.SetMaxOpenConns(4)
 	sc.dbs[name] = db
@@ -964,6 +972,18 @@ func main() {
 		resp.OverallImgsPerHour = float64(imgsLastHour)
 		log.Printf("[status] tagger stats (clean.db, 2 queries): %v", time.Since(t)); t = time.Now()
 
+		// Pipeline funnel metrics: raw (scraped.db) → merged (clean.db) → images.
+		db.QueryRow(`SELECT COUNT(*) FROM clean_cafes`).Scan(&resp.MergedCafes)
+		var mergedScraped int
+		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE belongs_to_cafe_id IS NOT NULL`).Scan(&mergedScraped)
+		if resp.MergeQueue = resp.TotalCafes - mergedScraped; resp.MergeQueue < 0 {
+			resp.MergeQueue = 0
+		}
+		// Image stages from clean.db so total ≥ downloaded ≥ processed holds.
+		db.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&resp.ImagesTotal)
+		db.QueryRow(`SELECT COUNT(*) FROM images WHERE file_size > 0`).Scan(&resp.ImagesDownloaded)
+		log.Printf("[status] funnel stats (4 queries): %v", time.Since(t)); t = time.Now()
+
 		body, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -1499,7 +1519,8 @@ func main() {
 			imgRows, err := sdb.Query(`
 				SELECT i.id, i.cafe_id, i.provider, i.local_path, i.image_url, i.photo_id,
 				       COALESCE(i.width,0), COALESCE(i.height,0), i.file_size, COALESCE(i.scraped_at,''),
-				       COALESCE((SELECT json_group_array(json_object('tag',tag,'score',score,'boxes',json(COALESCE(boxes,'null')))) FROM image_tags WHERE image_id = i.id), '[]')
+				       COALESCE((SELECT json_group_array(json_object('tag',tag,'score',score,'boxes',json(COALESCE(boxes,'null')))) FROM image_tags WHERE image_id = i.id), '[]'),
+				       COALESCE(i.tagged_at,'')
 				FROM images i
 				WHERE i.cafe_id IN (`+strings.Join(placeholders, ",")+`) AND i.file_size > 0
 				ORDER BY i.cafe_id, i.scraped_at DESC`, imgArgs...)
@@ -1517,6 +1538,7 @@ func main() {
 					FileSize  int             `json:"file_size"`
 					ScrapedAt string          `json:"scraped_at"`
 					Tags      json.RawMessage `json:"tags"`
+					TaggedAt  string          `json:"tagged_at"`
 				}
 				imagesByCafe := map[string][]ImageInfo{}
 				allImages := make([]ImageInfo, 0)
@@ -1525,7 +1547,7 @@ func main() {
 					var tagsStr string
 					imgRows.Scan(&img.ID, &img.CafeID, &img.Provider, &img.LocalPath,
 						&img.ImageURL, &img.PhotoID, &img.Width, &img.Height,
-						&img.FileSize, &img.ScrapedAt, &tagsStr)
+						&img.FileSize, &img.ScrapedAt, &tagsStr, &img.TaggedAt)
 					if tagsStr == "" {
 						tagsStr = "[]"
 					}

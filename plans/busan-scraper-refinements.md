@@ -1,6 +1,18 @@
 # Busan Scraper + Streaming Pipeline — Refinement Log
 
 > Ultra caveman log. Append as work go. Newest decisions bottom.
+> Numbered checkpoints: `busan-scraper-refinements-00.md` (region+sample), `-01.md` (safety+cleaner+push), `-02.md` (UI funnel).
+
+## STATUS @ 2026-06-23 00:24 — DENSE SUMMARY
+- **DONE def (user):** cafes pop up on UI on refresh w/ correct data. **MET** ✓ — 90 busan clean_cafes, translated, `/api/clean_cafes` busan bbox returns all 90 w/ correct lat/lon. Refresh map over Busan → they appear.
+- **Region:** busan added, grid offset (+204,-239), config `data/regions.json`, Seoul untouched. ✓ live-verified.
+- **Scrape:** sample = 90 busan cafes, coords dead-on, names good. Resumable via progress table. ✓
+- **Merge fix:** kakao-first KILLED → all providers spatial-merge densest-first (streaming-safe). ✓ compiles.
+- **Streaming:** `merge_daemon.py` poll+debounce. NOT enabled yet (run manual first).
+- **Safety:** backups `pre-busan-2026-06-22` (integrity ok). `clean_region.py` busan-only wipe, Seoul refused. ✓ proven.
+- **UI funnel:** `/api/status` + SettingsModal → raw→queue→merged ‖ imgTotal→dl→processed. API LIVE-VERIFIED (42047→258→29230 ; 2.64M→2.51M→2.34M, invariant ok). Frontend tsc-ok, not browser-checked (vite down here).
+- **Pushed:** commit e96d547 (region+merge+cleaner). UI funnel commit pending.
+- **Open:** run merge → verify busan on map API → confirm frontend refresh shows them. ollama needed for englishify (check).
 
 ## GOAL
 - Add Busan scrape region. Keep Seoul untouched (prod, expensive to remake).
