@@ -347,12 +347,28 @@ install-services:
     [Install]
     WantedBy=default.target"
 
+    write_unit workcafe-pipeline "[Unit]
+    Description=Workcafe unified pipeline daemon (translate → merge, CPU LLM)
+    After=workcafe-db-server.service network.target
+
+    [Service]
+    Type=simple
+    WorkingDirectory=$WDIR
+    Environment=\"PYTHONPATH=$WDIR/scraper/lib\"
+    ExecStart=$VENV data-processing/pipeline_daemon.py --config $WDIR/data/pipeline.json
+    Restart=on-failure
+    RestartSec=10
+
+    [Install]
+    WantedBy=default.target"
+
     systemctl --user daemon-reload
     systemctl --user enable \
         workcafe-db-server workcafe-api workcafe-frontend \
         workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver \
         workcafe-kakao-images workcafe-naver-images workcafe-google-images \
-        workcafe-kakao-metadata workcafe-naver-metadata
+        workcafe-kakao-metadata workcafe-naver-metadata \
+        workcafe-pipeline
     echo ""
     echo "Done. Run: just service all start"
 
@@ -488,7 +504,7 @@ watchdog-reset name:
 scraper-status:
     #!/usr/bin/env bash
     G='\033[0;32m'; R='\033[0;31m'; N='\033[0m'
-    UNITS="workcafe-db-server workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
+    UNITS="workcafe-db-server workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata workcafe-pipeline"
     echo "── systemd units ──"
     for u in $UNITS; do s=$(systemctl --user is-active "$u" 2>/dev/null); [ "$s" = active ] && echo -e "  ${G}●${N} $u" || echo -e "  ${R}○${N} $u ($s)"; done
     echo "── ports ──"; ss -tlnp 2>/dev/null | grep -E ':5550|:13854' | awk '{print "  "$4}' || true
@@ -500,7 +516,7 @@ scraper-status:
 [group('Services')]
 scraper-stop:
     #!/usr/bin/env bash
-    UNITS="workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
+    UNITS="workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata workcafe-pipeline"
     echo "Stopping scraper units..."; systemctl --user stop $UNITS 2>/dev/null || true
     echo "Killing stray manual scrapers..."; pkill -f "[m]ax-steps" 2>/dev/null || true; pkill -f "[m]ultisource.sh" 2>/dev/null || true; pkill -f "[r]egion_iterate.sh" 2>/dev/null || true
     echo "Stopping tagger..."; tmux kill-session -t image-pipeline 2>/dev/null || true; pkill -f "[t]ag_images_ram" 2>/dev/null || true
@@ -511,7 +527,7 @@ scraper-stop:
 [group('Services')]
 scraper-start: scraper-stop
     #!/usr/bin/env bash
-    UNITS="workcafe-db-server workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
+    UNITS="workcafe-db-server workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata workcafe-pipeline"
     echo "Starting services..."; systemctl --user start $UNITS 2>/dev/null || true
     sleep 2; just scraper-status
 
@@ -549,6 +565,60 @@ scrape-region-images region="busan" n="6":
         timeout 120 python scraper/images/scraper_kakao_images_v3.py --cafe-id "$id" 2>&1 | tail -3
     done
     echo "Done. Surface on map: just merge-pipeline (or let the merge daemon sync+link)."
+
+# Unified real-time pipeline: mark a region → cafes flow scraped→translated→merged.
+# Ensures the pipeline daemon (translate→merge, CPU LLM) + scrapers + tagger are up,
+# adds [region] to data/regions.json active (omit/"all" = leave active list as-is),
+# kicks the scrapers, then returns. The watchers carry it. Usage:
+#   just scrape-and-process-full-pipeline haeundae
+#   just scrape-and-process-full-pipeline            (process current active regions)
+[group('Data Pipeline')]
+scrape-and-process-full-pipeline region="all":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PY="$(pwd)/venv/bin/python3"
+    B='\033[1m'; G='\033[0;32m'; Y='\033[0;33m'; NC='\033[0m'
+
+    # 1) Add region to data/regions.json active (idempotent; "all" = no change).
+    if [ "{{region}}" != "all" ]; then
+        echo -e "${B}Adding region '{{region}}' to active scrape set...${NC}"
+        "$PY" - "{{region}}" <<'PYEOF'
+    import json, sys, pathlib
+    region = sys.argv[1].strip().lower()
+    f = pathlib.Path("data/regions.json")
+    cfg = json.loads(f.read_text())
+    if region not in cfg.get("regions", {}):
+        sys.exit(f"ERROR: unknown region '{region}'. Known: {sorted(cfg.get('regions', {}))}")
+    active = cfg.setdefault("active", [])
+    if region not in active:
+        active.append(region)
+        f.write_text(json.dumps(cfg, indent=2, ensure_ascii=False) + "\n")
+        print(f"  active is now: {active}")
+    else:
+        print(f"  '{region}' already active: {active}")
+    PYEOF
+    fi
+
+    # 2) Ensure the canonical services are up (scrapers + image scrapers + pipeline
+    #    daemon). scraper-start does a clean stop+start and re-reads regions.json.
+    echo -e "\n${B}Starting scrapers + pipeline daemon...${NC}"
+    just scraper-start
+
+    # 3) Ensure the RAM++ image tagger (GPU) is running.
+    echo -e "\n${B}Ensuring image tagger (GPU) is running...${NC}"
+    just image-pipeline
+
+    # 4) Return + print the monitoring commands (from plans/unified-pipeline.md).
+    echo ""
+    echo -e "${G}${B}Pipeline running. Monitor with:${NC}"
+    echo "  just scraper-status                                         # everything at a glance"
+    echo "  journalctl --user -u workcafe-pipeline -f                    # translate + merge watcher"
+    echo "  journalctl --user -u workcafe-scraper-naver -f               # a scraper (swap kakao/google/osm)"
+    echo "  sqlite3 data/seoul/clean.db \"SELECT status,COUNT(*) FROM scraped_cafes GROUP BY status;\"   # queue depths"
+    echo "  sqlite3 data/seoul/clean.db \"SELECT ts,method,detail FROM merge_log ORDER BY ts DESC LIMIT 30;\"   # merge decisions"
+    echo "  sqlite3 data/seoul/clean.db \"SELECT ts,detail FROM merge_log WHERE method='llm' ORDER BY ts DESC;\"   # LLM-fallback merges"
+    echo "  tmux attach -t image-pipeline    /    nvidia-smi             # tagger (GPU)"
+    echo "  curl -s localhost:8090/api/status | jq                       # funnel / per-region counts"
 
 # Backup all DBs (online, consistent) → data/seoul/backups/<label>-<date>/. Usage: just backup-dbs [label]
 [group('Data Pipeline')]

@@ -1,0 +1,8 @@
+{
+  "poll_interval_s": 30,
+  "merge_debounce_s": 60,
+  "translate_batch": 30,
+  "image_priority_first_n": 30,
+  "chain_promote_min": 5,
+  "llm_on_cpu": true
+}

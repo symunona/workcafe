@@ -202,19 +202,24 @@ def merge_into_clean_cafe(conn, dbc: DBClient, clean_id: str, cafe: dict):
           avg_lat, avg_lon, address, url, json.dumps(metadata), clean_id))
 
 
+# LLM placement: Phase 1 plan forces the merge-fallback LLM onto CPU too
+# (leave the GPU entirely to the RAM++ tagger). Toggled by the daemon via --llm-cpu.
+LLM_CPU = False
+
+
 def ask_llm_to_merge(cafe_name: str, candidates: list) -> Optional[str]:
     if not candidates:
         return None
-    
+
     prompt = f"We are merging cafe data. We have a new scraped cafe named '{cafe_name}'.\n"
     prompt += "Here are the nearby existing cafes:\n"
     for i, c in enumerate(candidates):
         prompt += f"{i+1}. {c['name']} (Distance: {c['distance_m']:.1f}m)\n"
     prompt += "Does the new cafe belong to one of these? Reply ONLY with the number (e.g., '1') if it's the same cafe, or '0' if it is a completely new cafe. Do not provide any other text."
-    
+
     from cafe_norm_utils import llm_generate
     import re
-    resp = llm_generate(prompt, max_tokens=10)
+    resp = llm_generate(prompt, max_tokens=10, cpu=LLM_CPU)
     m = re.search(r'\d+', resp)
     if m:
         idx = int(m.group())
@@ -225,13 +230,15 @@ def ask_llm_to_merge(cafe_name: str, candidates: list) -> Optional[str]:
 # ─── Core: process one cafe ────────────────────────────────────────────────────
 
 def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
-                  embed_enabled: bool, eng_lookup: dict = None) -> tuple[str, bool]:
+                  embed_enabled: bool, eng_lookup: dict = None) -> tuple[str, bool, Optional[str]]:
     """
-    Returns (clean_cafe_id, was_created).
+    Returns (clean_cafe_id, was_created, method).
     was_created=True if new clean_cafe row created, False if merged into existing.
+    method ∈ {distance,name,chain,llm} for a merge, None for a new clean_cafe.
     Note: caller is responsible for updating scraped_cafes.belongs_to_cafe_id (batched).
     """
     lat, lon = cafe["lat"], cafe["lon"]
+    method = None
 
     emb_blob = None
     if embed_enabled:
@@ -264,6 +271,7 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
             # Hard zone: unconditional (GPS noise floor, no two different cafes this close)
             if dist <= MERGE_RADIUS_HARD:
                 matched_id = nc["id"]
+                method = "distance"
                 break
 
             # Compute best name similarity across raw / strip_branch / english
@@ -283,11 +291,13 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
             # fall through on failure so a better-named candidate can still match
             if dist <= MERGE_RADIUS_SOFT and best_score >= SOFT_NAME_THRESHOLD:
                 matched_id = nc["id"]
+                method = "name"
                 break
 
             # Standard zone (20-150m): require high name similarity
             if dist > MERGE_RADIUS_SOFT and best_score >= NAME_SIM_THRESHOLD:
                 matched_id = nc["id"]
+                method = "name"
                 break
 
             # Chain canonical match — handles cross-language (e.g. "Compose Coffee" vs "컴포즈커피")
@@ -304,23 +314,27 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
                         nc_canonical = nc_cr.get("chain_name") or row[1] or row[0]
                         if nc_canonical and nc_canonical == chain_base:
                             matched_id = nc["id"]
+                            method = "chain"
                             break
                         if name_similarity(chain_base, row[0])["combined"] >= 0.8:
                             matched_id = nc["id"]
+                            method = "chain"
                             break
 
             # Candidate for LLM fallback
             llm_candidates.append(nc)
-            
+
         if not matched_id and llm_candidates:
             # Sort candidates by distance and take top 5
             llm_candidates.sort(key=lambda x: x["distance_m"])
             matched_id = ask_llm_to_merge(cafe["name"], llm_candidates[:5])
+            if matched_id:
+                method = "llm"
 
     if matched_id:
         merge_into_clean_cafe(conn, dbc, matched_id, cafe)
         # belongs_to_cafe_id update deferred to batch (see main loop)
-        return matched_id, False
+        return matched_id, False, method
 
     # Create new
     chain_id = None
@@ -333,7 +347,7 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
 
     clean_id = create_clean_cafe(dbc, cafe, chain_id, emb_blob, eng_lookup)
     # belongs_to_cafe_id update deferred to batch (see main loop)
-    return clean_id, True
+    return clean_id, True, None
 
 
 # ─── Progress ─────────────────────────────────────────────────────────────────
@@ -369,7 +383,14 @@ def main():
     parser.add_argument("--englishify-db", default=os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'englishify.db')),
                         help="Path to englishify.db translation cache")
     parser.add_argument("--no-backup", action="store_true", help="Skip automatic backup of clean.db before run")
+    parser.add_argument("--merge-log", action="store_true",
+                        help="Write a merge_log row per merge (method ∈ distance|name|chain|llm)")
+    parser.add_argument("--llm-cpu", action="store_true",
+                        help="Force the merge-fallback LLM onto CPU (leave GPU to the tagger)")
     args = parser.parse_args()
+
+    global LLM_CPU
+    LLM_CPU = args.llm_cpu
 
     # ── Exclusive run guard ────────────────────────────────────────────────────
     lock_path = args.db + ".pipeline.lock"
@@ -470,6 +491,7 @@ def main():
                 batch = rows[batch_start:batch_start + 500]
                 batch_links: list[tuple[str, str]] = []
 
+                merge_log_rows: list[tuple] = []
                 for row in batch:
                     cafe = {
                         "id": row[0], "name": row[1], "lat": row[2],
@@ -481,7 +503,7 @@ def main():
                     if prov not in provider_stats:
                         provider_stats[prov] = {"done": 0, "created": 0, "merged": 0}
                     try:
-                        clean_id, was_created = process_cafe(conn, dbc, cafe, chain_names, args.embed, eng_lookup)
+                        clean_id, was_created, method = process_cafe(conn, dbc, cafe, chain_names, args.embed, eng_lookup)
                         batch_links.append((clean_id, cafe["id"]))
                         if was_created:
                             created += 1
@@ -491,6 +513,10 @@ def main():
                             merged += 1
                             provider_stats[prov]["merged"] += 1
                             all_merged.append(clean_id)
+                            if args.merge_log and method:
+                                merge_log_rows.append(
+                                    (cafe["id"], clean_id, method,
+                                     f"{prov}:{fmt_name(cafe['name'], 40)}"))
                     except Exception as e:
                         errors += 1
                         if errors <= 5:
@@ -514,6 +540,13 @@ def main():
                     dbc.executemany(
                         "UPDATE images SET belongs_to_cafe_id = ? WHERE cafe_id = ?",
                         batch_links
+                    )
+
+                if merge_log_rows:
+                    dbc.executemany(
+                        "INSERT INTO merge_log (scraped_id, clean_id, method, detail) "
+                        "VALUES (?, ?, ?, ?)",
+                        merge_log_rows
                     )
 
         except KeyboardInterrupt:

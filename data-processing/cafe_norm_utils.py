@@ -146,7 +146,11 @@ def strip_branch(name: str) -> str:
 
 # ─── LLM helpers (qwen2.5:1.5b) ──────────────────────────────────────────────
 
-def llm_generate(prompt: str, max_tokens: int = 100, model: str = LLM_MODEL) -> str:
+def llm_generate(prompt: str, max_tokens: int = 100, model: str = LLM_MODEL,
+                 cpu: bool = False) -> str:
+    options = {"num_predict": max_tokens, "temperature": 0.1}
+    if cpu:
+        options["num_gpu"] = 0  # force CPU (leave the GPU to the RAM++ tagger)
     try:
         resp = httpx.post(
             f"{OLLAMA_BASE}/api/generate",
@@ -154,7 +158,7 @@ def llm_generate(prompt: str, max_tokens: int = 100, model: str = LLM_MODEL) -> 
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"num_predict": max_tokens, "temperature": 0.1},
+                "options": options,
             },
             timeout=120,
         )
