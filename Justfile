@@ -492,7 +492,7 @@ scraper-status:
     echo "── systemd units ──"
     for u in $UNITS; do s=$(systemctl --user is-active "$u" 2>/dev/null); [ "$s" = active ] && echo -e "  ${G}●${N} $u" || echo -e "  ${R}○${N} $u ($s)"; done
     echo "── ports ──"; ss -tlnp 2>/dev/null | grep -E ':5550|:13854' | awk '{print "  "$4}' || true
-    echo "── stray manual scrapers ──"; pgrep -af "max-steps|multisource.sh|region_iterate.sh|tag_images_ram" | grep -v pgrep | sed 's/^/  /' || echo "  none"
+    echo "── stray manual scrapers ──"; pgrep -af "[m]ax-steps|[m]ultisource.sh|[r]egion_iterate.sh|[t]ag_images_ram" | grep -v pgrep | sed 's/^/  /' || echo "  none"
     echo "── DB sockets ──"; for s in /tmp/workcafe_db.sock /tmp/workcafe_play_db.sock; do [ -S "$s" ] && echo -e "  ${G}●${N} $s" || echo -e "  ${R}○${N} $s"; done
     echo "── tmux ──"; tmux ls 2>/dev/null | sed 's/^/  /' || echo "  none"
 
@@ -502,8 +502,8 @@ scraper-stop:
     #!/usr/bin/env bash
     UNITS="workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
     echo "Stopping scraper units..."; systemctl --user stop $UNITS 2>/dev/null || true
-    echo "Killing stray manual scrapers..."; pkill -f "max-steps" 2>/dev/null || true; pkill -f "multisource.sh" 2>/dev/null || true; pkill -f "region_iterate.sh" 2>/dev/null || true
-    echo "Stopping tagger..."; tmux kill-session -t image-pipeline 2>/dev/null || true; pkill -f tag_images_ram 2>/dev/null || true
+    echo "Killing stray manual scrapers..."; pkill -f "[m]ax-steps" 2>/dev/null || true; pkill -f "[m]ultisource.sh" 2>/dev/null || true; pkill -f "[r]egion_iterate.sh" 2>/dev/null || true
+    echo "Stopping tagger..."; tmux kill-session -t image-pipeline 2>/dev/null || true; pkill -f "[t]ag_images_ram" 2>/dev/null || true
     echo "Stopping play-db..."; P=$(cat /tmp/workcafe_play_db.pid 2>/dev/null); [ -n "$P" ] && kill "$P" 2>/dev/null; rm -f /tmp/workcafe_play_db.sock /tmp/workcafe_play_db.pid 2>/dev/null || true
     echo "Done → just scraper-status"
 
