@@ -24,13 +24,24 @@ def col_exists(conn, table, col):
     return any(r[1] == col for r in rows)
 
 
+def _table_exists(conn, table):
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).fetchone()
+    return row is not None
+
+
 def migrate(conn, db_path):
     print(f"DB: {db_path}")
 
-    # 1. Extend scraped_cafes: belongs_to_cafe_id, name_embedding
+    # 1. Extend scraped_cafes: belongs_to_cafe_id, name_embedding,
+    #    plus pipeline state columns (status, translated_at).
+    #    status flow: scraped → translated → merged (additive; raw scrape untouched).
     for col, typedef in [
         ("belongs_to_cafe_id", "TEXT"),
         ("name_embedding", "BLOB"),
+        ("status", "TEXT DEFAULT 'scraped'"),
+        ("translated_at", "TEXT"),
     ]:
         if not col_exists(conn, "scraped_cafes", col):
             conn.execute(f"ALTER TABLE scraped_cafes ADD COLUMN {col} {typedef}")
@@ -88,9 +99,48 @@ def migrate(conn, db_path):
             pass
     print("  clean_cafes: ok")
 
+    # 5. kakao_scrape_state.priority — image-download queue baseline (Phase 2 uses it;
+    #    additive now so the column exists when image-priority lands).
+    if _table_exists(conn, "kakao_scrape_state"):
+        if not col_exists(conn, "kakao_scrape_state", "priority"):
+            conn.execute("ALTER TABLE kakao_scrape_state ADD COLUMN priority INTEGER DEFAULT 0")
+            print("  kakao_scrape_state.priority added")
+        else:
+            print("  kakao_scrape_state.priority already exists")
+    else:
+        print("  kakao_scrape_state: table absent (skipped priority)")
+
+    # 6. merge_log — one row per merge decision. method ∈ {distance,name,chain,llm}.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS merge_log (
+            ts          TEXT DEFAULT CURRENT_TIMESTAMP,
+            scraped_id  TEXT,
+            clean_id    TEXT,
+            method      TEXT,
+            detail      TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_merge_log_method ON merge_log(method)")
+    print("  merge_log: ok")
+
+    # 7. Backfill status from existing belongs_to_cafe_id (additive: only touches the
+    #    new status column, never the raw scrape). Already-merged rows → 'merged'.
+    #    Run only on a freshly-added column so re-runs don't clobber 'translated'.
+    if col_exists(conn, "scraped_cafes", "status"):
+        conn.execute(
+            "UPDATE scraped_cafes SET status='merged' "
+            "WHERE belongs_to_cafe_id IS NOT NULL AND (status IS NULL OR status='scraped')"
+        )
+        conn.execute(
+            "UPDATE scraped_cafes SET status='scraped' "
+            "WHERE belongs_to_cafe_id IS NULL AND status IS NULL"
+        )
+        print("  status backfill: ok")
+
     # Indexes for proximity queries
     conn.execute("CREATE INDEX IF NOT EXISTS idx_clean_cafes_lat_lon ON clean_cafes(avg_lat, avg_lon)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_cafes_belongs ON scraped_cafes(belongs_to_cafe_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_cafes_status ON scraped_cafes(status)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_images_belongs ON images(belongs_to_cafe_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_cafes_embedding ON scraped_cafes(name_embedding) WHERE name_embedding IS NOT NULL")
 
