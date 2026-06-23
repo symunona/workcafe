@@ -958,23 +958,6 @@ tag-images-experiment-2:
 tag-images-experiment-3:
     just tag-images 100 0.27
 
-# Tag images with YOLOv8 OIV7 (600 Open Images classes, includes wall socket, chair, laptop…).
-# n: number of clean cafes (integer or 'all')
-# conf: min detection confidence (default 0.25)
-[group('Image Tagging')]
-tag-images-yolo n="100" conf="0.25":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    PY="$(pwd)/venv/bin/python3"
-
-    echo "━━━ Creating YOLO snapshot (n={{n}}, conf={{conf}}) ━━━"
-    SNAPSHOT=$("$PY" scripts/create_tag_snapshot.py --n {{n}} --threshold {{conf}} | tail -1)
-    echo "Snapshot: $SNAPSHOT"
-
-    echo ""
-    echo "━━━ Tagging images with YOLOv8 OIV7 ━━━"
-    "$PY" scripts/tag_images_yolo.py --n all --conf {{conf}} --from-db "$SNAPSHOT"
-
     echo ""
     echo "━━━ Rollup image_tags → clean_cafes.tags ━━━"
     "$PY" scripts/tag_cafes_rollup.py --db "$SNAPSHOT"
