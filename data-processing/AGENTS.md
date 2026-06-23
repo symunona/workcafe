@@ -40,8 +40,8 @@ scraped.db
 ### `00_dedup_raw_cafes.py` — `just dedup-scraped` (MANUAL ONLY)
 Removes duplicate rows from `scraped_cafes` (same provider + location, keep latest). **Mutates scraped.db directly.** Prompts for confirmation. Run before a fresh pipeline if scrapers have been running for a long time.
 
-### `01_migrate_db.py` — `just migrate`
-Idempotent schema migration. Adds `clean_cafes`, `cafe_chains` tables and columns `belongs_to_cafe_id`, `name_embedding` to `scraped_cafes` and `images`. Safe to re-run — IF NOT EXISTS / column-exists checks. Does not touch scraper data.
+### `01_migrate_db.py` — `just db-migrate`
+Idempotent, **additive-only** schema migration. Adds `clean_cafes`, `cafe_chains` tables and columns `belongs_to_cafe_id`, `name_embedding`, `status` (`scraped→translated→merged`), `translated_at` to `scraped_cafes`; `belongs_to_cafe_id` to `images`; `priority` to `kakao_scrape_state` (Phase 2 image queue); and the `merge_log(ts, scraped_id, clean_id, method, detail)` table (`method ∈ distance|name|chain|llm`). Backfills `status` from existing `belongs_to_cafe_id` (NOT NULL → `merged`). Safe to re-run — IF NOT EXISTS / column-exists checks. Never DROPs/overwrites scraper data.
 
 ### `02_pull_models.py` — `just pull-models`
 Pulls ollama models if missing:
@@ -84,6 +84,16 @@ Note on model choice: `opus-mt-ko-en` is ~5× faster but hallucinates on Korean 
 
 ### `06_update_image_links.py` — `just link-images`
 Bulk sets `images.belongs_to_cafe_id` by joining against `scraped_cafes.belongs_to_cafe_id`. Faster as a separate pass than per-cafe inside normalize.
+
+### `pipeline_daemon.py` — `workcafe-pipeline` systemd unit (Phase 1 unified pipeline)
+One config-driven process (reads `data/pipeline.json` via `--config`) that replaces the manual `merge-pipeline` for streaming. Polling loop, **Order B (translate THEN merge)**, LLM forced onto **CPU** (`num_gpu:0`) so the GPU stays free for the RAM++ tagger. Per cycle, against the play DB (`clean.db`):
+1. **sync** new `scraped.db` rows → `clean.db` (00). New rows arrive `status='scraped'`.
+2. **translate** (reuses 05's `open_englishify`/`sync`/prepass/ollama logic, CPU-forced): translate `status='scraped'` names lacking an `english_name` in chunks of `translate_batch×10` → `englishify.db` → flip those cafes to `status='translated'`.
+3. **merge** when `≥ translate_batch` translated rows exist OR the `merge_debounce_s` timer fires: run `04_normalize --merge-log --llm-cpu` + `06_link` → merged rows become `status='merged'`; each merge writes a `merge_log` row (and `03_detect_chains` runs every Nth cycle).
+
+Reuses 00/03/04/05/06 — does not rewrite them. Start/stop/status via `just scraper-start | scraper-stop | scraper-status`. Orchestrate a new region with `just scrape-and-process-full-pipeline [region]`. Monitor: `journalctl --user -u workcafe-pipeline -f`.
+
+> **Phase 2 (deferred):** image-priority baseline (`kakao_scrape_state.priority` column already added), on-the-fly chain promote (`chain_promote_min`), scrape-coverage map overlay.
 
 ## Key Shared Modules
 
