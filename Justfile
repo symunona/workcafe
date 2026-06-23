@@ -481,6 +481,40 @@ watchdog-reset name:
     @cd scraper && ../venv/bin/python watchdog.py --reset {{name}}
 
 
+# ── Service control (ALWAYS use these to start/stop/check — see CLAUDE.md) ─────
+
+# One-glance overview: which workcafe services run, ports, stray scrapers, sockets, tmux.
+[group('Services')]
+scraper-status:
+    #!/usr/bin/env bash
+    G='\033[0;32m'; R='\033[0;31m'; N='\033[0m'
+    UNITS="workcafe-db-server workcafe-api workcafe-frontend workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
+    echo "── systemd units ──"
+    for u in $UNITS; do s=$(systemctl --user is-active "$u" 2>/dev/null); [ "$s" = active ] && echo -e "  ${G}●${N} $u" || echo -e "  ${R}○${N} $u ($s)"; done
+    echo "── ports ──"; ss -tlnp 2>/dev/null | grep -E ':5550|:13854' | awk '{print "  "$4}' || true
+    echo "── stray manual scrapers ──"; pgrep -af "max-steps|multisource.sh|region_iterate.sh|tag_images_ram" | grep -v pgrep | sed 's/^/  /' || echo "  none"
+    echo "── DB sockets ──"; for s in /tmp/workcafe_db.sock /tmp/workcafe_play_db.sock; do [ -S "$s" ] && echo -e "  ${G}●${N} $s" || echo -e "  ${R}○${N} $s"; done
+    echo "── tmux ──"; tmux ls 2>/dev/null | sed 's/^/  /' || echo "  none"
+
+# Stop EVERYTHING workcafe: systemd units + stray manual scrapers + tagger tmux + play-db.
+[group('Services')]
+scraper-stop:
+    #!/usr/bin/env bash
+    UNITS="workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
+    echo "Stopping scraper units..."; systemctl --user stop $UNITS 2>/dev/null || true
+    echo "Killing stray manual scrapers..."; pkill -f "max-steps" 2>/dev/null || true; pkill -f "multisource.sh" 2>/dev/null || true; pkill -f "region_iterate.sh" 2>/dev/null || true
+    echo "Stopping tagger..."; tmux kill-session -t image-pipeline 2>/dev/null || true; pkill -f tag_images_ram 2>/dev/null || true
+    echo "Stopping play-db..."; P=$(cat /tmp/workcafe_play_db.pid 2>/dev/null); [ -n "$P" ] && kill "$P" 2>/dev/null; rm -f /tmp/workcafe_play_db.sock /tmp/workcafe_play_db.pid 2>/dev/null || true
+    echo "Done → just scraper-status"
+
+# Clean restart: stop everything, then start the canonical scraper services.
+[group('Services')]
+scraper-start: scraper-stop
+    #!/usr/bin/env bash
+    UNITS="workcafe-db-server workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata"
+    echo "Starting services..."; systemctl --user start $UNITS 2>/dev/null || true
+    sleep 2; just scraper-status
+
 # ── Scrapers ─────────────────────────────────────────────────────────────────
 
 # Run a specific scraper. Usage: just scrape-one [provider] [max_steps] [region]
