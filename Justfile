@@ -699,7 +699,7 @@ test-merge-naebang:
 
     cd scraper
     nohup $PY db_server.py \
-        --db "$CLEAN_DB" --socket "$SOCK" --pid-file "$PID_FILE" --replace \
+        --db "$CLEAN_DB" --socket "$SOCK" --pid-file "$PID_FILE" --replace --unsafe-any-db \
         > /tmp/naebang_db_server.log 2>&1 &
     cd ..
 

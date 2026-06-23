@@ -73,15 +73,19 @@ def migrate(conn, db_path):
             source_ids      TEXT,
             name_embedding  BLOB,
             tags            TEXT,
+            metadata        TEXT,
             created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # Backfill for DBs created before tags column was added
-    try:
-        conn.execute("ALTER TABLE clean_cafes ADD COLUMN tags TEXT")
-    except Exception:
-        pass
+    # Backfill for DBs created before these columns were added.
+    # metadata is required — the normalizer INSERTs into it; without it a
+    # clean-slate clean_cafes fails every merge ("no column named metadata").
+    for col in ("tags TEXT", "metadata TEXT"):
+        try:
+            conn.execute(f"ALTER TABLE clean_cafes ADD COLUMN {col}")
+        except Exception:
+            pass
     print("  clean_cafes: ok")
 
     # Indexes for proximity queries
