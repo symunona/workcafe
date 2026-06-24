@@ -350,26 +350,53 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
         stats.record(proxy, cafe_id, "captcha")
         raise CaptchaHit(cafe_id)
 
-    # Try to click the "Photos" tab if it exists
-    try:
-        tabs = page.locator("button[role='tab']")
-        for i in range(tabs.count()):
-            text = tabs.nth(i).text_content()
-            if text and ("Photos" in text or "사진" in text):
-                tabs.nth(i).click(timeout=3000)
-                page.wait_for_timeout(3000)
-                break
-    except Exception:
-        pass
+    # Lazy-load the photos region in the place panel.
+    for _ in range(3):
+        page.mouse.wheel(0, 2000)
+        page.wait_for_timeout(600)
 
-    imgs = page.evaluate("""() =>
-        Array.from(document.querySelectorAll('img'))
-            .map(i => i.src)
-            .filter(s => s && s.includes('googleusercontent.com') && !s.includes('Avatar'))
-            .map(s => s.replace(/=w\\d+-h\\d+/, '=w800-h600'))
-            .filter((v, i, a) => a.indexOf(v) === i)
-            .slice(0, 20)
-    """)
+    # Extract only genuine place photos from the overview panel.
+    #
+    # Google Maps renders three kinds of googleusercontent <img> on a place page,
+    # all sharing the same /gps-cs-s/ host so URL alone can't separate them:
+    #   1. real place photos  — aria-label "Photo N of M", "Photo of <place>",
+    #                            or inside a region "Photos of <place>"
+    #   2. reviewer avatars    — served from /a/ or /a-/ paths, 32x32
+    #   3. "similar places" carousel — aria-label "<OtherPlace> · X stars · N reviews",
+    #                            wrapped in a role=link tile (these are OTHER cafes,
+    #                            the root cause of cross-brand image leakage)
+    # Keep (1), drop (2) and (3). Do NOT open the fullscreen gallery — it switches
+    # to a different DOM that exposes no <img> elements.
+    imgs = page.evaluate(r"""() => {
+        const out = [];
+        const seen = new Set();
+        for (const im of document.querySelectorAll('img')) {
+            let src = im.src || '';
+            if (!src.includes('googleusercontent.com') && !src.includes('ggpht.com')) continue;
+            if (src.includes('/a/') || src.includes('/a-/')) continue;       // reviewer avatar
+            const r = im.getBoundingClientRect();
+            if (r.width < 100 || r.height < 100) continue;                   // icon / avatar size
+            const labels = [];
+            let role_link = false, el = im;
+            for (let i = 0; i < 7 && el; i++) {
+                const al = el.getAttribute && el.getAttribute('aria-label');
+                if (al) labels.push(al);
+                if (el.getAttribute && el.getAttribute('role') === 'link') role_link = true;
+                el = el.parentElement;
+            }
+            if (role_link) continue;                                         // similar-places tile
+            if (labels.some(a => a.includes(' · ') && /star|review/i.test(a))) continue;
+            const isPhoto = labels.some(a => /^Photo \d+ of \d+/.test(a))
+                         || labels.some(a => a.startsWith('Photos of '))
+                         || labels.some(a => a.startsWith('Photo of '));
+            if (!isPhoto) continue;
+            src = src.replace(/=w\d+-h\d+.*$/, '=w800-h600');
+            if (seen.has(src)) continue;
+            seen.add(src);
+            out.push(src);
+        }
+        return out.slice(0, 30);
+    }""")
     if not imgs:
         log.info(f"  {cafe_id}: no images found on page")
         stats.record(proxy, cafe_id, "no_images")
@@ -546,6 +573,25 @@ def run(args):
             except DiskLimitExceeded as e:
                 log.warning(str(e))
                 break
+            except Exception as e:
+                # Catch-all: an uncaught playwright/runtime error (e.g. TargetClosedError
+                # from a page that died mid-wait) must not crash the whole scraper.
+                # Rebuild the browser, skip the offending cafe, keep going.
+                consecutive_crashes += 1
+                log.warning(f"Unexpected error #{consecutive_crashes} on {cafe_id}: "
+                            f"{type(e).__name__}: {e!s:.80} — rebuilding, skipping cafe")
+                if consecutive_crashes >= MAX_CRASHES:
+                    log.error(f"{consecutive_crashes} consecutive crashes — giving up.")
+                    break
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                time.sleep(5)
+                browser, ctx, page = make_browser()
+                session = make_session()
+                i += 1  # skip the cafe that triggered the error
+                continue
 
             if (i) % 10 == 0:
                 log.info(f"Progress: {i}/{len(rows)} scraped_cafes, {total} images total")
