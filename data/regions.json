@@ -1,9 +1,10 @@
 {
-  "active": ["seoul", "busan", "haeundae"],
+  "active": ["seoul", "busan", "haeundae", "gijang"],
   "origin": { "lat": 37.490230, "lon": 126.994312 },
   "regions": {
     "seoul":    { "lat": 37.490230, "lon": 126.994312, "radius_km": 20 },
     "busan":    { "lat": 35.10066,  "lon": 129.03185,  "radius_km": 20 },
-    "haeundae": { "lat": 35.15977,  "lon": 129.15889,  "radius_km": 10 }
+    "haeundae": { "lat": 35.15977,  "lon": 129.15889,  "radius_km": 10 },
+    "gijang":   { "lat": 35.24500,  "lon": 129.22200,  "radius_km": 12 }
   }
 }
