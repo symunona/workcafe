@@ -93,15 +93,28 @@ class ProxyManager:
         self._tor_available = self._check_tor()
 
     def _check_tor(self) -> bool:
-        try:
-            r = requests.get("http://httpbin.org/ip",
-                             proxies={"http": TOR_SOCKS, "https": TOR_SOCKS},
-                             timeout=10)
-            log.info(f"Tor reachable, exit IP: {r.json().get('origin')}")
-            return True
-        except Exception as e:
-            log.warning(f"Tor SOCKS not reachable: {e} — will skip Tor slots")
-            return False
+        # Probe Tor via several lightweight, high-availability endpoints. The old
+        # single httpbin.org check timed out intermittently even when Tor was up
+        # (httpbin is frequently down / slow over Tor exits), causing a spurious
+        # "will skip Tor slots" fallback. Try a few endpoints with a generous
+        # timeout before concluding Tor is unreachable.
+        probes = [
+            ("https://check.torproject.org/api/ip", lambda j: j.get("IP")),
+            ("http://httpbin.org/ip", lambda j: j.get("origin")),
+            ("https://api.ipify.org?format=json", lambda j: j.get("ip")),
+        ]
+        proxies = {"http": TOR_SOCKS, "https": TOR_SOCKS}
+        last_err = None
+        for url, pick in probes:
+            try:
+                r = requests.get(url, proxies=proxies, timeout=20)
+                r.raise_for_status()
+                log.info(f"Tor reachable, exit IP: {pick(r.json())}")
+                return True
+            except Exception as e:
+                last_err = e
+        log.warning(f"Tor SOCKS not reachable: {last_err} — will skip Tor slots")
+        return False
 
     def _newnym(self):
         """Ask Tor for a new circuit."""
