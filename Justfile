@@ -747,6 +747,15 @@ test-image-priority:
     source venv/bin/activate
     python3 data-processing/tests/run_image_priority_tests.py
 
+# On-the-fly chain promotion test (live merge path): known chains assigned
+# immediately, novel brands promoted to a chain at chain_promote_min, generic
+# tokens never promoted. Self-contained in /tmp; never touches prod DBs.
+[group('Data Pipeline')]
+test-chain-promote:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 data-processing/tests/run_chain_promote_tests.py
+
 # Fast merge quality test for the 방배/내방 area.
 # Builds a 1km subset (~144 cafes), runs mini-pipeline, checks merge correctness.
 # Uses a dedicated socket/pidfile so it never conflicts with the production play DB.

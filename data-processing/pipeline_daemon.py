@@ -288,13 +288,6 @@ def merge_step(cfg):
     return resp.get("rowcount", 0)
 
 
-# ─── chain promote (kept minimal — 03 occasionally) ──────────────────────────
-
-def chains_step():
-    ensure_play_db()
-    run([PY, "data-processing/03_detect_chains.py", "--socket", PLAY_SOCK])
-
-
 def interruptible_sleep(seconds):
     for _ in range(int(seconds)):
         if _stop:
@@ -313,8 +306,6 @@ def main():
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=str(DEFAULT_CONFIG))
-    ap.add_argument("--chain-every", type=int, default=20,
-                    help="run 03_detect_chains every Nth merge cycle (global, expensive)")
     args = ap.parse_args()
 
     signal.signal(signal.SIGTERM, _handle_term)
@@ -357,9 +348,10 @@ def main():
                       (n_translated > 0 and debounce_ready)
 
             if trigger:
+                # No 03_detect_chains here: chain assignment is on-the-fly inside
+                # 04_normalize (known chains + threshold-promote at chain_promote_min).
+                # Global fuzzy consolidation stays a MANUAL recipe (just detect-chains).
                 log(f"── merge cycle {cycles} start: {fmt_counts(counts)} ──")
-                if cycles % args.chain_every == 0:
-                    chains_step()
                 merged = merge_step(cfg)
                 cycles += 1
                 translated_since = None

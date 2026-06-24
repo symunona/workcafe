@@ -144,6 +144,44 @@ def strip_branch(name: str) -> str:
     return result.strip()
 
 
+# ─── Brand token (for on-the-fly chain promotion) ─────────────────────────────
+# Qualifiers stripped from the suffix before brand-token comparison (same-script).
+# Kept in sync with 03_detect_chains.BRAND_SUFFIX_QUALIFIERS.
+BRAND_SUFFIX_QUALIFIERS = [
+    "익스프레스", "Express", "EXPRESS",
+    "커피", "Coffee", "COFFEE",
+    "MGC",
+]
+
+
+def brand_token(name: str) -> str:
+    """Isolate the core brand word so branches of one chain map to one token.
+
+    Kakao/Naver names follow '브랜드 지역점' (e.g. '컴포즈커피 명동길점',
+    '스타벅스 무교동점'): the LAST space-separated token is the branch location and
+    ends in '점'. Drop it, then strip brand qualifiers (커피/Coffee/Express…):
+        '컴포즈커피 명동길점' → '컴포즈커피' → '컴포즈'
+        'Mammoth Coffee Gangnam' → 'mammoth'
+        '매머드익스프레스'        → '매머드'
+    Used by the live on-the-fly chain-promotion counter (04_normalize). NOTE: this
+    is intentionally more aggressive than strip_branch (which is used by the merger
+    and must stay conservative) — it always drops a trailing 점-branch token.
+    """
+    result = name.strip()
+    # Drop a trailing space-separated branch-location token ('… 무교동점').
+    parts = result.split()
+    if len(parts) > 1 and parts[-1].endswith("점"):
+        result = " ".join(parts[:-1]).strip()
+    else:
+        # No space (e.g. '컴포즈커피명동점') — fall back to suffix stripping.
+        result = strip_branch(result).strip()
+    for q in BRAND_SUFFIX_QUALIFIERS:
+        rl, ql = result.lower(), q.lower()
+        if rl.endswith(ql) and len(result) > len(q) + 1:
+            result = result[:-len(q)].strip()
+    return result.lower().strip()
+
+
 # ─── LLM helpers (qwen2.5:1.5b) ──────────────────────────────────────────────
 
 def llm_generate(prompt: str, max_tokens: int = 100, model: str = LLM_MODEL,

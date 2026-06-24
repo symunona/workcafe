@@ -28,11 +28,12 @@ sys.path.insert(0, os.path.join(_HERE, '..', 'scraper', 'lib'))
 
 from cafe_norm_utils import (
     haversine_m, name_similarity, get_embedding, embed_to_blob,
-    is_chain_cafe, lat_lon_bbox, get_english_name, strip_branch,
+    is_chain_cafe, lat_lon_bbox, get_english_name, strip_branch, brand_token,
 )
 from db_client import DBClient
 
 DB_PATH = os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'clean.db'))
+PIPELINE_CONFIG = os.path.abspath(os.path.join(_HERE, '..', 'data', 'pipeline.json'))
 
 MERGE_RADIUS_HARD = 9.0    # unconditional (GPS noise floor ~5-8m)
 MERGE_RADIUS_SOFT = 20.0   # name-checked zone for typical OSM/Kakao GPS offset (8-13m)
@@ -105,6 +106,69 @@ def load_chain_cache(conn):
         if cen:
             _chain_id_cache[cen] = cid
     return list(set(_chain_id_cache.keys()))
+
+
+# ─── On-the-fly chain promotion (incremental, no global rescan) ───────────────
+# A running brand-token → count map. When a brand token (that isn't already a
+# known/existing chain) reaches CHAIN_PROMOTE_MIN cafes, it is promoted to a chain
+# and subsequent cafes of that brand get assigned. This is the live-path
+# replacement for the global 03_detect_chains batch; fuzzy consolidation across
+# spelling variants stays a manual recipe.
+CHAIN_PROMOTE_MIN = 5
+_brand_token_counts: dict[str, int] = {}   # brand_token -> count seen this run
+_promoted_brands: dict[str, str] = {}      # brand_token -> chain_id (already promoted)
+
+# Brand tokens too generic to ever promote (would over-merge unrelated cafes).
+_PROMOTE_SKIP = {"", "cafe", "카페", "coffee", "커피", "공방", "베이커리", "bakery"}
+
+
+def load_promote_config(path: str):
+    """Read chain_promote_min from data/pipeline.json (default 5)."""
+    global CHAIN_PROMOTE_MIN
+    try:
+        with open(path) as f:
+            CHAIN_PROMOTE_MIN = int(json.load(f).get("chain_promote_min", 5))
+    except Exception:
+        CHAIN_PROMOTE_MIN = 5
+
+
+def seed_brand_counts(conn):
+    """Pre-seed the running brand-token counter from clean_cafes already present.
+
+    Lets the threshold account for cafes merged in earlier runs/cycles, so a brand
+    that crossed CHAIN_PROMOTE_MIN across cycles still promotes. Also marks brands
+    whose chain already exists as promoted so we don't recreate them."""
+    for (name,) in conn.execute("SELECT name FROM clean_cafes"):
+        bt = brand_token(name or "")
+        if bt and bt not in _PROMOTE_SKIP:
+            _brand_token_counts[bt] = _brand_token_counts.get(bt, 0) + 1
+
+
+def maybe_promote_chain(conn, dbc: DBClient, cafe: dict, chain_names: list):
+    """Increment the brand-token counter for this cafe and, if it just reached
+    CHAIN_PROMOTE_MIN, promote the brand to a chain. Returns chain_id or None.
+
+    Called only for cafes NOT already matched to a known/existing chain."""
+    bt = brand_token(cafe["name"])
+    if not bt or bt in _PROMOTE_SKIP:
+        return None
+
+    # Already promoted this brand earlier → reuse its chain.
+    if bt in _promoted_brands:
+        return _promoted_brands[bt]
+
+    _brand_token_counts[bt] = _brand_token_counts.get(bt, 0) + 1
+    if _brand_token_counts[bt] < CHAIN_PROMOTE_MIN:
+        return None
+
+    # Threshold reached → promote. Use the (branch-stripped) cafe name as the
+    # canonical chain name; get_or_create_chain dedups against existing chains.
+    canonical = strip_branch(cafe["name"]) or cafe["name"]
+    chain_id = get_or_create_chain(conn, dbc, canonical)
+    _promoted_brands[bt] = chain_id
+    if canonical not in chain_names:
+        chain_names.append(canonical)
+    return chain_id
 
 
 # ─── Clean cafe operations ─────────────────────────────────────────────────────
@@ -340,10 +404,15 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
     chain_id = None
     cr = is_chain_cafe(cafe["name"], chain_names)
     if cr["is_chain"]:
+        # (1) known / already-existing chain — assign directly.
         base = cr.get("chain_name") or strip_branch(cafe["name"])
         chain_id = get_or_create_chain(conn, dbc, base)
         if base not in chain_names:
             chain_names.append(base)
+    else:
+        # (2) on-the-fly threshold promotion: count this brand token; once it hits
+        # chain_promote_min, promote it to a chain and assign. No global rescan.
+        chain_id = maybe_promote_chain(conn, dbc, cafe, chain_names)
 
     clean_id = create_clean_cafe(dbc, cafe, chain_id, emb_blob, eng_lookup)
     # belongs_to_cafe_id update deferred to batch (see main loop)
@@ -387,10 +456,13 @@ def main():
                         help="Write a merge_log row per merge (method ∈ distance|name|chain|llm)")
     parser.add_argument("--llm-cpu", action="store_true",
                         help="Force the merge-fallback LLM onto CPU (leave GPU to the tagger)")
+    parser.add_argument("--config", default=PIPELINE_CONFIG,
+                        help="pipeline.json (reads chain_promote_min for on-the-fly chains)")
     args = parser.parse_args()
 
     global LLM_CPU
     LLM_CPU = args.llm_cpu
+    load_promote_config(args.config)
 
     # ── Exclusive run guard ────────────────────────────────────────────────────
     lock_path = args.db + ".pipeline.lock"
@@ -450,6 +522,12 @@ def main():
 
     chain_names = load_chain_cache(conn)
     print(f"Chains loaded: {len(chain_names)}")
+
+    # On-the-fly chain promotion: pre-seed the brand-token counter from existing
+    # clean_cafes so a brand that crossed the threshold across cycles still counts.
+    seed_brand_counts(conn)
+    print(f"On-the-fly chains: promote_min={CHAIN_PROMOTE_MIN}, "
+          f"{len(_brand_token_counts)} brand tokens seeded")
 
     def fetch_rows(provider_filter: str | None, exclude: bool = False) -> list:
         """Fetch unprocessed scraped_cafes rows, optionally filtered by provider."""

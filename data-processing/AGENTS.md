@@ -89,11 +89,14 @@ Bulk sets `images.belongs_to_cafe_id` by joining against `scraped_cafes.belongs_
 One config-driven process (reads `data/pipeline.json` via `--config`) that replaces the manual `merge-pipeline` for streaming. Polling loop, **Order B (translate THEN merge)**, LLM forced onto **CPU** (`num_gpu:0`) so the GPU stays free for the RAM++ tagger. Per cycle, against the play DB (`clean.db`):
 1. **sync** new `scraped.db` rows → `clean.db` (00). New rows arrive `status='scraped'`.
 2. **translate** (reuses 05's `open_englishify`/`sync`/prepass/ollama logic, CPU-forced): translate `status='scraped'` names lacking an `english_name` in chunks of `translate_batch×10` → `englishify.db` → flip those cafes to `status='translated'`.
-3. **merge** when `≥ translate_batch` translated rows exist OR the `merge_debounce_s` timer fires: run `04_normalize --merge-log --llm-cpu` + `06_link` → merged rows become `status='merged'`; each merge writes a `merge_log` row (and `03_detect_chains` runs every Nth cycle).
+3. **merge** when `≥ translate_batch` translated rows exist OR the `merge_debounce_s` timer fires: run `04_normalize --merge-log --llm-cpu` + `06_link` → merged rows become `status='merged'`; each merge writes a `merge_log` row. Chain assignment is **on-the-fly inside 04** (known chains + threshold-promote); `03_detect_chains` is NOT run in the live cycle.
 
-Reuses 00/03/04/05/06 — does not rewrite them. Start/stop/status via `just scraper-start | scraper-stop | scraper-status`. Orchestrate a new region with `just scrape-and-process-full-pipeline [region]`. Monitor: `journalctl --user -u workcafe-pipeline -f`.
+Reuses 00/04/05/06 — does not rewrite them. Start/stop/status via `just scraper-start | scraper-stop | scraper-status`. Orchestrate a new region with `just scrape-and-process-full-pipeline [region]`. Monitor: `journalctl --user -u workcafe-pipeline -f`.
 
-> **Phase 2 (deferred):** image-priority baseline (`kakao_scrape_state.priority` column already added), on-the-fly chain promote (`chain_promote_min`), scrape-coverage map overlay.
+> **Phase 2 (done):**
+> - **Image-priority baseline** — `mark_region_image_priority.py` sets `kakao_scrape_state.priority=1` on a region's kakao cafes (bbox from regions.json); the kakao image scraper serves priority>0 first and breadth-first caps each at `image_priority_first_n` images, then resets priority. Wired into `scrape-and-process-full-pipeline [region]`. Test: `just test-image-priority`.
+> - **On-the-fly chain promote** — `04_normalize` keeps a running brand-token count; a brand reaching `chain_promote_min` (data/pipeline.json, default 5) is promoted to a chain and assigned. No global rescan in the live path. Fuzzy consolidation across spelling variants stays MANUAL: `just detect-chains` (03). Test: `just test-chain-promote`.
+> - Scrape-coverage map overlay (separate workstream).
 
 ## Key Shared Modules
 
