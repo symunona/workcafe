@@ -894,3 +894,26 @@
     transform: translate(calc(-50% + 200px), 0);
   }
 }
+
+/* ── Scrape-coverage layer: per-provider corner counts ── */
+.wc-cov-label {
+  background: transparent;
+  border: none;
+}
+.wc-cov-label-box {
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  font: 700 10px/1 ui-monospace, "SF Mono", Menlo, monospace;
+  text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;
+}
+.wc-cov-corner {
+  position: absolute;
+  white-space: nowrap;
+}
+/* offsets from the cell center; cells are ~ a fixed pixel size at zoom >= 14 */
+.wc-cov-tl { left: -22px; top: -16px; }
+.wc-cov-tr { left: 8px;  top: -16px; }
+.wc-cov-bl { left: -22px; top: 8px;  }
+.wc-cov-br { left: 8px;  top: 8px;  }

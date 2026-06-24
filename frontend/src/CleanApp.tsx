@@ -14,6 +14,7 @@ import { SnapshotSelector, useSnapshot } from './components/SnapshotSelector'
 import { TagBrowserOverlay } from './components/TagBrowserOverlay'
 import { AboutModal } from './components/AboutModal'
 import { SeoulSubwayLayer } from './components/SeoulSubwayLayer'
+import { ScrapeCoverageLayer, type CoverageResponse } from './components/ScrapeCoverageLayer'
 
 declare const __GIT_SHA__: string
 declare const __BUILD_DATE__: string
@@ -545,6 +546,11 @@ export default function CleanApp() {
     try { return JSON.parse(localStorage.getItem('wc_subway_layer') ?? 'false') } catch { return false }
   })
   const [subwayLoading, setSubwayLoading] = useState(false)
+  // Scrape-coverage overlay (admin-only): rectangles per 1km cell, heat by cafe count.
+  const [showScrapeCoverage, setShowScrapeCoverage] = useState(() => {
+    try { return !IS_PUBLIC && JSON.parse(localStorage.getItem('wc_scrape_coverage') ?? 'false') } catch { return false }
+  })
+  const [coverageRollup, setCoverageRollup] = useState<CoverageResponse | null>(null)
   const [showHeatmap, setShowHeatmap] = useState(() => {
     try { return JSON.parse(localStorage.getItem('wc_heatmap') ?? 'false') } catch { return false }
   })
@@ -576,6 +582,7 @@ export default function CleanApp() {
   useEffect(() => { localStorage.setItem('wc_image_ring', JSON.stringify(showImageRing)) }, [showImageRing])
   useEffect(() => { localStorage.setItem('wc_transit_layer', JSON.stringify(showTransitLayer)) }, [showTransitLayer])
   useEffect(() => { localStorage.setItem('wc_subway_layer', JSON.stringify(showSubwayLayer)) }, [showSubwayLayer])
+  useEffect(() => { localStorage.setItem('wc_scrape_coverage', JSON.stringify(showScrapeCoverage)) }, [showScrapeCoverage])
 
   const isMobile = useIsMobile()
   const selectedId = id || null
@@ -976,6 +983,7 @@ export default function CleanApp() {
           />
         )}
         {showSubwayLayer && <SeoulSubwayLayer onLoading={setSubwayLoading} />}
+        {!IS_PUBLIC && showScrapeCoverage && <ScrapeCoverageLayer onRollup={setCoverageRollup} />}
         <ViewportTracker onBoundsChange={handleBoundsChange} />
         <MapPositionSaver />
         <MapPanner target={mapTarget} />
@@ -993,7 +1001,8 @@ export default function CleanApp() {
           onClick={() => setShowAbout(true)}
           className="bg-white rounded-lg shadow px-3 py-1.5 text-base font-semibold text-gray-700 flex items-center gap-1.5 hover:bg-gray-50 transition-colors shrink-0"
         >
-          ☕ Workcafe Seoul
+          <img src="/favicon.svg" alt="Workcafe Seoul" className="h-6 w-6" />
+          Workcafe Seoul
         </button>
         <SearchBar
           query={searchQuery}
@@ -1226,6 +1235,33 @@ export default function CleanApp() {
               </div>
               <input type="checkbox" checked={showSubwayLayer} onChange={e => setShowSubwayLayer(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
             </label>
+            {!IS_PUBLIC && (
+              <label className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer select-none">
+                <div>
+                  <div className="text-sm text-gray-700">🐌 Scrape coverage</div>
+                  <div className="text-[10px] text-gray-400">1km grid · heat by cafe count</div>
+                </div>
+                <input type="checkbox" checked={showScrapeCoverage} onChange={e => setShowScrapeCoverage(e.target.checked)} className="w-4 h-4 accent-rose-500" />
+              </label>
+            )}
+            {!IS_PUBLIC && showScrapeCoverage && coverageRollup && (
+              <div className="mx-2 mb-1 px-2.5 py-2 rounded-lg bg-gray-50 border border-gray-100">
+                <div className="text-[10px] text-gray-500 mb-1">
+                  {coverageRollup.cell_count} cells · {coverageRollup.total_cafes.toLocaleString()} cafes (in view)
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {coverageRollup.per_provider.map(p => (
+                    <div key={p.provider} className="flex items-center justify-between text-[11px]">
+                      <span className="flex items-center gap-1.5 text-gray-600">
+                        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: PROVIDER_COLORS[p.provider] ?? '#9ca3af' }} />
+                        {p.provider}
+                      </span>
+                      <span className="font-mono text-gray-500">{p.cafes.toLocaleString()} · {p.cells_complete}c</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1515,7 +1551,7 @@ export default function CleanApp() {
           <div className="flex-1 bg-black/30" onClick={() => setShowMobileMenu(false)} />
           <div className="bg-white w-72 h-full flex flex-col shadow-xl">
             <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-              <span className="font-semibold text-gray-800">☕ Workcafe Seoul</span>
+              <span className="font-semibold text-gray-800 flex items-center gap-1.5"><img src="/favicon.svg" alt="" className="h-5 w-5" />Workcafe Seoul</span>
               <button onClick={() => setShowMobileMenu(false)} className="text-gray-400 hover:text-gray-600 text-xl w-8 h-8 flex items-center justify-center">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -1595,6 +1631,15 @@ export default function CleanApp() {
                     </div>
                     <input type="checkbox" checked={showSubwayLayer} onChange={e => setShowSubwayLayer(e.target.checked)} className="w-4 h-4 accent-indigo-500" />
                   </label>
+                  {!IS_PUBLIC && (
+                    <label className="flex items-center justify-between text-sm text-gray-700 cursor-pointer select-none">
+                      <div>
+                        <div>🐌 Scrape coverage</div>
+                        <div className="text-[10px] text-gray-400">1km grid · heat by cafe count</div>
+                      </div>
+                      <input type="checkbox" checked={showScrapeCoverage} onChange={e => setShowScrapeCoverage(e.target.checked)} className="w-4 h-4 accent-rose-500" />
+                    </label>
+                  )}
                 </div>
               )}
               {/* Recently visited section */}
