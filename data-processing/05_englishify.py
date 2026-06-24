@@ -21,7 +21,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_HERE, '..', 'scraper', 'lib'))
 sys.path.insert(0, _HERE)
 
-from cafe_norm_utils import llm_generate
+from cafe_norm_utils import llm_generate, choose_english_name, is_latin
 from db_client import DBClient
 
 ENGLISHIFY_DB = os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'englishify.db'))
@@ -73,6 +73,81 @@ def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
         count += cur.rowcount
     eng.commit()
     print(f"  chain pre-pass: filled {count} names")
+    return count
+
+
+def google_native_prepass(dbc: DBClient, eng: sqlite3.Connection,
+                           llm_pick: bool = True) -> int:
+    """Adopt Google's native English name into the translation cache — smartly.
+
+    Google sometimes scrapes a real English name (e.g. "The Han River Cafe"); that
+    beats any LLM translation of the Korean name. But Google also returns phonetic
+    romanizations (디졸브 → "Dijolbeu") that are WORSE than a real translation. So we
+    run the shared `choose_english_name` classifier (anchor-word → take Google;
+    romanization fingerprint → keep current; grey zone → 1 qwen call) instead of
+    blind-accepting any latin string.
+
+    Crucially this runs EVERY cycle and overwrites name_translations rows whose
+    model != 'google_native' when the classifier picks the Google name — so a LATE
+    Google arrival replaces an earlier LLM translation already in the cache.
+
+    Keyed by the clean_cafe's Korean name so future normalize runs inherit it, and
+    the 04 propagate step refreshes already-merged clean_cafes.
+    """
+    rows = dbc.fetchall("""
+        SELECT sc.name, cc.name
+        FROM scraped_cafes sc
+        JOIN clean_cafes cc ON sc.belongs_to_cafe_id = cc.id
+        WHERE sc.provider = 'google'
+          AND sc.name IS NOT NULL
+          AND sc.name != ''
+    """)
+    cur = eng.cursor()
+    stats = {'anchor': 0, 'no-current': 0, 'llm': 0, 'romanization-reject': 0,
+             'skip-latin': 0, 'skip-same': 0}
+    count = 0
+    seen_kr: set = set()
+    for (google_name, cc_korean_name) in rows:
+        if not is_latin(google_name):
+            stats['skip-latin'] += 1
+            continue
+        # One decision per Korean name per cycle (avoid double LLM calls / churn).
+        if cc_korean_name in seen_kr:
+            continue
+        seen_kr.add(cc_korean_name)
+
+        cur.execute(
+            "SELECT english_name, model FROM name_translations WHERE korean_name = ?",
+            (cc_korean_name,),
+        )
+        existing = cur.fetchone()
+        current_en = existing[0] if existing else None
+        current_model = existing[1] if existing else None
+
+        # Already this exact Google name from a previous cycle — nothing to do.
+        if current_en == google_name and current_model == 'google_native':
+            stats['skip-same'] += 1
+            continue
+
+        chosen, source = choose_english_name(
+            google_name, current_en or "", cc_korean_name, llm_pick=llm_pick)
+        stats[source] = stats.get(source, 0) + 1
+
+        if chosen != google_name:
+            continue  # classifier kept the existing translation
+        if current_en == google_name:
+            continue  # value unchanged (just stamp model below isn't worth a write)
+
+        cur.execute("""
+            UPDATE name_translations
+               SET english_name = ?, model = 'google_native', translated_at = datetime('now')
+             WHERE korean_name = ?
+        """, (google_name, cc_korean_name))
+        count += cur.rowcount
+    eng.commit()
+    print(f"  google native pre-pass: adopted {count} Google names "
+          f"(anchor={stats['anchor']} no-current={stats['no-current']} "
+          f"llm-grey={stats['llm']} rejected={stats['romanization-reject']})")
     return count
 
 
@@ -227,6 +302,9 @@ if __name__ == "__main__":
 
     print("Step 2: chain pre-pass...")
     chain_prepass(dbc, eng)
+
+    print("Step 2b: google native name pre-pass...")
+    google_native_prepass(dbc, eng)
 
     if not args.sync_only:
         print("Step 3: ollama batch translation...")

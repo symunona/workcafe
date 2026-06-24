@@ -11,6 +11,7 @@ cafe_norm_utils.py — Shared utilities for cafe normalization pipeline.
 - Chain detection heuristic
 """
 import math
+import re
 import json
 import struct
 import sqlite3
@@ -277,6 +278,139 @@ def is_chain_cafe(name: str, existing_chain_names: list[str]) -> dict:
             return {"is_chain": True, "chain_name": existing, "confidence": score, "method": "lev_match"}
 
     return {"is_chain": False, "chain_name": None, "confidence": 0.0, "method": "none"}
+
+
+# ─── English-name classifier (Google native name vs LLM translation) ──────────
+# Folded in from the (now-deleted) scripts/fix_google_english_names.py manual pass
+# so the live englishify pipeline can pick Google's English name smartly instead
+# of blind-accepting any latin string (which let phonetic romanizations through).
+
+_KOREAN_RE = re.compile(r'[가-힣]')
+
+# Words that signal real English (not present in Korean romanizations).
+# Checked both as whole tokens AND as substrings ≥4 chars (handles ALLCAPS mashes).
+_ENGLISH_ANCHORS = {
+    # Cafe/food/drink domain
+    'cafe', 'coffee', 'bar', 'tea', 'house', 'room', 'place', 'corner',
+    'bakery', 'roast', 'roastery', 'brew', 'shop', 'studio', 'lab',
+    'market', 'kitchen', 'garden', 'lounge', 'terrace', 'bistro',
+    'local', 'daily', 'works', 'craft', 'slow', 'table', 'bean',
+    'latte', 'espresso', 'drip', 'press', 'wave', 'blend',
+    'milk', 'cream', 'bread', 'cake', 'toast', 'cookie', 'sweet',
+    'brunch', 'lunch', 'diner', 'grill', 'pizza', 'burger',
+    # Location / branch words
+    'branch', 'store', 'station', 'tower', 'center', 'centre',
+    'plaza', 'square', 'street', 'avenue', 'road', 'lane', 'way',
+    'park', 'hill', 'river', 'slope', 'valley', 'bridge', 'gate',
+    'floor', 'building', 'complex', 'village', 'district',
+    'flagship', 'outlet', 'annex', 'point',
+    # Geography that appears in English cafe names
+    'seoul', 'korea', 'korean', 'gangnam', 'hongdae', 'itaewon',
+    # Known global brands (subset — enough to signal English context)
+    'starbucks', 'hollys', 'ediya', 'megacoffee',
+    # Common English adjectives / descriptors
+    'gentle', 'slow', 'quiet', 'bright', 'warm', 'cool', 'fresh',
+    'pure', 'wild', 'free', 'open', 'light', 'dark', 'deep', 'high',
+    'good', 'great', 'little', 'small', 'grand', 'happy', 'lucky',
+    'black', 'white', 'blue', 'green', 'gold', 'silver', 'rose',
+    'new', 'old', 'hidden', 'secret', 'urban', 'rural', 'classic',
+    'modern', 'vintage', 'retro', 'cozy', 'comfy', 'rustic',
+    # Common English determiners / prepositions — reliable real-English signal
+    'the', 'and', 'our', 'your', 'its', 'of', 'at', 'in', 'by',
+    'for', 'with', 'from', 'near', 'between',
+    # Common English verbs / nouns that appear in branding
+    'space', 'base', 'home', 'life', 'time', 'day', 'night', 'dawn',
+    'story', 'chapter', 'page', 'note', 'frame', 'flow', 'grove',
+    'field', 'forest', 'ocean', 'island', 'cloud', 'stone', 'wood',
+    'moon', 'star', 'sun', 'sky', 'rain', 'snow', 'wind', 'fire',
+    'rise', 'side', 'mark', 'work', 'play', 'made', 'hand', 'born',
+    'club', 'crew', 'gang', 'team', 'folk', 'kind',
+    'love', 'mind', 'soul', 'mood', 'vibe', 'feel', 'dear', 'lazy',
+    'hey', 'hello', 'bye', 'yes', 'zen', 'my', 'me', 'we',
+    # English words that debunk/etc. belong to
+    'debunk', 'kangaroo', 'elephant', 'bear', 'fox', 'wolf', 'bird',
+}
+
+# Word-final patterns unique to Korean romanization (extremely rare in real English).
+_ROMAN_ENDINGS = re.compile(
+    r'\b\w*(?:beu|peu|teu|seu|geu|keu|reu|jeu|cheu|neu|neun|eul|reul)\b',
+    re.IGNORECASE,
+)
+# Korean administrative suffixes used in romanized addresses/branch names.
+_KOREAN_SUFFIXES = re.compile(r'\b\w*-(?:dong|gu|ro|gil)\b', re.IGNORECASE)
+
+# qwen2.5:3b understands "cafe brand name" context better than :1.5b for the
+# grey-zone tie-break; the user asked for qwen explicitly.
+ENGLISH_PICK_MODEL = "qwen2.5:3b"
+
+
+def is_latin(name: str) -> bool:
+    """True if name is non-empty and contains no Korean (Hangul) characters."""
+    return bool(name) and not _KOREAN_RE.search(name)
+
+
+def classify_google_name(google_name: str) -> str:
+    """Classify a latin Google name as 'accept' (real English anchor word),
+    'reject' (Korean romanization fingerprint), or 'grey' (needs LLM tie-break)."""
+    lower = google_name.lower()
+    words = set(re.findall(r"[a-z]+", lower))
+
+    # Exact word match against the anchor set.
+    if words & _ENGLISH_ANCHORS:
+        return 'accept'
+    # Substring match for anchors ≥4 chars — catches ALLCAPS mashes (CAFEVIACE→cafe).
+    if any(anchor in lower for anchor in _ENGLISH_ANCHORS if len(anchor) >= 4):
+        return 'accept'
+
+    if _ROMAN_ENDINGS.search(google_name) or _KOREAN_SUFFIXES.search(google_name):
+        return 'reject'
+
+    return 'grey'
+
+
+def choose_english_name(google_name: str, current_name: str, korean_name: str,
+                        llm_pick=True) -> tuple:
+    """Decide whether Google's native English name should replace the current one.
+
+    Returns (chosen_name, source) where source ∈
+        {'anchor', 'romanization-reject', 'llm', 'no-current'}.
+
+    - 'anchor':              google_name has a real-English anchor word → take Google.
+    - 'romanization-reject': google_name is a phonetic transcription → keep current.
+    - 'no-current':          there is no existing translation → take Google (any
+                             latin name beats nothing).
+    - 'llm':                 grey zone — ask qwen which reads better as English.
+                             If llm_pick=False (no LLM available), keep current
+                             conservatively. Result is for the GOOGLE name; if the
+                             LLM keeps `current`, source is still 'llm'.
+
+    Only meaningful when google_name is latin-script; callers gate on is_latin().
+    """
+    decision = classify_google_name(google_name)
+    if decision == 'accept':
+        return google_name, 'anchor'
+    if decision == 'reject':
+        return current_name, 'romanization-reject'
+
+    # grey zone
+    if not current_name:
+        # Nothing to compare against — a latin Google name is better than empty.
+        return google_name, 'no-current'
+    if not llm_pick:
+        return current_name, 'llm'
+
+    prompt = (
+        f"Korean cafe name: {korean_name}\n"
+        f"A: {google_name}\n"
+        f"B: {current_name}\n"
+        f"Which is a better English name for this cafe? "
+        f"Reply ONLY with the letter A or B."
+    )
+    resp = llm_generate(prompt, max_tokens=5, model=ENGLISH_PICK_MODEL).strip().upper()
+    if resp.startswith('A'):
+        return google_name, 'llm'
+    # 'B' or anything ambiguous → conservatively keep the current translation.
+    return current_name, 'llm'
 
 
 # ─── DB helpers ──────────────────────────────────────────────────────────────
