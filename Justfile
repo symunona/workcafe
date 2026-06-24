@@ -510,6 +510,8 @@ scraper-status:
     echo "── ports ──"; ss -tlnp 2>/dev/null | grep -E ':5550|:13854' | awk '{print "  "$4}' || true
     echo "── stray manual scrapers ──"; pgrep -af "[m]ax-steps|[m]ultisource.sh|[r]egion_iterate.sh|[t]ag_images_ram" | grep -v pgrep | sed 's/^/  /' || echo "  none"
     echo "── DB sockets ──"; for s in /tmp/workcafe_db.sock /tmp/workcafe_play_db.sock; do [ -S "$s" ] && echo -e "  ${G}●${N} $s" || echo -e "  ${R}○${N} $s"; done
+    echo "── GPU tagger ──"; if pgrep -f "[t]ag_images_ram" >/dev/null; then echo -e "  ${G}●${N} tagger running"; else echo -e "  ${R}○${N} tagger NOT running  (just image-pipeline)"; fi
+    nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader 2>/dev/null | sed 's/^/  GPU: /' || true
     echo "── tmux ──"; tmux ls 2>/dev/null | sed 's/^/  /' || echo "  none"
 
 # Stop EVERYTHING workcafe: systemd units + stray manual scrapers + tagger tmux + play-db.
@@ -529,6 +531,7 @@ scraper-start: scraper-stop
     #!/usr/bin/env bash
     UNITS="workcafe-db-server workcafe-scraper-kakao workcafe-scraper-google workcafe-scraper-osm workcafe-scraper-naver workcafe-kakao-images workcafe-naver-images workcafe-google-images workcafe-kakao-metadata workcafe-naver-metadata workcafe-pipeline"
     echo "Starting services..."; systemctl --user start $UNITS 2>/dev/null || true
+    echo "Starting GPU tagger..."; just image-pipeline
     sleep 2; just scraper-status
 
 # ── Scrapers ─────────────────────────────────────────────────────────────────
