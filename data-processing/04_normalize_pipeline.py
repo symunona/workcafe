@@ -214,6 +214,44 @@ def create_clean_cafe(dbc: DBClient, cafe: dict, chain_id=None, emb_blob=None, e
     ))
     return clean_id
 
+def propagate_english_names(conn, dbc: DBClient, eng_lookup: dict) -> int:
+    """Refresh already-merged clean_cafes.english_name from the englishify lookup.
+
+    create_clean_cafe sets english_name once, at creation, from the lookup; merges
+    never touch it. So when a LATE Google native name lands in englishify.db (05's
+    google_native_prepass adopting it over an earlier LLM translation), the merged
+    clean_cafe still carries the stale name. This pass closes that gap: for every
+    clean_cafe whose name maps to a different english_name in the (now-updated)
+    lookup, write the new value.
+
+    Idempotent (only updates rows that actually differ) and touches english_name
+    only — never raw scrape fields or other columns.
+    """
+    if not eng_lookup:
+        return 0
+    # Read via dbc (the play-DB socket) so we see rows created/merged earlier in
+    # THIS run — the local conn is a separate WAL connection and may be stale.
+    rows = dbc.fetchall("SELECT id, name, english_name FROM clean_cafes")
+    updates = []
+    for clean_id, name, current_en in rows:
+        new_en = eng_lookup.get(name)
+        if new_en and new_en != current_en:
+            updates.append((new_en, clean_id))
+    if not updates:
+        print("  propagate english_name: 0 clean_cafes refreshed (all current)")
+        return 0
+    for i in range(0, len(updates), 400):
+        chunk = updates[i:i + 400]
+        dbc.executemany(
+            "UPDATE clean_cafes SET english_name = ?, updated_at = CURRENT_TIMESTAMP "
+            "WHERE id = ?",
+            chunk,
+        )
+    print(f"  propagate english_name: {len(updates)} clean_cafes refreshed "
+          f"(late Google / updated translations)")
+    return len(updates)
+
+
 def merge_into_clean_cafe(conn, dbc: DBClient, clean_id: str, cafe: dict):
     row = conn.execute(
         "SELECT avg_lat, avg_lon, providers, source_ids, address, url, metadata FROM clean_cafes WHERE id = ?",
@@ -665,6 +703,11 @@ def main():
 
     elapsed_total = 0  # individual passes track their own elapsed
     print(f"\n\nTotal: processed={done}  new={created}  merged={merged}")
+
+    # Refresh already-merged clean_cafes whose english_name lags the (now-updated)
+    # englishify lookup — e.g. a Google native name that arrived after the merge.
+    print("\nPropagating updated english names to merged clean_cafes...")
+    propagate_english_names(conn, dbc, eng_lookup)
 
     # Final DB counts via dbc (authoritative)
     print(f"\n  clean_cafes:  {dbc.fetchval('SELECT COUNT(*) FROM clean_cafes')}")

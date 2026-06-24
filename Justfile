@@ -710,15 +710,6 @@ normalize limit="0":
         python3 data-processing/04_normalize_pipeline.py --socket "$PLAY_SOCK" --englishify-db "$ENG_DB" --limit {{limit}}
     fi
 
-# Overwrite clean_cafes.english_name with Google's native English name where Google
-# already scraped a Latin-script name (beats LLM translations like Dahan-Gang).
-# Dry-run by default. Pass --apply to commit. Safe: only touches english_name column.
-[group('Data Pipeline')]
-fix-google-english-names *args:
-    #!/usr/bin/env bash
-    source venv/bin/activate
-    python3 scripts/fix_google_english_names.py {{args}}
-
 # Create a spatial subset of scraped.db for fast pipeline testing.
 # Extracts scraped_cafes within a blocksize×blocksize meter square around center.
 # belongs_to_cafe_id reset to NULL so pipeline runs fresh on subset.
