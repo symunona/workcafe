@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -280,6 +281,226 @@ var (
 )
 
 const statusCacheTTL = 8 * time.Second
+
+// ─── Scrape-coverage grid ──────────────────────────────────────────────────────
+// Mirrors scraper/lib/utils.py: STEP_SIZE 0.01°, origin = Seoul City Hall.
+const (
+	coverageStep      = 0.01
+	coverageCenterLat = 37.490230
+	coverageCenterLon = 126.994312
+)
+
+type coverageRegion struct {
+	lat, lon float64
+	radKm    int
+}
+
+// Known regions (data/regions.json). radKm ≈ grid cells (each ~1km).
+var coverageRegions = map[string]coverageRegion{
+	"seoul":    {37.490230, 126.994312, 20},
+	"busan":    {35.10066, 129.03185, 20},
+	"haeundae": {35.15977, 129.15889, 10},
+}
+
+// round mirrors Python's round-half-to-even-ish banker's rounding closely enough
+// for grid binning; Go's math.Round is round-half-away-from-zero which matches the
+// scraper's get_grid_coords (Python round() is banker's, but cells differ only at
+// exact .5 boundaries which scraped lat/lon never hit). Use math.Round.
+func round(f float64) float64 { return math.Round(f) }
+
+// CoverageProvider is one provider's coverage in a cell.
+type CoverageProvider struct {
+	Status string `json:"status,omitempty"` // "completed" if any progress row present
+	Cafes  int    `json:"cafes"`
+}
+
+// CoverageCell is one 1km grid cell.
+type CoverageCell struct {
+	GridX      int                          `json:"grid_x"`
+	GridY      int                          `json:"grid_y"`
+	BBox       [4]float64                   `json:"bbox"` // [minLat,minLon,maxLat,maxLon]
+	Providers  map[string]*CoverageProvider `json:"providers"`
+	TotalCafes int                          `json:"total_cafes"`
+}
+
+// coverageBaseProvider maps a progress.provider (e.g. "kakao_CE7", "google_카페")
+// to its base provider name; returns "" for sentinel/unknown rows.
+func coverageBaseProvider(p string) string {
+	switch {
+	case strings.HasPrefix(p, "kakao"):
+		return "kakao"
+	case strings.HasPrefix(p, "google"):
+		return "google"
+	case strings.HasPrefix(p, "naver"):
+		return "naver"
+	case strings.HasPrefix(p, "osm"):
+		return "osm"
+	}
+	return ""
+}
+
+// Scrape-coverage cache — full response per (region/bbox) bounds, ~8s TTL like /api/status.
+var (
+	coverageCacheMu sync.Mutex
+	coverageCache   = map[string][]byte{}
+	coverageCacheAt = map[string]time.Time{}
+)
+
+const coverageCacheTTL = 8 * time.Second
+
+// getScrapeCoverage builds (or serves cached) the coverage payload for the given
+// grid bounds. Bounds of MinInt/MaxInt mean "no limit".
+func getScrapeCoverage(db *sql.DB, minGX, maxGX, minGY, maxGY int) []byte {
+	key := fmt.Sprintf("%d:%d:%d:%d", minGX, maxGX, minGY, maxGY)
+	coverageCacheMu.Lock()
+	defer coverageCacheMu.Unlock()
+	if t, ok := coverageCacheAt[key]; ok && time.Since(t) < coverageCacheTTL {
+		return coverageCache[key]
+	}
+
+	inBounds := func(gx, gy int) bool {
+		return gx >= minGX && gx <= maxGX && gy >= minGY && gy <= maxGY
+	}
+
+	cells := map[[2]int]*CoverageCell{}
+	getCell := func(gx, gy int) *CoverageCell {
+		k := [2]int{gx, gy}
+		c, ok := cells[k]
+		if !ok {
+			c = &CoverageCell{
+				GridX: gx, GridY: gy,
+				BBox: [4]float64{
+					coverageCenterLat + (float64(gy)-0.5)*coverageStep,
+					coverageCenterLon + (float64(gx)-0.5)*coverageStep,
+					coverageCenterLat + (float64(gy)+0.5)*coverageStep,
+					coverageCenterLon + (float64(gx)+0.5)*coverageStep,
+				},
+				Providers: map[string]*CoverageProvider{},
+			}
+			cells[k] = c
+		}
+		return c
+	}
+
+	// 1) progress rows → which cells each provider finished.
+	//    Skip the (9999,9999) "*_finished" sentinel rows.
+	progRows, err := db.Query(`SELECT grid_x, grid_y, provider FROM progress WHERE NOT (grid_x = 9999 AND grid_y = 9999)`)
+	if err == nil {
+		defer progRows.Close()
+		for progRows.Next() {
+			var gx, gy int
+			var prov string
+			if progRows.Scan(&gx, &gy, &prov) != nil {
+				continue
+			}
+			base := coverageBaseProvider(prov)
+			if base == "" || !inBounds(gx, gy) {
+				continue
+			}
+			c := getCell(gx, gy)
+			cp, ok := c.Providers[base]
+			if !ok {
+				cp = &CoverageProvider{}
+				c.Providers[base] = cp
+			}
+			cp.Status = "completed"
+		}
+	}
+
+	// 2) scraped_cafes binned to cells → per-provider cafe counts.
+	//    Bin in SQL: cast(round((lon-origin)/step)) — sqlite ROUND is half-away-from-zero,
+	//    matching Go math.Round and the scraper's get_grid_coords.
+	cafeRows, err := db.Query(`
+		SELECT CAST(ROUND((lon - ?) / ?) AS INTEGER) AS gx,
+		       CAST(ROUND((lat - ?) / ?) AS INTEGER) AS gy,
+		       provider, COUNT(*)
+		FROM scraped_cafes
+		WHERE lat IS NOT NULL AND lon IS NOT NULL
+		GROUP BY gx, gy, provider`,
+		coverageCenterLon, coverageStep, coverageCenterLat, coverageStep)
+	if err == nil {
+		defer cafeRows.Close()
+		for cafeRows.Next() {
+			var gx, gy, n int
+			var prov string
+			if cafeRows.Scan(&gx, &gy, &prov, &n) != nil {
+				continue
+			}
+			base := coverageBaseProvider(prov)
+			if base == "" {
+				base = prov
+			}
+			if !inBounds(gx, gy) {
+				continue
+			}
+			c := getCell(gx, gy)
+			cp, ok := c.Providers[base]
+			if !ok {
+				cp = &CoverageProvider{}
+				c.Providers[base] = cp
+			}
+			cp.Cafes += n
+			c.TotalCafes += n
+		}
+	}
+
+	// Flatten + per-provider rollup totals.
+	out := make([]CoverageCell, 0, len(cells))
+	rollup := map[string]*CoverageProvider{}
+	totalCafes := 0
+	for _, c := range cells {
+		out = append(out, *c)
+		totalCafes += c.TotalCafes
+		for base, cp := range c.Providers {
+			r, ok := rollup[base]
+			if !ok {
+				r = &CoverageProvider{}
+				rollup[base] = r
+			}
+			r.Cafes += cp.Cafes
+		}
+	}
+	// Cells-completed-per-provider rollup (count of completed cells).
+	rollupCells := map[string]int{}
+	for _, c := range cells {
+		for base, cp := range c.Providers {
+			if cp.Status == "completed" {
+				rollupCells[base]++
+			}
+		}
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].GridY != out[j].GridY {
+			return out[i].GridY < out[j].GridY
+		}
+		return out[i].GridX < out[j].GridX
+	})
+
+	type regionRollup struct {
+		Provider      string `json:"provider"`
+		CafeCount     int    `json:"cafes"`
+		CellsComplete int    `json:"cells_complete"`
+	}
+	rollupList := make([]regionRollup, 0, len(rollup))
+	for base, r := range rollup {
+		rollupList = append(rollupList, regionRollup{Provider: base, CafeCount: r.Cafes, CellsComplete: rollupCells[base]})
+	}
+	sort.Slice(rollupList, func(i, j int) bool { return rollupList[i].CafeCount > rollupList[j].CafeCount })
+
+	resp := map[string]interface{}{
+		"cells":            out,
+		"cell_count":       len(out),
+		"total_cafes":      totalCafes,
+		"per_provider":     rollupList,
+		"cell_size_deg":    coverageStep,
+		"origin":           [2]float64{coverageCenterLat, coverageCenterLon},
+	}
+	bodyBytes, _ := json.Marshal(resp)
+	coverageCache[key] = bodyBytes
+	coverageCacheAt[key] = time.Now()
+	return bodyBytes
+}
 
 
 func getDiskStats(dataDir string) DiskStats {
@@ -1712,6 +1933,62 @@ func main() {
 			"points": points,
 			"total":  len(points),
 		})
+	})
+
+	// ── GET /api/scrape-coverage ──────────────────────────────────────────────
+	// Read-only visualization of WHAT got scraped, WHERE, per provider — "snail style".
+	// Cells = union of the progress table (per-provider completed cells) and cells that
+	// contain scraped_cafes (binned by 0.01° around the grid origin = Seoul City Hall).
+	mux.HandleFunc("/api/scrape-coverage", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		q := r.URL.Query()
+
+		// Optional region filter → restrict cells to the region's bbox.
+		minGX, maxGX, minGY, maxGY := math.MinInt32, math.MaxInt32, math.MinInt32, math.MaxInt32
+		if region := strings.ToLower(strings.TrimSpace(q.Get("region"))); region != "" {
+			if c, ok := coverageRegions[region]; ok {
+				cx := int(round((c.lon - coverageCenterLon) / coverageStep))
+				cy := int(round((c.lat - coverageCenterLat) / coverageStep))
+				// radius_km ≈ cells (each cell ~1km). Pad by 1.
+				rad := c.radKm + 1
+				minGX, maxGX = cx-rad, cx+rad
+				minGY, maxGY = cy-rad, cy+rad
+			}
+		}
+		// Optional explicit bbox (lat/lon) → grid bounds.
+		if minLatS, maxLatS, minLonS, maxLonS := q.Get("minLat"), q.Get("maxLat"), q.Get("minLon"), q.Get("maxLon"); minLatS != "" && maxLatS != "" && minLonS != "" && maxLonS != "" {
+			minLat, _ := strconv.ParseFloat(minLatS, 64)
+			maxLat, _ := strconv.ParseFloat(maxLatS, 64)
+			minLon, _ := strconv.ParseFloat(minLonS, 64)
+			maxLon, _ := strconv.ParseFloat(maxLonS, 64)
+			gx1 := int(round((minLon - coverageCenterLon) / coverageStep))
+			gx2 := int(round((maxLon - coverageCenterLon) / coverageStep))
+			gy1 := int(round((minLat - coverageCenterLat) / coverageStep))
+			gy2 := int(round((maxLat - coverageCenterLat) / coverageStep))
+			if gx1 > gx2 {
+				gx1, gx2 = gx2, gx1
+			}
+			if gy1 > gy2 {
+				gy1, gy2 = gy2, gy1
+			}
+			if gx1 > minGX {
+				minGX = gx1
+			}
+			if gx2 < maxGX {
+				maxGX = gx2
+			}
+			if gy1 > minGY {
+				minGY = gy1
+			}
+			if gy2 < maxGY {
+				maxGY = gy2
+			}
+		}
+
+		// Read scraped.db (rawDb): the progress table + scraped_cafes there are live;
+		// clean.db lags behind for scraper-activity data (see AGENTS.md).
+		body := getScrapeCoverage(rawDb, minGX, maxGX, minGY, maxGY)
+		w.Write(body)
 	})
 
 	addr := ":13854"
