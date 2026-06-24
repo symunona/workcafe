@@ -18,19 +18,36 @@ except Exception:
     ACTIVE_REGIONS = ["seoul"]
 
 
-def kill_gracefully(proc):
-    """SIGTERM → wait GRACEFUL_TIMEOUT → SIGKILL."""
+def _kill_group(pgid):
+    """SIGKILL a whole process group (the scraper + its browser children only).
+    Scoped to one scraper's own group so parallel sibling scrapers' browsers
+    are never touched — unlike a system-wide `pkill chromium`."""
+    if pgid is None:
+        return
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        pass
+
+
+def kill_gracefully(proc, pgid=None):
+    """SIGTERM the group → wait GRACEFUL_TIMEOUT → SIGKILL the group."""
     if proc.poll() is not None:
+        _kill_group(pgid)  # reap any orphaned browser children
         return
     print(f"  Sending SIGTERM...", flush=True)
-    proc.send_signal(signal.SIGTERM)
     try:
+        if pgid is not None:
+            os.killpg(pgid, signal.SIGTERM)
+        else:
+            proc.send_signal(signal.SIGTERM)
         proc.wait(timeout=GRACEFUL_TIMEOUT)
         print(f"  Process exited gracefully.", flush=True)
     except subprocess.TimeoutExpired:
         print(f"  Graceful timeout — sending SIGKILL", flush=True)
-        proc.kill()
+        _kill_group(pgid) if pgid is not None else proc.kill()
         proc.wait()
+    _kill_group(pgid)
 
 
 def _ts():
@@ -63,7 +80,12 @@ def run_loop(scraper_script):
         proc = subprocess.Popen(
             ["../venv/bin/python", scraper_script, "--max-steps", str(iterations)],
             env=env,
+            start_new_session=True,  # own process group → scoped browser cleanup
         )
+        try:
+            pgid = os.getpgid(proc.pid)
+        except Exception:
+            pgid = None
 
         # Each combo takes ~90s; 4 keywords per cell → 360s per cell + headroom
         timeout = iterations * 400
@@ -74,11 +96,11 @@ def run_loop(scraper_script):
             returncode = proc.returncode
         except subprocess.TimeoutExpired:
             print(f"\n[{_ts()}] Timeout after {timeout}s", flush=True)
-            kill_gracefully(proc)
+            kill_gracefully(proc, pgid)
             returncode = proc.returncode
         except KeyboardInterrupt:
             print("\nInterrupted — shutting down scraper...", flush=True)
-            kill_gracefully(proc)
+            kill_gracefully(proc, pgid)
             break
 
         if returncode == 0:
@@ -103,12 +125,8 @@ def run_loop(scraper_script):
             print(f"Sleeping {sleep_time}s before retry...", flush=True)
             time.sleep(sleep_time)
 
-            print("Cleaning up lingering browser processes...", flush=True)
-            try:
-                subprocess.run(["pkill", "-f", "playwright"], stderr=subprocess.DEVNULL)
-                subprocess.run(["pkill", "-f", "chromium"],   stderr=subprocess.DEVNULL)
-            except Exception:
-                pass
+            print("Cleaning up this scraper's lingering browser children...", flush=True)
+            _kill_group(pgid)  # only THIS scraper's group — never sibling providers
             print("Ready to retry.", flush=True)
 
 
