@@ -3,8 +3,19 @@ import time
 import sys
 import os
 import signal
+import itertools
 
 GRACEFUL_TIMEOUT = 15  # seconds to wait for SIGTERM before SIGKILL
+
+# Active scrape regions come from data/regions.json (the global "active" list,
+# read via utils). Each provider scraper round-robins across them, so the
+# per-provider services (kakao/google/naver/osm) each cover EVERY active region,
+# all running in parallel. Edit the `active` list to control what gets scraped.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
+try:
+    from utils import ACTIVE_REGIONS
+except Exception:
+    ACTIVE_REGIONS = ["seoul"]
 
 
 def kill_gracefully(proc):
@@ -22,15 +33,36 @@ def kill_gracefully(proc):
         proc.wait()
 
 
+def _ts():
+    return time.strftime('%Y-%m-%d %H:%M:%S')
+
+
 def run_loop(scraper_script):
+    regions = list(ACTIVE_REGIONS) or ["seoul"]
+    print(f"[{_ts()}] {scraper_script} — active regions: {regions}", flush=True)
+    region_cycle = itertools.cycle(regions)
+    done = set()             # regions that reported all-blocks-complete this run
     iterations = 500
     consecutive_errors = 0
 
     while True:
-        print(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Running {scraper_script} for {iterations} iterations...", flush=True)
+        # Pick the next region that isn't fully scraped yet.
+        region = None
+        for _ in range(len(regions)):
+            r = next(region_cycle)
+            if r not in done:
+                region = r
+                break
+        if region is None:
+            print(f"[{_ts()}] All active regions completed. Shutting down.", flush=True)
+            sys.exit(0)
 
+        print(f"\n[{_ts()}] Running {scraper_script} [{region}] for {iterations} iterations...", flush=True)
+
+        env = {**os.environ, "WORKCAFE_REGION": region}
         proc = subprocess.Popen(
-            ["../venv/bin/python", scraper_script, "--max-steps", str(iterations)]
+            ["../venv/bin/python", scraper_script, "--max-steps", str(iterations)],
+            env=env,
         )
 
         # Each combo takes ~90s; 4 keywords per cell → 360s per cell + headroom
@@ -41,7 +73,7 @@ def run_loop(scraper_script):
             proc.wait(timeout=timeout)
             returncode = proc.returncode
         except subprocess.TimeoutExpired:
-            print(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Timeout after {timeout}s", flush=True)
+            print(f"\n[{_ts()}] Timeout after {timeout}s", flush=True)
             kill_gracefully(proc)
             returncode = proc.returncode
         except KeyboardInterrupt:
@@ -50,15 +82,18 @@ def run_loop(scraper_script):
             break
 
         if returncode == 0:
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Success!", flush=True)
+            print(f"[{_ts()}] [{region}] success.", flush=True)
             iterations = min(iterations + 100, 2000)
             consecutive_errors = 0
-            print(f"Increasing iterations to {iterations}.", flush=True)
         elif returncode == 42:
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Scraper reports all blocks completed. Shutting down.", flush=True)
-            sys.exit(0)
+            # This region reports all blocks complete — drop it from the rotation
+            # and keep scraping the others (do NOT exit the whole loop).
+            print(f"[{_ts()}] [{region}] all blocks completed — moving to next region.", flush=True)
+            done.add(region)
+            iterations = 500
+            continue
         else:
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error: exit code {returncode}", flush=True)
+            print(f"[{_ts()}] [{region}] error: exit code {returncode}", flush=True)
             consecutive_errors += 1
             iterations = 100
             print("Resetting to 100 iterations.", flush=True)
