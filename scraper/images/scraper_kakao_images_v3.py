@@ -110,6 +110,21 @@ PAGE_TIMEOUT_SECS     = 3 * 60    # watchdog: abort a single page fetch after 3 
 SESSION_REFRESH_EVERY = 100       # rebuild session (new UA + fresh TCP pool) every N pages
 MAX_ATTEMPT_COUNT     = 3         # flag cafe after this many page-1 zero-result attempts
 
+# Region image-priority baseline (Phase 2). A freshly-marked region's kakao cafes
+# get kakao_scrape_state.priority=1 (set by the orchestrator). The picker serves
+# those first; each prioritized cafe is breadth-first capped at ~IMAGE_PRIORITY_FIRST_N
+# images, after which its priority is reset to 0 so it rejoins the normal deep-scrape
+# queue later. Value read from data/pipeline.json (default 30 ≈ first 3 pages).
+def _load_image_priority_first_n() -> int:
+    cfg_path = os.path.join(_HERE, '..', '..', 'data', 'pipeline.json')
+    try:
+        with open(cfg_path) as f:
+            return int(json.load(f).get('image_priority_first_n', 30))
+    except Exception:
+        return 30
+
+IMAGE_PRIORITY_FIRST_N = _load_image_priority_first_n()
+
 # 429 escalation: sleep durations in seconds before each retry.
 # After the last entry, raise PersistentRateLimit → service restart.
 RATE_LIMIT_BACKOFF = [30, 300, 1800]   # 30s → 5 min → 30 min → restart
@@ -357,23 +372,42 @@ def init_scrape_state(dbc):
 
 def pick_random_pending_cafe(dbc):
     """
-    Return (cafe_id, next_page, attempt_count, provider_id, metadata) for a
-    randomly chosen cafe from the cohort with the lowest next_page among all
-    pending scraped_cafes. Returns None when nothing is pending.
+    Return (cafe_id, next_page, attempt_count, provider_id, metadata, priority).
+
+    Prioritized cafes (priority>0, set per-region by the orchestrator) jump the
+    queue: ORDER BY priority DESC first. Within a priority tier we keep the
+    existing breadth-first ordering — pick from the cohort with the lowest
+    next_page, then RANDOM() to spread load. Returns None when nothing is pending.
     """
     row = dbc.fetchone('''
-        SELECT s.cafe_id, s.next_page, s.attempt_count, c.provider_id, c.metadata
+        SELECT s.cafe_id, s.next_page, s.attempt_count, c.provider_id, c.metadata,
+               COALESCE(s.priority, 0) AS priority
         FROM   kakao_scrape_state s
         JOIN   scraped_cafes c ON c.id = s.cafe_id
         WHERE  s.status = 'pending'
-          AND  s.next_page = (SELECT MIN(s2.next_page)
-                              FROM   kakao_scrape_state s2
-                              JOIN   scraped_cafes c2 ON c2.id = s2.cafe_id
-                              WHERE  s2.status = 'pending')
-        ORDER BY RANDOM()
+        ORDER BY priority DESC,
+                 (s.next_page = (SELECT MIN(s2.next_page)
+                                 FROM   kakao_scrape_state s2
+                                 WHERE  s2.status = 'pending'
+                                   AND  COALESCE(s2.priority, 0) = COALESCE(s.priority, 0))) DESC,
+                 RANDOM()
         LIMIT 1
     ''')
     return row
+
+
+def maybe_reset_priority(dbc, cafe_id: str, priority: int, images_so_far: int):
+    """Breadth-first cap: once a prioritized cafe has ~IMAGE_PRIORITY_FIRST_N images
+    (≈ page 3), reset its priority to 0 so it rejoins the normal deep-scrape queue
+    later instead of monopolizing the prioritized tier. No-op for un-prioritized
+    cafes. Returns True if the priority was reset."""
+    if priority and priority > 0 and images_so_far >= IMAGE_PRIORITY_FIRST_N:
+        dbc.execute(
+            "UPDATE kakao_scrape_state SET priority=0 WHERE cafe_id=?", (cafe_id,))
+        log.info(f"  {cafe_id}: priority baseline met "
+                 f"({images_so_far}≥{IMAGE_PRIORITY_FIRST_N} imgs) — priority reset to 0")
+        return True
+    return False
 
 
 # ── Per-page processing ───────────────────────────────────────────────────────
@@ -498,7 +532,8 @@ def main():
         # ── Pick next cafe ────────────────────────────────────────────────────
         if args.cafe_id:
             row = dbc.fetchone('''
-                SELECT s.cafe_id, s.next_page, s.attempt_count, c.provider_id, c.metadata
+                SELECT s.cafe_id, s.next_page, s.attempt_count, c.provider_id, c.metadata,
+                       COALESCE(s.priority, 0)
                 FROM   kakao_scrape_state s
                 JOIN   scraped_cafes c ON c.id = s.cafe_id
                 WHERE  s.cafe_id = ? AND s.status = 'pending'
@@ -510,7 +545,7 @@ def main():
             log.info("No pending scraped_cafes — done.")
             break
 
-        cafe_id, next_page, attempt_count, provider_id, meta_json = row
+        cafe_id, next_page, attempt_count, provider_id, meta_json, priority = row
         try:
             metadata = json.loads(meta_json) if meta_json else {}
         except json.JSONDecodeError:
@@ -557,6 +592,15 @@ def main():
             signal.alarm(0)
 
         pages_fetched += 1
+
+        # ── Region image-priority cap (breadth-first) ─────────────────────────
+        # After downloading ~IMAGE_PRIORITY_FIRST_N images for a prioritized cafe,
+        # drop its priority so it rejoins the normal queue for deep-scrape later.
+        if priority and priority > 0:
+            imgs_so_far = dbc.fetchval(
+                'SELECT COUNT(*) FROM images WHERE cafe_id=?', (cafe_id,)) or 0
+            if maybe_reset_priority(dbc, cafe_id, priority, imgs_so_far):
+                priority = 0
 
         # ── Update scrape state ───────────────────────────────────────────────
         if not has_next:

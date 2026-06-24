@@ -604,6 +604,17 @@ scrape-and-process-full-pipeline region="all":
     echo -e "\n${B}Starting scrapers + pipeline daemon...${NC}"
     just scraper-start
 
+    # 2b) Front-load images for this region: set kakao_scrape_state.priority=1 on
+    #     the region's kakao cafes (bbox from regions.json). The image scraper's
+    #     queue picker serves priority>0 first and breadth-first caps each cafe at
+    #     ~image_priority_first_n photos, so the new region gets ~30 pics/cafe
+    #     ahead of the global backlog. Writes via the scraped.db db_server socket.
+    if [ "{{region}}" != "all" ]; then
+        echo -e "\n${B}Front-loading images for region '{{region}}' (priority baseline)...${NC}"
+        "$PY" data-processing/mark_region_image_priority.py --region "{{region}}" || \
+            echo -e "${Y}  (could not set image priority — db_server up? non-fatal)${NC}"
+    fi
+
     # 3) Ensure the RAM++ image tagger (GPU) is running.
     echo -e "\n${B}Ensuring image tagger (GPU) is running...${NC}"
     just image-pipeline
@@ -718,6 +729,23 @@ test-pipeline db="data/seoul/clean.db":
     #!/usr/bin/env bash
     source venv/bin/activate
     python3 scripts/test_merge.py --db {{db}}
+
+# Merger correctness gate: 17 synthetic cases (cross-provider/-language merge,
+# image linking, idempotency). Self-contained in /tmp; never touches prod DBs.
+[group('Data Pipeline')]
+test-merger:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 data-processing/tests/run_merger_tests.py
+
+# Region image-priority baseline test: queue picker serves priority>0 cafes
+# first, breadth-first cap resets priority after ~image_priority_first_n imgs,
+# and the region marker only prioritizes its own bbox. Self-contained in /tmp.
+[group('Data Pipeline')]
+test-image-priority:
+    #!/usr/bin/env bash
+    source venv/bin/activate
+    python3 data-processing/tests/run_image_priority_tests.py
 
 # Fast merge quality test for the 방배/내방 area.
 # Builds a 1km subset (~144 cafes), runs mini-pipeline, checks merge correctness.
