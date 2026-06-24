@@ -512,6 +512,10 @@ scraper-status:
     echo "── DB sockets ──"; for s in /tmp/workcafe_db.sock /tmp/workcafe_play_db.sock; do [ -S "$s" ] && echo -e "  ${G}●${N} $s" || echo -e "  ${R}○${N} $s"; done
     echo "── GPU tagger ──"; if pgrep -f "[t]ag_images_ram" >/dev/null; then echo -e "  ${G}●${N} tagger running"; else echo -e "  ${R}○${N} tagger NOT running  (just image-pipeline)"; fi
     nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader 2>/dev/null | sed 's/^/  GPU: /' || true
+    echo "── throughput, last 1h ──"
+    sqlite3 data/seoul/scraped.db "SELECT '  places  '||provider||': '||COUNT(*) FROM scraped_cafes WHERE scraped_at>datetime('now','-1 hour') GROUP BY provider ORDER BY COUNT(*) DESC;" 2>/dev/null
+    sqlite3 data/seoul/scraped.db "SELECT '  images  '||provider||': '||COUNT(*) FROM images WHERE scraped_at>datetime('now','-1 hour') AND file_size>0 GROUP BY provider ORDER BY COUNT(*) DESC;" 2>/dev/null
+    sqlite3 data/seoul/clean.db "SELECT '  tagged : '||COUNT(*) FROM image_tags WHERE tagged_at>strftime('%Y-%m-%dT%H:%M:%S','now','-1 hour'); SELECT '  merged : '||COUNT(*) FROM merge_log WHERE ts>datetime('now','-1 hour');" 2>/dev/null
     echo "── tmux ──"; tmux ls 2>/dev/null | sed 's/^/  /' || echo "  none"
 
 # Stop EVERYTHING workcafe: systemd units + stray manual scrapers + tagger tmux + play-db.
