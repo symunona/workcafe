@@ -21,7 +21,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_HERE, '..', 'scraper', 'lib'))
 sys.path.insert(0, _HERE)
 
-from cafe_norm_utils import llm_generate, choose_english_name, is_latin
+from cafe_norm_utils import (
+    llm_generate, choose_english_name, is_latin,
+    is_chain_cafe, strip_branch, brand_token,
+)
 from db_client import DBClient
 
 ENGLISHIFY_DB = os.path.abspath(os.path.join(_HERE, '..', 'data', 'seoul', 'englishify.db'))
@@ -58,12 +61,23 @@ def sync_names(dbc: DBClient, eng: sqlite3.Connection) -> int:
 
 
 def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
-    """Fill english_name from cafe_chains — free, no LLM call."""
+    """Fill english_name from cafe_chains — free, no LLM call.
+
+    Two passes:
+      1. Exact: korean_name == chain.name (fast bulk UPDATE).
+      2. Branch-aware: a cafe name like '할리스 부산해운대점' carries a branch suffix and
+         never equals the bare chain key '할리스커피', so the exact pass misses it and
+         it falls through to the LLM, which phonetically romanizes the brand
+         ('할리스' → 'Halles'). Recognize the brand (known global brands via
+         is_chain_cafe; dynamic chains via a brand-token / branch-stripped index)
+         and fill the chain's canonical English name instead.
+    """
     chains = dbc.fetchall(
         "SELECT name, name_english FROM cafe_chains WHERE name_english IS NOT NULL AND name_english != ''"
     )
     cur = eng.cursor()
     count = 0
+    # Pass 1 — exact key match (bulk).
     for (kr, en) in chains:
         cur.execute("""
             UPDATE name_translations
@@ -72,8 +86,40 @@ def chain_prepass(dbc: DBClient, eng: sqlite3.Connection) -> int:
         """, (en, kr))
         count += cur.rowcount
     eng.commit()
-    print(f"  chain pre-pass: filled {count} names")
-    return count
+
+    # Pass 2 — branch-aware brand recognition for the leftovers. O(1) lookups only:
+    # is_chain_cafe(name, []) restricts to the cheap CHAIN_MAPPING known-brand scan
+    # (no per-name fuzzy loop over 900+ chains), and brand_index covers dynamically
+    # detected chains by their branch-stripped / brand-token form.
+    brand_index: dict = {}
+    for kr, en in chains:
+        for key in (strip_branch(kr), brand_token(kr)):
+            if key and key not in brand_index:
+                brand_index[key] = en
+    pending = cur.execute(
+        "SELECT korean_name FROM name_translations WHERE english_name IS NULL"
+    ).fetchall()
+    branch_count = 0
+    for (name,) in pending:
+        english = None
+        res = is_chain_cafe(name, [])  # CHAIN_MAPPING only → canonical English
+        if res["is_chain"]:
+            english = res["chain_name"]
+        else:
+            for key in (strip_branch(name), brand_token(name)):
+                if key in brand_index:
+                    english = brand_index[key]
+                    break
+        if english and is_latin(english):
+            cur.execute("""
+                UPDATE name_translations
+                   SET english_name = ?, model = 'chain_lookup_branch', translated_at = datetime('now')
+                 WHERE korean_name = ? AND english_name IS NULL
+            """, (english, name))
+            branch_count += cur.rowcount
+    eng.commit()
+    print(f"  chain pre-pass: filled {count} exact + {branch_count} branch-aware names")
+    return count + branch_count
 
 
 def google_native_prepass(dbc: DBClient, eng: sqlite3.Connection,

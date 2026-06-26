@@ -186,7 +186,8 @@ def extract_best_address(cafe: dict) -> str:
             pass
     return best_addr.strip() if best_addr else ""
 
-def create_clean_cafe(dbc: DBClient, cafe: dict, chain_id=None, emb_blob=None, eng_lookup: dict = None) -> str:
+def create_clean_cafe(dbc: DBClient, cafe: dict, chain_id=None, emb_blob=None,
+                      eng_lookup: dict = None, chain_english: str = None) -> str:
     # Deterministic: same scraped_cafe always produces same clean_cafe ID across runs
     clean_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"wc:cafe:v1:{cafe['id']}"))
 
@@ -198,7 +199,10 @@ def create_clean_cafe(dbc: DBClient, cafe: dict, chain_id=None, emb_blob=None, e
             pass
 
     best_addr = extract_best_address(cafe)
-    english_name = (eng_lookup or {}).get(cafe["name"], "")
+    # Chain branches inherit the chain's canonical English name — authoritative over
+    # the per-name englishify lookup, which phonetically romanizes branch-suffixed
+    # names the chain pre-pass couldn't key on ('할리스 부산해운대점' → 'Halles').
+    english_name = chain_english or (eng_lookup or {}).get(cafe["name"], "")
 
     dbc.execute("""
         INSERT INTO clean_cafes
@@ -231,10 +235,18 @@ def propagate_english_names(conn, dbc: DBClient, eng_lookup: dict) -> int:
         return 0
     # Read via dbc (the play-DB socket) so we see rows created/merged earlier in
     # THIS run — the local conn is a separate WAL connection and may be stale.
-    rows = dbc.fetchall("SELECT id, name, english_name FROM clean_cafes")
+    # Chain cafes are authoritative to their chain's canonical English name (left
+    # join); only non-chain cafes fall back to the per-name englishify lookup. This
+    # both keeps chain branches off phonetic romanizations and repairs already-merged
+    # rows whose english_name was set before the chain was known.
+    rows = dbc.fetchall("""
+        SELECT cc.id, cc.name, cc.english_name, ch.name_english
+          FROM clean_cafes cc
+          LEFT JOIN cafe_chains ch ON ch.id = cc.chain_id
+    """)
     updates = []
-    for clean_id, name, current_en in rows:
-        new_en = eng_lookup.get(name)
+    for clean_id, name, current_en, chain_en in rows:
+        new_en = chain_en if (chain_en and chain_en.strip()) else eng_lookup.get(name)
         if new_en and new_en != current_en:
             updates.append((new_en, clean_id))
     if not updates:
@@ -329,6 +341,50 @@ def ask_llm_to_merge(cafe_name: str, candidates: list) -> Optional[str]:
             return candidates[idx-1]["id"]
     return None
 
+
+def _hard_brand(name: str, chain_names: list) -> Optional[str]:
+    """Return a confident global-brand identity for a name, else None.
+
+    Restricted to is_chain_cafe's known-list path (conf 0.95, exact/substring brand
+    match) — high precision, no fuzzy lev guesses — so the hard-zone veto never
+    splits a true same-cafe merge on a borderline name resemblance.
+    """
+    res = is_chain_cafe(name, chain_names)
+    if res["is_chain"] and res.get("method") == "known_list":
+        return res.get("chain_name")
+    return None
+
+
+def different_business(conn, cafe: dict, nc: dict, chain_names: list) -> bool:
+    """Two co-located records are confidently different businesses?
+
+    Used only to veto the <9m unconditional distance merge. Compares brand identity:
+    the incoming cafe vs the candidate cluster (whose identity comes from its assigned
+    chain_id when set, else a known-brand check on its name). Different brand identity
+    — or one branded and the other not — means they are distinct businesses sharing a
+    building, not GPS-noise duplicates. Conservative: only confident known-brand
+    signals count, so ordinary same-cafe merges are unaffected.
+    """
+    inc_brand = _hard_brand(cafe["name"], chain_names)
+    nc_brand = None
+    if nc.get("chain_id"):
+        row = conn.execute(
+            "SELECT name_english, name FROM cafe_chains WHERE id = ?", (nc["chain_id"],)
+        ).fetchone()
+        if row:
+            nc_brand = row[0] or row[1]
+    else:
+        nc_brand = _hard_brand(nc["name"], chain_names)
+
+    inc_is_brand = inc_brand is not None
+    nc_is_brand = nc_brand is not None
+    if inc_is_brand != nc_is_brand:
+        return True  # one is a known chain, the other isn't
+    if inc_is_brand and nc_is_brand:
+        # both branded — different only if the brands clearly don't match
+        return name_similarity(strip_branch(inc_brand), strip_branch(nc_brand))["combined"] < 0.85
+    return False  # neither confidently branded → treat as GPS-noise dup (merge)
+
 # ─── Core: process one cafe ────────────────────────────────────────────────────
 
 def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
@@ -370,8 +426,14 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
 
             dist = nc["distance_m"]
 
-            # Hard zone: unconditional (GPS noise floor, no two different cafes this close)
+            # Hard zone: GPS noise floor — merge unconditionally UNLESS the names are
+            # confidently different businesses (e.g. a chain branch and an unrelated
+            # neighbor stacked in the same building, where GPS noise > the few metres
+            # separating them). Without this veto the distance-only merge swaps records
+            # between co-located businesses (Hollys ↔ a brunch cafe in the same tower).
             if dist <= MERGE_RADIUS_HARD:
+                if different_business(conn, cafe, nc, chain_names):
+                    continue  # not a merge target; let it match elsewhere or stand alone
                 matched_id = nc["id"]
                 method = "distance"
                 break
@@ -452,7 +514,14 @@ def process_cafe(conn, dbc: DBClient, cafe: dict, chain_names: list,
         # chain_promote_min, promote it to a chain and assign. No global rescan.
         chain_id = maybe_promote_chain(conn, dbc, cafe, chain_names)
 
-    clean_id = create_clean_cafe(dbc, cafe, chain_id, emb_blob, eng_lookup)
+    chain_english = None
+    if chain_id:
+        row = conn.execute(
+            "SELECT name_english FROM cafe_chains WHERE id = ?", (chain_id,)
+        ).fetchone()
+        if row and row[0]:
+            chain_english = row[0]
+    clean_id = create_clean_cafe(dbc, cafe, chain_id, emb_blob, eng_lookup, chain_english)
     # belongs_to_cafe_id update deferred to batch (see main loop)
     return clean_id, True, None
 
