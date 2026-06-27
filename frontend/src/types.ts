@@ -72,6 +72,7 @@ export interface ImageInfo {
   height: number
   file_size: number
   scraped_at: string
+  tagged_at: string
   tags: TagInfo[]
 }
 

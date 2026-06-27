@@ -234,6 +234,10 @@ def migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE clean_cafes ADD COLUMN tags TEXT")
     except sqlite3.OperationalError:
         pass
+    try:
+        conn.execute("ALTER TABLE images ADD COLUMN tagged_at TEXT")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
 
 
@@ -534,6 +538,15 @@ def run() -> None:
             if batches_since_checkpoint >= 100:
                 conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
                 batches_since_checkpoint = 0
+
+        # Mark all processed images as tagged (even if 0 tags passed filter)
+        _write_with_retry(conn, lambda c, ids=list(valid), ts=now: (
+            c.executemany(
+                "UPDATE images SET tagged_at = ? WHERE id = ? AND tagged_at IS NULL",
+                [(ts, iid) for iid in ids],
+            ),
+            c.commit(),
+        ))
 
         if args.rollup_every > 0 and tagged > 0 and tagged % args.rollup_every < BATCH_SIZE:
             rollup(conn)

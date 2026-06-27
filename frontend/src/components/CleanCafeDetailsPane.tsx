@@ -49,7 +49,7 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
   const [error, setError] = useState(false)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const [lightboxActiveId, setLightboxActiveId] = useState<string | null>(null)
   const navigate = useNavigate()
   const { snapshot, apiUrl } = useSnapshot()
   const { favIds: favPhotoIds, toggle: toggleFavPhoto } = useFavoritePhotos()
@@ -60,7 +60,7 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
     setError(false)
     setTagFilter(null)
     setExpanded(false)
-    setLightboxIndex(null)
+    setLightboxActiveId(null)
     fetch(apiUrl(`/api/clean_cafe?id=${encodeURIComponent(cafeId)}`))
       .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() })
       .then(data => { setCafe(data); setLoading(false) })
@@ -294,8 +294,8 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
                 </div>
               )}
               <div className="grid grid-cols-2 gap-px bg-gray-100">
-                {displayImages.map((img, i) => (
-                  <ImageTile key={img.id} img={img} activeTags={activeTags} starredTags={starredTags} isFav={favPhotoIds.has(String(img.id))} onToggleFav={() => toggleFavPhoto(String(img.id))} onClick={() => setLightboxIndex(i)} />
+                {displayImages.map((img) => (
+                  <ImageTile key={img.id} img={img} activeTags={activeTags} starredTags={starredTags} isFav={favPhotoIds.has(String(img.id))} onToggleFav={() => toggleFavPhoto(String(img.id))} onClick={() => setLightboxActiveId(String(img.id))} />
                 ))}
               </div>
               <div className="px-3 py-2 text-xs text-gray-400 text-right">
@@ -306,17 +306,21 @@ export function CleanCafeDetailsPane({ cafeId, onClose, activeTags, starredTags,
         </div>
       </div>
 
-      {lightboxIndex !== null && (
-        <ImageLightbox
-          images={displayImages}
-          index={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-          onPrev={() => setLightboxIndex(i => i !== null ? Math.max(0, i - 1) : null)}
-          onNext={() => setLightboxIndex(i => i !== null ? Math.min(displayImages.length - 1, i + 1) : null)}
-          favPhotoIds={favPhotoIds}
-          onToggleFavPhoto={toggleFavPhoto}
-        />
-      )}
+      {lightboxActiveId !== null && (() => {
+        const lightboxIndex = displayImages.findIndex(img => String(img.id) === lightboxActiveId)
+        if (lightboxIndex === -1) return null
+        return (
+          <ImageLightbox
+            images={displayImages}
+            index={lightboxIndex}
+            onClose={() => setLightboxActiveId(null)}
+            onPrev={() => lightboxIndex > 0 && setLightboxActiveId(String(displayImages[lightboxIndex - 1].id))}
+            onNext={() => lightboxIndex < displayImages.length - 1 && setLightboxActiveId(String(displayImages[lightboxIndex + 1].id))}
+            favPhotoIds={favPhotoIds}
+            onToggleFavPhoto={toggleFavPhoto}
+          />
+        )
+      })()}
     </>
   )
 }
@@ -350,15 +354,15 @@ function ImageTile({ img, activeTags, starredTags, isFav, onToggleFav, onClick }
         borderWidth: '0 10px 10px 0',
         borderColor: `transparent ${providerColor} transparent transparent`,
       }} />
-      {/* Fav star — top-left, visible when faved or on hover */}
+      {/* Fav star — bottom-right, away from X, large touch target */}
       <button
-        className={`absolute top-1 left-1 text-sm leading-none transition-opacity ${isFav ? 'opacity-100' : 'opacity-0 group-hover:opacity-70'}`}
+        className={`absolute bottom-1 right-1 p-2 text-base leading-none transition-opacity cursor-pointer ${isFav ? 'opacity-100 text-amber-400' : 'opacity-0 group-hover:opacity-70 text-white'}`}
         onClick={e => { e.stopPropagation(); onToggleFav?.() }}
         title={isFav ? 'Remove from favorites' : 'Add to favorites'}
       >
         {isFav ? '★' : '☆'}
       </button>
-      {hitTags.length > 0 && (
+      {hitTags.length > 0 ? (
         <div className="absolute bottom-1 left-1 flex flex-wrap gap-0.5 max-w-[90%]">
           {hitTags.slice(0, 3).map(t => (
             <span key={t.tag}
@@ -367,7 +371,11 @@ function ImageTile({ img, activeTags, starredTags, isFav, onToggleFav, onClick }
             </span>
           ))}
         </div>
-      )}
+      ) : !img.tagged_at ? (
+        <div className="absolute bottom-1 left-1">
+          <span className="text-[9px] px-1 py-0.5 rounded-full bg-gray-500/60 text-white/70">pending</span>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -439,18 +447,6 @@ function ImageLightbox({ images, index, onClose, onPrev, onNext, favPhotoIds, on
         </div>
         <div className="flex items-center gap-3 shrink-0 pointer-events-auto">
           <span className="text-white/40 text-xs font-mono">{index + 1}/{images.length}</span>
-          {onToggleFavPhoto && (() => {
-            const isFav = favPhotoIds?.has(String(img.id))
-            return (
-              <button
-                onClick={() => onToggleFavPhoto(String(img.id))}
-                className={`text-xl transition-colors ${isFav ? 'text-amber-400' : 'text-white/40 hover:text-white/80'}`}
-                title={isFav ? 'Remove from favorites' : 'Add to favorites'}
-              >
-                {isFav ? '★' : '☆'}
-              </button>
-            )
-          })()}
           <button onClick={onClose} className="text-white/70 hover:text-white text-xl">✕</button>
         </div>
       </div>
@@ -500,8 +496,20 @@ function ImageLightbox({ images, index, onClose, onPrev, onNext, favPhotoIds, on
         )}
       </div>
 
-      <div className="shrink-0 py-2 text-center">
+      <div className="shrink-0 py-2 flex items-center justify-center gap-4">
         <span className="text-xs text-white/30 font-mono">{img.provider}</span>
+        {onToggleFavPhoto && (() => {
+          const isFav = favPhotoIds?.has(String(img.id))
+          return (
+            <button
+              onClick={e => { e.stopPropagation(); onToggleFavPhoto(String(img.id)) }}
+              className={`text-2xl px-3 py-1 transition-colors cursor-pointer ${isFav ? 'text-amber-400' : 'text-white/30 hover:text-white/70'}`}
+              title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              {isFav ? '★' : '☆'}
+            </button>
+          )
+        })()}
       </div>
     </div>
   )
