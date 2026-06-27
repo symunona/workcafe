@@ -58,8 +58,8 @@ export function AboutModal({ onClose }: Props) {
       >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">☕</span>
-            <h2 className="text-xl font-bold text-gray-800">Workcafe Seoul</h2>
+            <img src="/favicon.svg" alt="" className="h-8 w-8" />
+            <h2 className="text-xl font-bold text-gray-800">Workcafe Korea</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl w-8 h-8 flex items-center justify-center">✕</button>
         </div>

@@ -140,10 +140,26 @@ function LocationDotLayer({ location }: { location: [number, number] | null }) {
   const map = useMap()
   const markerRef = useRef<L.CircleMarker | null>(null)
 
+  // Dedicated pane above markerPane (600) so the blue dot never hides behind cafe markers.
   useEffect(() => {
-    if (markerRef.current) { markerRef.current.remove(); markerRef.current = null }
-    if (!location) return
+    if (!map.getPane('userDot')) {
+      const pane = map.createPane('userDot')
+      pane.style.zIndex = '650'
+    }
+  }, [map])
+
+  useEffect(() => {
+    if (!location) {
+      if (markerRef.current) { markerRef.current.remove(); markerRef.current = null }
+      return
+    }
+    // Move existing dot in place (smooth on walk updates) instead of remove+recreate.
+    if (markerRef.current) {
+      markerRef.current.setLatLng(location)
+      return
+    }
     markerRef.current = L.circleMarker(location, {
+      pane: 'userDot',
       radius: 8,
       fillColor: '#3b82f6',
       color: '#ffffff',
@@ -528,6 +544,7 @@ export default function CleanApp() {
   const [total, setTotal] = useState(0)
   const [isLocating, setIsLocating] = useState(false)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const watchIdRef = useRef<number | null>(null)
   const [tagSearch, setTagSearch] = useState('')
   const [starredTags, setStarredTags] = useState<Set<string>>(() => {
     try {
@@ -708,25 +725,37 @@ export default function CleanApp() {
   }, [navigate, cafeMap, addVisit])
 
   const handleGPSClick = useCallback(() => {
-    if ('geolocation' in navigator) {
-      setIsLocating(true)
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setIsLocating(false)
-          const loc: [number, number] = [position.coords.latitude, position.coords.longitude]
-          setUserLocation(loc)
-          setMapTarget(loc)
-        },
-        (error) => {
-          setIsLocating(false)
-          console.error('Error getting location:', error)
-          alert('Unable to retrieve your location')
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      )
-    } else {
+    if (!('geolocation' in navigator)) {
       alert('Geolocation is not supported by your browser')
+      return
     }
+    setIsLocating(true)
+    let centered = false
+    // Already watching → clear before starting fresh.
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current)
+      watchIdRef.current = null
+    }
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setIsLocating(false)
+        const loc: [number, number] = [position.coords.latitude, position.coords.longitude]
+        setUserLocation(loc)
+        // Recenter only on first fix; later updates just move the dot as user walks.
+        if (!centered) { setMapTarget(loc); centered = true }
+      },
+      (error) => {
+        setIsLocating(false)
+        console.error('Error getting location:', error)
+        alert('Unable to retrieve your location')
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    )
+  }, [])
+
+  // Stop watching geolocation on unmount.
+  useEffect(() => () => {
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
   }, [])
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -1001,8 +1030,8 @@ export default function CleanApp() {
           onClick={() => setShowAbout(true)}
           className="bg-white rounded-lg shadow px-3 py-1.5 text-base font-semibold text-gray-700 flex items-center gap-1.5 hover:bg-gray-50 transition-colors shrink-0"
         >
-          <img src="/favicon.svg" alt="Workcafe Seoul" className="h-6 w-6" />
-          Workcafe Seoul
+          <img src="/favicon.svg" alt="Workcafe Korea" className="h-6 w-6" />
+          Workcafe Korea
         </button>
         <SearchBar
           query={searchQuery}
@@ -1551,7 +1580,7 @@ export default function CleanApp() {
           <div className="flex-1 bg-black/30" onClick={() => setShowMobileMenu(false)} />
           <div className="bg-white w-72 h-full flex flex-col shadow-xl">
             <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100">
-              <span className="font-semibold text-gray-800 flex items-center gap-1.5"><img src="/favicon.svg" alt="" className="h-5 w-5" />Workcafe Seoul</span>
+              <span className="font-semibold text-gray-800 flex items-center gap-1.5"><img src="/favicon.svg" alt="" className="h-5 w-5" />Workcafe Korea</span>
               <button onClick={() => setShowMobileMenu(false)} className="text-gray-400 hover:text-gray-600 text-xl w-8 h-8 flex items-center justify-center">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto">
