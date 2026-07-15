@@ -273,14 +273,120 @@ func getCachedServices() []ServiceStatus {
 	return services
 }
 
-// Full status response cache — serves repeat hits instantly
-var (
-	statusCacheMu   sync.Mutex
-	statusCacheBody []byte
-	statusCachedAt  time.Time
-)
 
-const statusCacheTTL = 8 * time.Second
+// ─── Split /api/stats/* section responses ───────────────────────────────────────
+// The monolithic /api/status computes every section serially, so the slowest
+// scans on the 5GB clean.db (funnel images-downloaded ~20-30s, tagger
+// COUNT(DISTINCT) ~8-14s) block the fast summary from ever rendering. These
+// endpoints expose each logical section on its own so the frontend can fan out
+// and paint progressively (fastest-first). Each response carries ONLY its own
+// keys — a subset of StatusResponse's JSON shape — so the client can shallow-merge
+// them into one status object without a section clobbering its siblings.
+type StatsOverview struct {
+	Services           []ServiceStatus       `json:"services"`
+	TotalCafes         int                   `json:"total_cafes"`
+	TotalImages        int                   `json:"total_images"`
+	CafesLastHour      int                   `json:"cafes_last_hour"`
+	Cafes24h           int                   `json:"cafes_24h"`
+	ImagesLastHour     int                   `json:"images_last_hour"`
+	Images24h          int                   `json:"images_24h"`
+	DownloadedLastHour int                   `json:"downloaded_last_hour"`
+	Downloaded24h      int                   `json:"downloaded_24h"`
+	MBPerDay           float64               `json:"mb_per_day"`
+	LastCafeAt         string                `json:"last_cafe_at"`
+	LastImageAt        string                `json:"last_image_at"`
+	Disk               DiskStats             `json:"disk"`
+	DbQueue            map[string]QueueEntry `json:"db_queue"`
+}
+
+// ProviderCore = the "Scraping Metrics" table columns (cafe + image throughput).
+type ProviderCore struct {
+	Provider           string `json:"provider"`
+	Total              int    `json:"total"`
+	HasWebsite         int    `json:"has_website"`
+	CafesLastHour      int    `json:"cafes_last_hour"`
+	Cafes24h           int    `json:"cafes_24h"`
+	ImagesLastHour     int    `json:"images_last_hour"`
+	Images24h          int    `json:"images_24h"`
+	DownloadedLastHour int    `json:"downloaded_last_hour"`
+	Downloaded24h      int    `json:"downloaded_24h"`
+}
+type StatsProviders struct {
+	PerProvider []ProviderCore `json:"per_provider"`
+}
+
+// ProviderCoverage = the "Image Coverage" table columns. Distinct key set from
+// ProviderCore (except provider) so the client merges the two per_provider
+// payloads by provider without overwriting.
+type ProviderCoverage struct {
+	Provider        string  `json:"provider"`
+	CafesWithImages int     `json:"cafes_with_images"`
+	Cafes2Plus      int     `json:"cafes_2plus"`
+	Cafes10Plus     int     `json:"cafes_10plus"`
+	Cafes50Plus     int     `json:"cafes_50plus"`
+	AvgImages       float64 `json:"avg_images"`
+	TotalImages     int     `json:"total_images"`
+}
+type StatsCoverage struct {
+	PerProvider []ProviderCoverage `json:"per_provider"`
+}
+
+type StatsHourly struct {
+	HourlyStats []HourlyStat `json:"hourly_stats"`
+}
+
+type StatsTagging struct {
+	OverallTaggedImages int     `json:"overall_tagged_images"`
+	OverallImgsPerHour  float64 `json:"overall_imgs_per_hour"`
+}
+
+type StatsFunnel struct {
+	MergeQueue       int `json:"funnel_merge_queue"`
+	MergedCafes      int `json:"funnel_merged_cafes"`
+	ImagesTotal      int `json:"funnel_images_total"`
+	ImagesDownloaded int `json:"funnel_images_downloaded"`
+}
+
+// sectionCache serves one section's marshaled JSON, recomputing at most once per
+// TTL. The lock is held across compute so concurrent callers coalesce onto a
+// single computation (no stampede on the multi-second clean.db scans), mirroring
+// the /api/status full-response cache.
+type sectionCache struct {
+	mu   sync.Mutex
+	body []byte
+	at   time.Time
+}
+
+func (c *sectionCache) serve(w http.ResponseWriter, ttl time.Duration, compute func() (interface{}, error)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if time.Since(c.at) < ttl && c.body != nil {
+		w.Write(c.body)
+		return
+	}
+	v, err := compute()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	body, err := json.Marshal(v)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	c.body = body
+	c.at = time.Now()
+	w.Write(body)
+}
+
+var (
+	statsOverviewCache  sectionCache
+	statsProvidersCache sectionCache
+	statsCoverageCache  sectionCache
+	statsHourlyCache    sectionCache
+	statsTaggingCache   sectionCache
+	statsFunnelCache    sectionCache
+)
 
 // ─── Scrape-coverage grid ──────────────────────────────────────────────────────
 // Mirrors scraper/lib/utils.py: STEP_SIZE 0.01°, origin = Seoul City Hall.
@@ -935,286 +1041,270 @@ func main() {
 		json.NewEncoder(w).Encode(stats)
 	})
 
-	// ── GET /api/status ───────────────────────────────────────────────────────
-	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+
+	// ── Split status sections ─────────────────────────────────────────────────
+	// The frontend fans out to these per-section endpoints and renders each as it
+	// lands, instead of blocking on one monolithic response whose slowest clean.db
+	// scan (funnel ~22s) held up the whole panel. Each section has its own cache.
+
+	// GET /api/stats/overview — summary cards, services, disk, queue. Fast (~300ms).
+	mux.HandleFunc("/api/stats/overview", func(w http.ResponseWriter, r *http.Request) {
 		corsJSON(w)
-		// Hold mutex for the entire computation: concurrent requests serialize here,
-		// so the second caller waits and then gets a cache hit instead of recomputing.
-		statusCacheMu.Lock()
-		defer statusCacheMu.Unlock()
-		if time.Since(statusCachedAt) < statusCacheTTL && statusCacheBody != nil {
-			w.Write(statusCacheBody)
-			return
-		}
-
-		tTotal := time.Now()
-		t := time.Now()
-
-		resp := StatusResponse{}
-
-		resp.Services = getCachedServices()
-		log.Printf("[status] getCachedServices: %v", time.Since(t)); t = time.Now()
-
-		now := time.Now().UTC()
-		h1ago := now.Add(-1 * time.Hour).Format("2006-01-02 15:04:05")
-		h24ago := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
-
-		// Total counts — from live scraper DB
-		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&resp.TotalCafes)
-		rawDb.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&resp.TotalImages)
-		log.Printf("[status] total counts (scraped_cafes, images): %v", time.Since(t)); t = time.Now()
-
-		// Global time-window metrics — from live scraper DB
-		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h1ago).Scan(&resp.CafesLastHour)
-		rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h24ago).Scan(&resp.Cafes24h)
-		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h1ago).Scan(&resp.ImagesLastHour)
-		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h24ago).Scan(&resp.Images24h)
-		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h1ago).Scan(&resp.DownloadedLastHour)
-		rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.Downloaded24h)
-		rawDb.QueryRow(`SELECT ROUND(COALESCE(SUM(file_size),0)/1024.0/1024.0, 1) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&resp.MBPerDay)
-		log.Printf("[status] time-window metrics (7 queries): %v", time.Since(t)); t = time.Now()
-
-		// Last activity timestamps — from live scraper DB
-		var lastCafe, lastImage sql.NullString
-		rawDb.QueryRow(`SELECT MAX(scraped_at) FROM scraped_cafes`).Scan(&lastCafe)
-		rawDb.QueryRow(`SELECT MAX(scraped_at) FROM images`).Scan(&lastImage)
-		if lastCafe.Valid {
-			resp.LastCafeAt = lastCafe.String
-		}
-		if lastImage.Valid {
-			resp.LastImageAt = lastImage.String
-		}
-		log.Printf("[status] last activity timestamps: %v", time.Since(t)); t = time.Now()
-
-		// Per-provider metrics — from live scraper DB
-		providerRows, err := rawDb.Query(`
-			SELECT
-				provider,
-				COUNT(*) as total,
-				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_hour,
-				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h,
-				SUM(CASE WHEN json_extract(metadata, '$.website') IS NOT NULL AND json_extract(metadata, '$.website') != '' THEN 1 ELSE 0 END) as has_website
-			FROM scraped_cafes GROUP BY provider ORDER BY total DESC
-		`, h1ago, h24ago)
-		if err == nil {
-			defer providerRows.Close()
-			pmMap := map[string]*ProviderMetrics{}
-			for providerRows.Next() {
-				pm := &ProviderMetrics{}
-				providerRows.Scan(&pm.Provider, &pm.Total, &pm.CafesLastHour, &pm.Cafes24h, &pm.HasWebsite)
-				pmMap[pm.Provider] = pm
-				resp.PerProvider = append(resp.PerProvider, *pm)
+		statsOverviewCache.serve(w, 8*time.Second, func() (interface{}, error) {
+			var o StatsOverview
+			o.Services = getCachedServices()
+			now := time.Now().UTC()
+			h1ago := now.Add(-1 * time.Hour).Format("2006-01-02 15:04:05")
+			h24ago := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
+			rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&o.TotalCafes)
+			rawDb.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&o.TotalImages)
+			rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h1ago).Scan(&o.CafesLastHour)
+			rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE scraped_at >= ?`, h24ago).Scan(&o.Cafes24h)
+			rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h1ago).Scan(&o.ImagesLastHour)
+			rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ?`, h24ago).Scan(&o.Images24h)
+			rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h1ago).Scan(&o.DownloadedLastHour)
+			rawDb.QueryRow(`SELECT COUNT(*) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&o.Downloaded24h)
+			rawDb.QueryRow(`SELECT ROUND(COALESCE(SUM(file_size),0)/1024.0/1024.0, 1) FROM images WHERE scraped_at >= ? AND file_size > 0`, h24ago).Scan(&o.MBPerDay)
+			var lastCafe, lastImage sql.NullString
+			rawDb.QueryRow(`SELECT MAX(scraped_at) FROM scraped_cafes`).Scan(&lastCafe)
+			rawDb.QueryRow(`SELECT MAX(scraped_at) FROM images`).Scan(&lastImage)
+			if lastCafe.Valid {
+				o.LastCafeAt = lastCafe.String
 			}
-		}
-		log.Printf("[status] per-provider cafe metrics (json_extract): %v", time.Since(t)); t = time.Now()
+			if lastImage.Valid {
+				o.LastImageAt = lastImage.String
+			}
+			o.Disk = getDiskStats(dataDir)
+			o.DbQueue = getQueueStats(dataDir)
+			return o, nil
+		})
+	})
 
-		// Per-provider image metrics — from live scraper DB
-		imgRows, err := rawDb.Query(`
-			SELECT
-				provider,
-				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_hour,
-				SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h,
-				SUM(CASE WHEN scraped_at >= ? AND file_size > 0 THEN 1 ELSE 0 END) as dl_last_hour,
-				SUM(CASE WHEN scraped_at >= ? AND file_size > 0 THEN 1 ELSE 0 END) as dl_24h
-			FROM images GROUP BY provider
-		`, h1ago, h24ago, h1ago, h24ago)
-		if err == nil {
-			defer imgRows.Close()
-			for imgRows.Next() {
-				var prov string
-				var lh, l24, dlh, dl24 int
-				imgRows.Scan(&prov, &lh, &l24, &dlh, &dl24)
-				for i := range resp.PerProvider {
-					if resp.PerProvider[i].Provider == prov {
-						resp.PerProvider[i].ImagesLastHour = lh
-						resp.PerProvider[i].Images24h = l24
-						resp.PerProvider[i].DownloadedLastHour = dlh
-						resp.PerProvider[i].Downloaded24h = dl24
+	// GET /api/stats/providers — "Scraping Metrics" table (cafe + image throughput). Medium (~4.5s).
+	mux.HandleFunc("/api/stats/providers", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statsProvidersCache.serve(w, 60*time.Second, func() (interface{}, error) {
+			now := time.Now().UTC()
+			h1ago := now.Add(-1 * time.Hour).Format("2006-01-02 15:04:05")
+			h24ago := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
+			pmMap := map[string]*ProviderCore{}
+			order := []string{}
+			rows, err := rawDb.Query(`
+				SELECT
+					provider,
+					COUNT(*) as total,
+					SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_hour,
+					SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h,
+					SUM(CASE WHEN json_extract(metadata, '$.website') IS NOT NULL AND json_extract(metadata, '$.website') != '' THEN 1 ELSE 0 END) as has_website
+				FROM scraped_cafes GROUP BY provider ORDER BY total DESC
+			`, h1ago, h24ago)
+			if err != nil {
+				return nil, err
+			}
+			for rows.Next() {
+				pc := &ProviderCore{}
+				rows.Scan(&pc.Provider, &pc.Total, &pc.CafesLastHour, &pc.Cafes24h, &pc.HasWebsite)
+				pmMap[pc.Provider] = pc
+				order = append(order, pc.Provider)
+			}
+			rows.Close()
+
+			imgRows, err := rawDb.Query(`
+				SELECT
+					provider,
+					SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_hour,
+					SUM(CASE WHEN scraped_at >= ? THEN 1 ELSE 0 END) as last_24h,
+					SUM(CASE WHEN scraped_at >= ? AND file_size > 0 THEN 1 ELSE 0 END) as dl_last_hour,
+					SUM(CASE WHEN scraped_at >= ? AND file_size > 0 THEN 1 ELSE 0 END) as dl_24h
+				FROM images GROUP BY provider
+			`, h1ago, h24ago, h1ago, h24ago)
+			if err == nil {
+				for imgRows.Next() {
+					var prov string
+					var lh, l24, dlh, dl24 int
+					imgRows.Scan(&prov, &lh, &l24, &dlh, &dl24)
+					if pc, ok := pmMap[prov]; ok {
+						pc.ImagesLastHour = lh
+						pc.Images24h = l24
+						pc.DownloadedLastHour = dlh
+						pc.Downloaded24h = dl24
 					}
 				}
+				imgRows.Close()
 			}
-		}
-		log.Printf("[status] per-provider image metrics: %v", time.Since(t)); t = time.Now()
-
-		// Per-provider image distribution — from live scraper DB
-		distRows, err := rawDb.Query(`
-			SELECT
-				provider,
-				COUNT(DISTINCT cafe_id) as cafes_with_images,
-				SUM(CASE WHEN img_count >= 2  THEN 1 ELSE 0 END) as cafes_2plus,
-				SUM(CASE WHEN img_count >= 10 THEN 1 ELSE 0 END) as cafes_10plus,
-				SUM(CASE WHEN img_count >= 50 THEN 1 ELSE 0 END) as cafes_50plus,
-				ROUND(AVG(img_count), 1) as avg_images,
-				SUM(img_count) as total_images
-			FROM (
-				SELECT cafe_id, provider, COUNT(*) as img_count
-				FROM images GROUP BY cafe_id, provider
-			)
-			GROUP BY provider
-		`)
-		if err == nil {
-			defer distRows.Close()
-			for distRows.Next() {
-				var prov string
-				var cwi, c2, c10, c50, total int
-				var avg float64
-				distRows.Scan(&prov, &cwi, &c2, &c10, &c50, &avg, &total)
-				for i := range resp.PerProvider {
-					if resp.PerProvider[i].Provider == prov {
-						resp.PerProvider[i].CafesWithImages = cwi
-						resp.PerProvider[i].Cafes2Plus = c2
-						resp.PerProvider[i].Cafes10Plus = c10
-						resp.PerProvider[i].Cafes50Plus = c50
-						resp.PerProvider[i].AvgImages = avg
-						resp.PerProvider[i].TotalImages = total
-					}
-				}
+			out := StatsProviders{}
+			for _, p := range order {
+				out.PerProvider = append(out.PerProvider, *pmMap[p])
 			}
-		}
-		log.Printf("[status] image distribution nested subquery: %v", time.Since(t)); t = time.Now()
+			return out, nil
+		})
+	})
 
-		// Hourly stats for the last 24 hours (overall)
-		hourlyMap := make(map[string]*HourlyStat)
-		for i := 23; i >= 0; i-- {
-			h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
-			hourlyMap[h] = &HourlyStat{Hour: h, Provider: "all"}
-		}
-
-		cafeHourlyRows, err := rawDb.Query(`
-			SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
-			FROM scraped_cafes WHERE scraped_at >= ? GROUP BY hour
-		`, h24ago)
-		if err == nil {
-			defer cafeHourlyRows.Close()
-			for cafeHourlyRows.Next() {
-				var h string
-				var c int
-				cafeHourlyRows.Scan(&h, &c)
-				if stat, ok := hourlyMap[h]; ok {
-					stat.Cafes = c
-				}
+	// GET /api/stats/coverage — "Image Coverage" table (per-cafe image distribution). Slow (~7s).
+	mux.HandleFunc("/api/stats/coverage", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statsCoverageCache.serve(w, 120*time.Second, func() (interface{}, error) {
+			rows, err := rawDb.Query(`
+				SELECT
+					provider,
+					COUNT(DISTINCT cafe_id) as cafes_with_images,
+					SUM(CASE WHEN img_count >= 2  THEN 1 ELSE 0 END) as cafes_2plus,
+					SUM(CASE WHEN img_count >= 10 THEN 1 ELSE 0 END) as cafes_10plus,
+					SUM(CASE WHEN img_count >= 50 THEN 1 ELSE 0 END) as cafes_50plus,
+					ROUND(AVG(img_count), 1) as avg_images,
+					SUM(img_count) as total_images
+				FROM (
+					SELECT cafe_id, provider, COUNT(*) as img_count
+					FROM images GROUP BY cafe_id, provider
+				)
+				GROUP BY provider
+			`)
+			if err != nil {
+				return nil, err
 			}
-		}
-
-		imageHourlyRows, err := rawDb.Query(`
-			SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
-			FROM images WHERE scraped_at >= ? GROUP BY hour
-		`, h24ago)
-		if err == nil {
-			defer imageHourlyRows.Close()
-			for imageHourlyRows.Next() {
-				var h string
-				var c int
-				imageHourlyRows.Scan(&h, &c)
-				if stat, ok := hourlyMap[h]; ok {
-					stat.Images = c
-				}
+			defer rows.Close()
+			out := StatsCoverage{}
+			for rows.Next() {
+				var c ProviderCoverage
+				rows.Scan(&c.Provider, &c.CafesWithImages, &c.Cafes2Plus, &c.Cafes10Plus, &c.Cafes50Plus, &c.AvgImages, &c.TotalImages)
+				out.PerProvider = append(out.PerProvider, c)
 			}
-		}
-		log.Printf("[status] hourly stats overall (2 queries): %v", time.Since(t)); t = time.Now()
+			return out, nil
+		})
+	})
 
-		// Rebuild HourlyStats from the updated map, preserving order
-		resp.HourlyStats = nil
-		for i := 23; i >= 0; i-- {
-			h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
-			resp.HourlyStats = append(resp.HourlyStats, *hourlyMap[h])
-		}
-
-		// Per-provider hourly stats
-		providerHourlyMap := make(map[string]map[string]*HourlyStat)
-
-		// Initialize for all providers we know about
-		for _, pm := range resp.PerProvider {
-			provMap := make(map[string]*HourlyStat)
+	// GET /api/stats/hourly — 24h activity chart series (overall + per-provider). Medium (~1.5s).
+	mux.HandleFunc("/api/stats/hourly", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statsHourlyCache.serve(w, 30*time.Second, func() (interface{}, error) {
+			now := time.Now().UTC()
+			h24ago := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
+			hours := make([]string, 24)
 			for i := 23; i >= 0; i-- {
-				h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
-				provMap[h] = &HourlyStat{Hour: h, Provider: pm.Provider}
+				hours[23-i] = now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
 			}
-			providerHourlyMap[pm.Provider] = provMap
-		}
-
-		provCafeHourlyRows, err := rawDb.Query(`
-			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
-			FROM scraped_cafes WHERE scraped_at >= ? GROUP BY provider, hour
-		`, h24ago)
-		if err == nil {
-			defer provCafeHourlyRows.Close()
-			for provCafeHourlyRows.Next() {
-				var p, h string
-				var c int
-				provCafeHourlyRows.Scan(&p, &h, &c)
-				if provMap, ok := providerHourlyMap[p]; ok {
-					if stat, ok := provMap[h]; ok {
-						stat.Cafes = c
+			allMap := make(map[string]*HourlyStat, 24)
+			for _, h := range hours {
+				allMap[h] = &HourlyStat{Hour: h, Provider: "all"}
+			}
+			if cafeRows, err := rawDb.Query(`
+				SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
+				FROM scraped_cafes WHERE scraped_at >= ? GROUP BY hour
+			`, h24ago); err == nil {
+				for cafeRows.Next() {
+					var h string
+					var c int
+					cafeRows.Scan(&h, &c)
+					if s, ok := allMap[h]; ok {
+						s.Cafes = c
 					}
 				}
+				cafeRows.Close()
 			}
-		}
-
-		provImageHourlyRows, err := rawDb.Query(`
-			SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
-			FROM images WHERE scraped_at >= ? GROUP BY provider, hour
-		`, h24ago)
-		if err == nil {
-			defer provImageHourlyRows.Close()
-			for provImageHourlyRows.Next() {
-				var p, h string
-				var c int
-				provImageHourlyRows.Scan(&p, &h, &c)
-				if provMap, ok := providerHourlyMap[p]; ok {
-					if stat, ok := provMap[h]; ok {
-						stat.Images = c
+			if imgRows, err := rawDb.Query(`
+				SELECT strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
+				FROM images WHERE scraped_at >= ? GROUP BY hour
+			`, h24ago); err == nil {
+				for imgRows.Next() {
+					var h string
+					var c int
+					imgRows.Scan(&h, &c)
+					if s, ok := allMap[h]; ok {
+						s.Images = c
 					}
 				}
+				imgRows.Close()
 			}
-		}
-		log.Printf("[status] per-provider hourly stats (2 queries): %v", time.Since(t)); t = time.Now()
 
-		// Append provider specific stats to the main list
-		for _, pm := range resp.PerProvider {
-			if provMap, ok := providerHourlyMap[pm.Provider]; ok {
-				for i := 23; i >= 0; i-- {
-					h := now.Add(-time.Duration(i) * time.Hour).Format("2006-01-02 15:00:00")
-					resp.HourlyStats = append(resp.HourlyStats, *provMap[h])
+			// Per-provider blocks — discovered from the rows themselves (no
+			// dependency on the providers section).
+			provOrder := []string{}
+			provMaps := map[string]map[string]*HourlyStat{}
+			ensure := func(p string) map[string]*HourlyStat {
+				m, ok := provMaps[p]
+				if !ok {
+					m = make(map[string]*HourlyStat, 24)
+					for _, h := range hours {
+						m[h] = &HourlyStat{Hour: h, Provider: p}
+					}
+					provMaps[p] = m
+					provOrder = append(provOrder, p)
+				}
+				return m
+			}
+			if pcRows, err := rawDb.Query(`
+				SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
+				FROM scraped_cafes WHERE scraped_at >= ? GROUP BY provider, hour
+			`, h24ago); err == nil {
+				for pcRows.Next() {
+					var p, h string
+					var c int
+					pcRows.Scan(&p, &h, &c)
+					if s, ok := ensure(p)[h]; ok {
+						s.Cafes = c
+					}
+				}
+				pcRows.Close()
+			}
+			if piRows, err := rawDb.Query(`
+				SELECT provider, strftime('%Y-%m-%d %H:00:00', scraped_at) as hour, COUNT(*)
+				FROM images WHERE scraped_at >= ? GROUP BY provider, hour
+			`, h24ago); err == nil {
+				for piRows.Next() {
+					var p, h string
+					var c int
+					piRows.Scan(&p, &h, &c)
+					if s, ok := ensure(p)[h]; ok {
+						s.Images = c
+					}
+				}
+				piRows.Close()
+			}
+
+			out := StatsHourly{}
+			for _, h := range hours {
+				out.HourlyStats = append(out.HourlyStats, *allMap[h])
+			}
+			for _, p := range provOrder {
+				for _, h := range hours {
+					out.HourlyStats = append(out.HourlyStats, *provMaps[p][h])
 				}
 			}
-		}
+			return out, nil
+		})
+	})
 
-		resp.Disk = getDiskStats(dataDir)
-		resp.DbQueue = getQueueStats(dataDir)
-		log.Printf("[status] getDiskStats + getQueueStats: %v", time.Since(t)); t = time.Now()
+	// GET /api/stats/tagging — image-tagger progress (clean.db). Slow (~10s, COUNT DISTINCT).
+	mux.HandleFunc("/api/stats/tagging", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statsTaggingCache.serve(w, 120*time.Second, func() (interface{}, error) {
+			now := time.Now().UTC()
+			h1agoISO := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
+			var t StatsTagging
+			db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL`).Scan(&t.OverallTaggedImages)
+			var imgsLastHour int
+			db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL AND tagged_at >= ?`, h1agoISO).Scan(&imgsLastHour)
+			t.OverallImgsPerHour = float64(imgsLastHour)
+			return t, nil
+		})
+	})
 
-		// Tagger stats — from clean.db image_tags
-		// COUNT(DISTINCT) over named taggers only (~874k rows); no GROUP BY needed.
-		h1agoISO := now.Add(-1 * time.Hour).Format("2006-01-02T15:04:05")
-		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL`).Scan(&resp.OverallTaggedImages)
-		var imgsLastHour int
-		db.QueryRow(`SELECT COUNT(DISTINCT image_id) FROM image_tags WHERE tagger IS NOT NULL AND tagged_at >= ?`, h1agoISO).Scan(&imgsLastHour)
-		resp.OverallImgsPerHour = float64(imgsLastHour)
-		log.Printf("[status] tagger stats (clean.db, 2 queries): %v", time.Since(t)); t = time.Now()
-
-		// Pipeline funnel metrics: raw (scraped.db) → merged (clean.db) → images.
-		db.QueryRow(`SELECT COUNT(*) FROM clean_cafes`).Scan(&resp.MergedCafes)
-		var mergedScraped int
-		db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE belongs_to_cafe_id IS NOT NULL`).Scan(&mergedScraped)
-		if resp.MergeQueue = resp.TotalCafes - mergedScraped; resp.MergeQueue < 0 {
-			resp.MergeQueue = 0
-		}
-		// Image stages from clean.db so total ≥ downloaded ≥ processed holds.
-		db.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&resp.ImagesTotal)
-		db.QueryRow(`SELECT COUNT(*) FROM images WHERE file_size > 0`).Scan(&resp.ImagesDownloaded)
-		log.Printf("[status] funnel stats (4 queries): %v", time.Since(t)); t = time.Now()
-
-		body, err := json.Marshal(resp)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		statusCacheBody = body
-		statusCachedAt = time.Now()
-
-		log.Printf("[status] TOTAL elapsed: %v", time.Since(tTotal))
-		w.Write(body)
+	// GET /api/stats/funnel — pipeline funnel (clean.db image scans). Slowest (~25s).
+	mux.HandleFunc("/api/stats/funnel", func(w http.ResponseWriter, r *http.Request) {
+		corsJSON(w)
+		statsFunnelCache.serve(w, 120*time.Second, func() (interface{}, error) {
+			var f StatsFunnel
+			var totalCafes, mergedScraped int
+			rawDb.QueryRow(`SELECT COUNT(*) FROM scraped_cafes`).Scan(&totalCafes)
+			db.QueryRow(`SELECT COUNT(*) FROM clean_cafes`).Scan(&f.MergedCafes)
+			db.QueryRow(`SELECT COUNT(*) FROM scraped_cafes WHERE belongs_to_cafe_id IS NOT NULL`).Scan(&mergedScraped)
+			if f.MergeQueue = totalCafes - mergedScraped; f.MergeQueue < 0 {
+				f.MergeQueue = 0
+			}
+			db.QueryRow(`SELECT COUNT(*) FROM images`).Scan(&f.ImagesTotal)
+			db.QueryRow(`SELECT COUNT(*) FROM images WHERE file_size > 0`).Scan(&f.ImagesDownloaded)
+			return f, nil
+		})
 	})
 
 	scraperDir := os.Getenv("SCRAPER_DIR")

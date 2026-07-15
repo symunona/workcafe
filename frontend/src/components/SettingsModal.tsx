@@ -166,6 +166,49 @@ function Spinner() {
   return <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
 }
 
+// ─── Progressive stats sections ────────────────────────────────────────────────
+// The old /api/status computed everything in one blocking request; the slowest
+// clean.db scans (funnel ~25s, tagging ~10s) made the whole panel spin forever.
+// We now fan out to per-section endpoints and render each as it lands.
+type StatsSection = 'overview' | 'hourly' | 'providers' | 'coverage' | 'tagging' | 'funnel'
+
+// Per-section typical durations, in ms. One-time benchmark on clean.db (5GB) /
+// scraped.db (2GB), warm cache, xayah 2026-07 — see api/main.go /api/stats/*.
+const STATS_TIMINGS: Record<StatsSection, number> = {
+  overview:  300,    // summary cards + services + disk (scraped.db, ~10 fast COUNTs)
+  hourly:    1500,   // 24h activity series (scraped.db strftime GROUP BY)
+  providers: 4500,   // scraping-metrics table (json_extract + image GROUP BY)
+  coverage:  7000,   // image-coverage table (nested per-cafe image subquery)
+  tagging:   10000,  // tagger progress (clean.db COUNT DISTINCT image_id, ~8-14s)
+  funnel:    25000,  // pipeline funnel (clean.db file_size>0 full scan, ~20-30s)
+}
+
+const STATS_ENDPOINT: Record<StatsSection, string> = {
+  overview:  '/api/stats/overview',
+  hourly:    '/api/stats/hourly',
+  providers: '/api/stats/providers',
+  coverage:  '/api/stats/coverage',
+  tagging:   '/api/stats/tagging',
+  funnel:    '/api/stats/funnel',
+}
+
+function fmtEstimate(ms: number): string {
+  return ms >= 1000 ? `~${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)}s typical` : `~${ms}ms typical`
+}
+
+// A small inline "loading, ~Ns typical" chip shown while a section's data is in flight.
+function SectionLoading({ section, label }: { section: StatsSection; label: string }) {
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">{label}</h3>
+      <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center gap-2.5 text-gray-400">
+        <Spinner />
+        <span className="text-xs">Loading… <span className="text-gray-300">{fmtEstimate(STATS_TIMINGS[section])}</span></span>
+      </div>
+    </div>
+  )
+}
+
 interface SettingsModalProps {
   onClose: () => void
   showToggles?: boolean
@@ -223,10 +266,29 @@ const SERVICE_TECH: Record<string, ServiceTech> = {
   },
 }
 
+const ALL_SECTIONS: StatsSection[] = ['overview', 'hourly', 'providers', 'coverage', 'tagging', 'funnel']
+
+// Shallow-merge a section payload into the accumulating status object. per_provider
+// arrives from two sections (providers + coverage) with disjoint column sets, so we
+// merge those rows by provider instead of letting one payload clobber the other.
+function mergeSection(prev: Partial<StatusData>, patch: any): Partial<StatusData> {
+  const next: any = { ...prev, ...patch }
+  if (patch.per_provider) {
+    const byProvider = new Map<string, any>((prev.per_provider ?? []).map(p => [p.provider, { ...p }]))
+    for (const p of patch.per_provider as any[]) {
+      byProvider.set(p.provider, { ...(byProvider.get(p.provider) ?? {}), ...p })
+    }
+    next.per_provider = Array.from(byProvider.values())
+  }
+  return next
+}
+
 export function SettingsModal({ onClose, showToggles = false }: SettingsModalProps) {
-  const [status, setStatus] = useState<StatusData | null>(null)
+  const [status, setStatus] = useState<Partial<StatusData>>({})
   const [watchdog, setWatchdog] = useState<WatchdogStatus | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [sectionState, setSectionState] = useState<Record<StatsSection, 'loading' | 'done' | 'error'>>(
+    () => Object.fromEntries(ALL_SECTIONS.map(s => [s, 'loading'])) as Record<StatsSection, 'loading' | 'done' | 'error'>
+  )
   const [toggling, setToggling] = useState<Record<string, boolean>>({})
   const [expanded, setExpanded] = useState<string | null>(null)
   const [logLines, setLogLines] = useState<Record<string, string[]>>({})
@@ -247,15 +309,32 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
     return sorted.slice(0, -1)
   }, [status?.hourly_stats])
 
+  // Chart lines are driven by the providers present in the hourly series itself,
+  // so the chart does not have to wait on the (slower) providers section.
+  const hourlyProviders = useMemo(() => {
+    const seen = new Set<string>()
+    for (const s of status?.hourly_stats ?? []) {
+      if (s.provider && s.provider !== 'all') seen.add(s.provider)
+    }
+    return Array.from(seen)
+  }, [status?.hourly_stats])
+
   const fetchStatus = useCallback(() => {
-    Promise.all([
-      fetch('/api/status').then(r => r.json()),
-      fetch('/api/watchdog-status').then(r => r.json()).catch(() => null),
-    ]).then(([s, w]) => {
-      setStatus(s)
-      setWatchdog(w)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    // Fan out: each section resolves independently and paints as soon as it lands,
+    // so a fast section (overview ~300ms) never waits on a slow one (funnel ~25s).
+    setSectionState(prev => Object.fromEntries(
+      ALL_SECTIONS.map(s => [s, prev[s] === 'done' ? 'done' : 'loading'])
+    ) as Record<StatsSection, 'loading' | 'done' | 'error'>)
+    for (const section of ALL_SECTIONS) {
+      fetch(STATS_ENDPOINT[section])
+        .then(r => r.json())
+        .then(data => {
+          setStatus(prev => mergeSection(prev, data))
+          setSectionState(prev => ({ ...prev, [section]: 'done' }))
+        })
+        .catch(() => setSectionState(prev => ({ ...prev, [section]: 'error' })))
+    }
+    fetch('/api/watchdog-status').then(r => r.json()).then(setWatchdog).catch(() => null)
   }, [])
 
   useEffect(() => {
@@ -309,9 +388,15 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
   }
 
   const svcByName = Object.fromEntries((status?.services ?? []).map(s => [s.name, s]))
-  const scraperActive = status?.services.some(s =>
+  const scraperActive = status?.services?.some(s =>
     ['kakao', 'google', 'osm', 'naver', 'kakao-images', 'naver-images', 'google-images'].includes(s.name) && s.active
   ) ?? false
+
+  // The panel shell renders as soon as the fast "overview" section lands; every
+  // slower section streams into its own slot below (each with its own spinner).
+  const ready = (s: StatsSection) => sectionState[s] === 'done'
+  const loading = sectionState.overview === 'loading'
+  const failed = sectionState.overview === 'error'
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 flex items-end sm:items-center justify-center sm:p-6 backdrop-blur-sm animate-in fade-in">
@@ -385,7 +470,7 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               </div>
             </div>
           </div>
-        ) : !status ? (
+        ) : failed ? (
           <div className="flex-1 flex items-center justify-center text-red-500">Failed to load status</div>
         ) : (
           <div className="flex-1 overflow-y-auto">
@@ -394,10 +479,10 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                 {[
-                  { label: 'Cafes / hr', value: status.cafes_last_hour, sub: `${status.cafes_24h} today` },
-                  { label: 'Imgs DL / hr', value: status.downloaded_last_hour, sub: `${status.downloaded_24h} today` },
-                  { label: 'Total cafes', value: status.total_cafes.toLocaleString(), sub: `last ${timeSince(status.last_cafe_at)}` },
-                  { label: 'Total images', value: status.total_images.toLocaleString(), sub: `last ${timeSince(status.last_image_at)}` },
+                  { label: 'Cafes / hr', value: status.cafes_last_hour ?? 0, sub: `${status.cafes_24h ?? 0} today` },
+                  { label: 'Imgs DL / hr', value: status.downloaded_last_hour ?? 0, sub: `${status.downloaded_24h ?? 0} today` },
+                  { label: 'Total cafes', value: (status.total_cafes ?? 0).toLocaleString(), sub: `last ${timeSince(status.last_cafe_at ?? '')}` },
+                  { label: 'Total images', value: (status.total_images ?? 0).toLocaleString(), sub: `last ${timeSince(status.last_image_at ?? '')}` },
                   { label: 'GB / day', value: status.mb_per_day ? `${(status.mb_per_day / 1024).toFixed(1)} GB` : '—', sub: status.mb_per_day ? `~${Math.round(status.mb_per_day / 24)} MB/hr` : '' },
                 ].map(card => (
                   <div key={card.label} className="bg-gray-50 rounded-xl p-3 flex flex-col gap-0.5">
@@ -409,11 +494,13 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               </div>
 
               {/* Pipeline funnel: scrape → merge → images → tag */}
-              {(() => {
-                const raw = status.total_cafes
+              {!ready('funnel') ? (
+                <SectionLoading section="funnel" label="Pipeline" />
+              ) : (() => {
+                const raw = status.total_cafes ?? 0
                 const mq = status.funnel_merge_queue ?? 0
                 const merged = status.funnel_merged_cafes ?? 0
-                const imgTotal = status.funnel_images_total ?? status.total_images
+                const imgTotal = status.funnel_images_total ?? status.total_images ?? 0
                 const dl = status.funnel_images_downloaded ?? 0
                 const tagged = status.overall_tagged_images ?? 0
                 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : '—')
@@ -445,7 +532,9 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               })()}
 
               {/* Hourly chart */}
-              {chartData.length > 0 && (
+              {!ready('hourly') ? (
+                <SectionLoading section="hourly" label="Activity (Last 24h)" />
+              ) : chartData.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Activity (Last 24h)</h3>
                   <div className="bg-white border border-gray-100 rounded-xl p-3 h-[280px]">
@@ -465,11 +554,11 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
                           labelFormatter={val => new Date(val.replace(' ', 'T') + 'Z').toLocaleString()}
                         />
                         <Legend wrapperStyle={{ fontSize: '11px' }} />
-                        {status.per_provider.map(p => (
-                          <Line key={`${p.provider}_cafes`} yAxisId="left" type="monotone" dataKey={`${p.provider}_cafes`} name={`${p.provider} scraped_cafes`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
+                        {hourlyProviders.map(prov => (
+                          <Line key={`${prov}_cafes`} yAxisId="left" type="monotone" dataKey={`${prov}_cafes`} name={`${prov} scraped_cafes`} stroke={PROVIDER_COLORS[prov] || '#000'} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
                         ))}
-                        {status.per_provider.map(p => (
-                          <Line key={`${p.provider}_images`} yAxisId="right" type="monotone" dataKey={`${p.provider}_images`} name={`${p.provider} imgs`} stroke={PROVIDER_COLORS[p.provider] || '#000'} strokeWidth={1.5} strokeDasharray="4 4" dot={false} activeDot={{ r: 3 }} />
+                        {hourlyProviders.map(prov => (
+                          <Line key={`${prov}_images`} yAxisId="right" type="monotone" dataKey={`${prov}_images`} name={`${prov} imgs`} stroke={PROVIDER_COLORS[prov] || '#000'} strokeWidth={1.5} strokeDasharray="4 4" dot={false} activeDot={{ r: 3 }} />
                         ))}
                       </LineChart>
                     </ResponsiveContainer>
@@ -675,7 +764,9 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               )}
 
               {/* Per-provider metrics */}
-              {(status.per_provider || []).length > 0 && (
+              {!ready('providers') ? (
+                <SectionLoading section="providers" label="Scraping Metrics" />
+              ) : (status.per_provider || []).length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Scraping Metrics</h3>
                   <div className="border border-gray-100 rounded-xl overflow-x-auto">
@@ -695,7 +786,7 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
                         {(status.per_provider || []).map((p, i) => (
                           <tr key={p.provider} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                             <td className="px-3 py-2 font-medium text-gray-800 capitalize">{p.provider}</td>
-                            <td className="px-3 py-2 text-right text-gray-700">{p.total.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-right text-gray-700">{(p.total ?? 0).toLocaleString()}</td>
                             <td className="px-3 py-2 text-right">
                               {(p.has_website ?? 0) > 0 ? (
                                 <>
@@ -721,7 +812,9 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               )}
 
               {/* Image coverage */}
-              {(status.per_provider || []).some(p => p.cafes_with_images > 0) && (
+              {!ready('coverage') ? (
+                <SectionLoading section="coverage" label="Image Coverage" />
+              ) : (status.per_provider || []).some(p => (p.cafes_with_images ?? 0) > 0) && (
                 <div>
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Image Coverage</h3>
                   <div className="border border-gray-100 rounded-xl overflow-x-auto">
@@ -738,22 +831,23 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
                         </tr>
                       </thead>
                       <tbody>
-                        {(status.per_provider || []).filter(p => p.total > 0).map((p, i) => {
-                          const pct = p.total > 0 ? Math.round(p.cafes_with_images / p.total * 100) : 0
+                        {(status.per_provider || []).filter(p => (p.cafes_with_images ?? 0) > 0).map((p, i) => {
+                          const total = p.total ?? 0
+                          const pct = total > 0 ? Math.round((p.cafes_with_images ?? 0) / total * 100) : 0
                           return (
                             <tr key={p.provider} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
                               <td className="px-3 py-2 font-medium text-gray-800 capitalize">{p.provider}</td>
-                              <td className="px-3 py-2 text-right text-gray-600">{p.total.toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right text-gray-600">{total > 0 ? total.toLocaleString() : '—'}</td>
                               <td className="px-3 py-2 text-right">
-                                <span className={p.cafes_with_images > 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}>
-                                  {p.cafes_with_images.toLocaleString()}
+                                <span className={(p.cafes_with_images ?? 0) > 0 ? 'text-blue-600 font-medium' : 'text-gray-400'}>
+                                  {(p.cafes_with_images ?? 0).toLocaleString()}
                                 </span>
                                 <span className="text-gray-400 text-xs ml-1">({pct}%)</span>
                               </td>
-                              <td className="px-3 py-2 text-right text-gray-600">{p.cafes_2plus.toLocaleString()}</td>
-                              <td className="px-3 py-2 text-right text-gray-600">{p.cafes_10plus.toLocaleString()}</td>
-                              <td className="px-3 py-2 text-right text-gray-600">{p.cafes_50plus.toLocaleString()}</td>
-                              <td className="px-3 py-2 text-right text-gray-600">{p.avg_images > 0 ? p.avg_images.toFixed(1) : '—'}</td>
+                              <td className="px-3 py-2 text-right text-gray-600">{(p.cafes_2plus ?? 0).toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right text-gray-600">{(p.cafes_10plus ?? 0).toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right text-gray-600">{(p.cafes_50plus ?? 0).toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right text-gray-600">{(p.avg_images ?? 0) > 0 ? (p.avg_images ?? 0).toFixed(1) : '—'}</td>
                             </tr>
                           )
                         })}
@@ -766,7 +860,9 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
 
 
               {/* Image tagger progress */}
-              {(status.overall_tagged_images ?? 0) > 0 && (
+              {!ready('tagging') ? (
+                <SectionLoading section="tagging" label="Image Tagging" />
+              ) : (status.overall_tagged_images ?? 0) > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Image Tagging</h3>
                   <div className="bg-gray-50 rounded-xl px-4 py-3 flex flex-col gap-1.5">
@@ -777,16 +873,16 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
                         {(status.overall_imgs_per_hour ?? 0) > 0 && (
                           <span className="text-violet-600 font-medium">{(status.overall_imgs_per_hour ?? 0).toLocaleString()} imgs/hr</span>
                         )}
-                        <span className="text-gray-500">{(status.overall_tagged_images ?? 0).toLocaleString()} / {status.total_images.toLocaleString()}</span>
+                        <span className="text-gray-500">{(status.overall_tagged_images ?? 0).toLocaleString()} / {(status.total_images ?? 0).toLocaleString()}</span>
                         <span className="font-semibold text-gray-700">
-                          {status.total_images > 0 ? ((status.overall_tagged_images ?? 0) / status.total_images * 100).toFixed(1) : '0'}%
+                          {(status.total_images ?? 0) > 0 ? ((status.overall_tagged_images ?? 0) / (status.total_images ?? 1) * 100).toFixed(1) : '0'}%
                         </span>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-1.5">
                       <div
                         className="h-1.5 rounded-full bg-violet-500 transition-all"
-                        style={{ width: `${status.total_images > 0 ? Math.min((status.overall_tagged_images ?? 0) / status.total_images * 100, 100) : 0}%` }}
+                        style={{ width: `${(status.total_images ?? 0) > 0 ? Math.min((status.overall_tagged_images ?? 0) / (status.total_images ?? 1) * 100, 100) : 0}%` }}
                       />
                     </div>
                   </div>
@@ -794,10 +890,10 @@ export function SettingsModal({ onClose, showToggles = false }: SettingsModalPro
               )}
 
               <div className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 rounded-xl px-4 py-3">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: healthColor(status.last_cafe_at || status.last_image_at, scraperActive) }} />
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: healthColor(status.last_cafe_at || status.last_image_at || '', scraperActive) }} />
                 <span className="flex-1 text-xs">
                   {scraperActive
-                    ? `Scrapers active · last cafe ${timeSince(status.last_cafe_at)} · last image ${timeSince(status.last_image_at)}`
+                    ? `Scrapers active · last cafe ${timeSince(status.last_cafe_at ?? '')} · last image ${timeSince(status.last_image_at ?? '')}`
                     : 'No scrapers active'}
                 </span>
                 <button onClick={fetchStatus} className="text-xs text-blue-500 hover:text-blue-700 transition-colors shrink-0">Refresh</button>
