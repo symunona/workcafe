@@ -1111,8 +1111,10 @@ image-pipeline vit="swin_large":
     #!/usr/bin/env bash
     set -euo pipefail
     SESSION="image-pipeline"
-    if pgrep -f "tag_images_ram.py" > /dev/null; then
-        echo "image-pipeline already running (PID $(pgrep -f tag_images_ram.py | head -1)). Attach with: tmux attach -t $SESSION"
+    # [t]ag_… bracket trick (as used by the status/stop recipes) so the guard
+    # doesn't match its own pgrep; avoids a false "already running" skip.
+    if pgrep -f "[t]ag_images_ram" > /dev/null; then
+        echo "image-pipeline already running (PID $(pgrep -f '[t]ag_images_ram' | head -1)). Attach with: tmux attach -t $SESSION"
         exit 0
     fi
     PY="$(pwd)/venv/bin/python3"
