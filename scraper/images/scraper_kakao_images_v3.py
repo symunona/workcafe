@@ -28,6 +28,7 @@ Usage:
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -427,9 +428,21 @@ def process_one_page(dbc, session, cafe_id, provider_id, metadata, page, ua=None
     if page == 1:
         log.info(f"  total={total} counts={counts}")
 
-    # Filename index starts after however many images are already in DB
     db_count = dbc.fetchval('SELECT COUNT(*) FROM images WHERE cafe_id=?', (cafe_id,)) or 0
-    idx = db_count
+
+    # Filename index continues past the highest photo_NNNN already ON DISK.
+    #
+    # It used to be `idx = db_count`. That ties the filename counter to the row
+    # count, so deleting rows rewinds it: the next scrape re-issues photo_0000.jpg
+    # for a *different* photo, silently rebinding an existing file to new metadata.
+    # That is what produced the 2026-04 mess (~135k paths whose rows described a
+    # photo the file no longer held). Disk is the only thing that actually
+    # constrains a filename, so ask disk.
+    idx = 0
+    if os.path.isdir(img_dir):
+        used = [int(m.group(1)) for f in os.listdir(img_dir)
+                if (m := re.match(r'photo_(\d+)\.jpg$', f))]
+        idx = max(used) + 1 if used else 0
 
     all_local = list(metadata.get('local_images', []))
     new_downloads = 0

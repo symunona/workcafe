@@ -53,6 +53,12 @@ def main():
 
     print(f"Deleting {len(to_delete)} duplicate cafe rows...")
     for cafe_id in to_delete:
+        # image_tags has no enforced FK (SQLite foreign_keys defaults OFF), so a
+        # bare DELETE FROM images strands its tags. Clear tags first. (This gap
+        # produced ~97k orphan image_tags rows in Apr–May 2026.)
+        dbc.execute(
+            "DELETE FROM image_tags WHERE image_id IN "
+            "(SELECT id FROM images WHERE cafe_id = ?)", (cafe_id,))
         dbc.execute("DELETE FROM images WHERE cafe_id = ?", (cafe_id,))
         dbc.execute("DELETE FROM scraped_cafes WHERE id = ?", (cafe_id,))
 

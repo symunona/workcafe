@@ -428,8 +428,20 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
             ext = 'jpg'
         fname = f"img_{idx}.{ext}"
         save_path = os.path.join(img_dir, fname)
+        local_path = f"/images/google/{safe_id}/images/{fname}"
+        photo_id = f"{cafe_id}_{idx}"
 
-        if os.path.exists(save_path) and not force:
+        row_exists = dbc.fetchone(
+            'SELECT 1 FROM images WHERE cafe_id=? AND photo_id=?',
+            (cafe_id, photo_id)
+        )
+
+        # Only skip when the file AND its row are both present. A file with no row
+        # is an orphan, and photo_id/fname are positional — the file sitting at this
+        # index was written by an earlier pass and need not be imgs[idx] any more, so
+        # pairing it with today's URL would record a wrong image_url. Re-download it
+        # instead (same reasoning as scraper_kakao_images_v3).
+        if os.path.exists(save_path) and row_exists and not force:
             downloaded += 1
             continue
 
@@ -445,18 +457,19 @@ def process_cafe(dbc, page, session, cafe_id, provider_id, cafe_url, proxy, stat
                 log.warning(f"  {cafe_id}: file missing/empty after download, skipping DB insert: {save_path}")
                 continue
             downloaded += 1
-            local_path = f"/images/google/{safe_id}/images/{fname}"
-            photo_id = f"{cafe_id}_{idx}"
-            row_exists = dbc.fetchone(
-                'SELECT 1 FROM images WHERE cafe_id=? AND photo_id=?',
-                (cafe_id, photo_id)
-            )
-            if not row_exists:
+            # `images` has no UNIQUE(cafe_id, photo_id), so INSERT OR REPLACE would
+            # append a duplicate rather than replace. Update in place when re-fetching.
+            if row_exists:
+                dbc.execute('''
+                    UPDATE images SET local_path=?, image_url=?, file_size=?
+                    WHERE cafe_id=? AND photo_id=?
+                ''', (local_path, img_url, file_size, cafe_id, photo_id))
+            else:
                 belongs_to = dbc.fetchval(
                     'SELECT belongs_to_cafe_id FROM scraped_cafes WHERE id = ?', (cafe_id,)
                 )
                 dbc.execute('''
-                    INSERT OR REPLACE INTO images
+                    INSERT INTO images
                       (cafe_id, provider, local_path, image_url, photo_id, belongs_to_cafe_id, file_size)
                     VALUES (?,?,?,?,?,?,?)
                 ''', (cafe_id, 'google', local_path, img_url, photo_id, belongs_to, file_size))

@@ -97,6 +97,9 @@ def main():
     for i in range(0, len(ghost_ids), batch):
         chunk = ghost_ids[i : i + batch]
         placeholders = ",".join("?" * len(chunk))
+        # Clear tags first — image_tags has no enforced FK (foreign_keys OFF),
+        # so deleting an image row alone strands its tags as orphans.
+        conn.execute(f"DELETE FROM image_tags WHERE image_id IN ({placeholders})", chunk)
         conn.execute(f"DELETE FROM images WHERE id IN ({placeholders})", chunk)
         deleted += len(chunk)
 

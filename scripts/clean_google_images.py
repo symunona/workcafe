@@ -101,6 +101,16 @@ class DB:
             self._conn.execute(sql, params)
             self._conn.commit()
 
+    def delete_images(self, ids):
+        """Delete image rows AND their tags. image_tags has no enforced FK
+        (SQLite foreign_keys defaults OFF), so a bare DELETE FROM images
+        strands tags as orphans — clear them in the same batch."""
+        for i in range(0, len(ids), 500):
+            chunk = ids[i:i + 500]
+            ph = ",".join("?" * len(chunk))
+            self.execute(f"DELETE FROM image_tags WHERE image_id IN ({ph})", chunk)
+            self.execute(f"DELETE FROM images WHERE id IN ({ph})", chunk)
+
     def close(self):
         if self._conn:
             self._conn.close()
@@ -204,10 +214,7 @@ def phase_avatars(db, apply):
         maybe_unlink(lp, surviving, apply, removed)
     if apply:
         # delete in chunks
-        for i in range(0, len(ids), 500):
-            chunk = ids[i:i + 500]
-            ph = ",".join("?" * len(chunk))
-            db.execute(f"DELETE FROM images WHERE id IN ({ph})", chunk)
+        db.delete_images(ids)
     print(f"[{db.label}] avatars: {'DELETED' if apply else 'would delete'} "
           f"{len(ids)} rows, {removed[0]} files")
     return len(ids), removed[0]
@@ -249,10 +256,7 @@ def phase_gps(db, meters, apply):
     for _rid, lp in far_rows:
         maybe_unlink(lp, surviving, apply, removed)
     if apply:
-        for i in range(0, len(far_ids), 500):
-            chunk = far_ids[i:i + 500]
-            ph = ",".join("?" * len(chunk))
-            db.execute(f"DELETE FROM images WHERE id IN ({ph})", chunk)
+        db.delete_images(far_ids)
     print(f"[{db.label}] gps: {'DELETED' if apply else 'would delete'} "
           f"{len(far_ids)} rows, {removed[0]} files")
     return len(far_ids), removed[0]
@@ -273,10 +277,7 @@ def phase_purge(db, cafe_ids, apply, delete_files):
     print(f"[{db.label}] purge: {len(ids)} google rows across {len(cset)} cafes; "
           f"{len(dirs)} image dirs")
     if apply and ids:
-        for i in range(0, len(ids), 500):
-            chunk = ids[i:i + 500]
-            ph = ",".join("?" * len(chunk))
-            db.execute(f"DELETE FROM images WHERE id IN ({ph})", chunk)
+        db.delete_images(ids)
     removed_dirs = 0
     if delete_files:
         import shutil
